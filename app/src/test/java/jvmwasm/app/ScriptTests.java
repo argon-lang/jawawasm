@@ -23,7 +23,6 @@ class ScriptTests {
 
     @TestFactory
 	Stream<DynamicTest> wastScriptTests() throws IOException {
-//		throw new RuntimeException(Path.of("../webassembly-spec/test/core").toAbsolutePath().toString());
 		return Files.walk(Path.of("../webassembly-spec/test/core"))
 				.filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".wast") && !excludedTests.contains(path.getFileName().toString()))
 				.map(path -> DynamicTest.dynamicTest(path.getFileName().toString(), () -> runWastScript(path)));

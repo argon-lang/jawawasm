@@ -19,13 +19,12 @@ dependencies {
 
 
 tasks.withType<JavaCompile> {
-    options.compilerArgs.add("--enable-preview")
-    options.release.set(19)
+    options.release.set(22)
 }
 
 tasks.named<Test>("test") {
     useJUnitPlatform()
-    jvmArgs(listOf("--enable-preview", "-Xmx8192m"))
+    jvmArgs(listOf("-Xmx8192m"))
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
 }
 

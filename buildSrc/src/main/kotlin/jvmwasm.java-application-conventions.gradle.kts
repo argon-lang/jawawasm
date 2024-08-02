@@ -11,6 +11,6 @@ plugins {
 }
 
 tasks.withType<JavaExec> {
-    jvmArgs = listOf("--enable-preview", "-Xmx8192m")
+    jvmArgs = listOf("-Xmx8192m")
 }
 

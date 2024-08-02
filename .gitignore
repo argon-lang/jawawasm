@@ -1,7 +1,9 @@
 .idea/
+.vscode/
 
 .gradle
 build
 gradlew
 gradlew.bat
 gradle/
+bin/

@@ -31,7 +31,7 @@ public class ModuleReader {
 	private final InputStream is;
 	private final long moduleLength;
 	private long offset = 0;
-	private boolean hasDataIdx = false;
+	private boolean hasDataCount = false;
 	private long sectionStart = -1;
 	private long sectionSize;
 
@@ -1350,6 +1350,11 @@ public class ModuleReader {
 	public MemoryInstr.MemArg readMemArg() throws IOException, ModuleFormatException {
 		var align = readU32();
 		var offset = readU32();
+
+		if(align >= 32) {
+			throw new ModuleFormatException("malformed memop flags");
+		}
+
 		return new MemoryInstr.MemArg(offset, align);
 	}
 
@@ -1396,7 +1401,10 @@ public class ModuleReader {
 		return new ElemIdx(readU32());
 	}
 	public DataIdx readDataIdx() throws IOException, ModuleFormatException {
-		hasDataIdx = true;
+		if(!hasDataCount) {
+			throw new ModuleFormatException("data count section required");
+		}
+
 		return new DataIdx(readU32());
 	}
 	public MemIdx readMemIdx() throws IOException, ModuleFormatException {
@@ -1647,20 +1655,31 @@ public class ModuleReader {
 		return readU32();
 	}
 
+	private static final int[] SECTION_ORDER = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 10, 11 };
+
+	private int getSectionIndex(int section) {
+		for(int i = 0; i < SECTION_ORDER.length; ++i) {
+			if(SECTION_ORDER[i] == section) {
+				return i;
+			}
+		}
+
+		return -1;
+	}
+
+
 	public Module readModule() throws IOException, ModuleFormatException {
-		@Nullable List<? extends FuncType> types = null;
-		@Nullable List<? extends TypeIdx> funcTypes = null;
-		@Nullable List<? extends Table> tables = null;
-		@Nullable List<? extends Mem> mems = null;
-		@Nullable List<? extends Global> globals = null;
-		@Nullable List<? extends Elem> elems = null;
-		@Nullable List<? extends Data> datas = null;
-		boolean seenStart = false;
+		List<? extends FuncType> types = new ArrayList<>();
+		List<? extends TypeIdx> funcTypes = new ArrayList<>();
+		List<? extends Table> tables = new ArrayList<>();
+		List<? extends Mem> mems = new ArrayList<>();
+		List<? extends Global> globals = new ArrayList<>();
+		List<? extends Elem> elems = new ArrayList<>();
+		List<? extends Data> datas = new ArrayList<>();
 		@Nullable Start start = null;
-		@Nullable List<? extends Import> imports = null;
-		@Nullable List<? extends Export> exports = null;
-		@Nullable List<? extends Code> codeSec = null;
-		boolean seenDataCount = false;
+		List<? extends Import> imports = new ArrayList<>();
+		List<? extends Export> exports = new ArrayList<>();
+		List<? extends Code> codeSec = new ArrayList<>();
 		int dataCount = 0;
 
 		try {
@@ -1674,6 +1693,8 @@ public class ModuleReader {
 				throw new ModuleFormatException("unknown binary version");
 			}
 
+			int lastSection = 0;
+
 			while(true) {
 				int section = is.read();
 				if(section < 0) {
@@ -1682,6 +1703,14 @@ public class ModuleReader {
 				++offset;
 
 				int size = readU32();
+
+				System.err.println("section " + section);
+
+				int sectionIndex = getSectionIndex(section);
+				// If the section id is invalid, allow it to reach the failing case.
+				if(section != 0 && sectionIndex >= 0 && sectionIndex <= getSectionIndex(lastSection)) {
+					throw new ModuleFormatException("unexpected content after last section");
+				}
 
 				switch(section) {
 					case 0 -> {
@@ -1702,101 +1731,54 @@ public class ModuleReader {
 						});
 					}
 					case 1 -> {
-						if(types != null) {
-							throw new ModuleFormatException("duplicate type section");
-						}
 						types = readSection(size, this::readTypeSectionContent);
 					}
 					case 2 -> {
-						if(imports != null) {
-							throw new ModuleFormatException("duplicate import section");
-						}
 						imports = readSection(size, this::readImportSectionContent);
 					}
 					case 3 -> {
-						if(funcTypes != null) {
-							throw new ModuleFormatException("duplicate function section");
-						}
 						funcTypes = readSection(size, this::readFunctionSectionContent);
 					}
 					case 4 -> {
-						if(tables != null) {
-							throw new ModuleFormatException("duplciate table section");
-						}
 						tables = readSection(size, this::readTableSectionContent);
 					}
 					case 5 -> {
-						if(mems != null) {
-							throw new ModuleFormatException("duplicate mem section");
-						}
 						mems = readSection(size, this::readMemorySectionContent);
 					}
 					case 6 -> {
-						if(globals != null) {
-							throw new ModuleFormatException("duplicate global section");
-						}
 						globals = readSection(size, this::readGlobalSectionContent);
 					}
 					case 7 -> {
-						if(exports != null) {
-							throw new ModuleFormatException("duplicate export section");
-						}
 						exports = readSection(size, this::readExportSectionContent);
 					}
 					case 8 -> {
-						if(seenStart) {
-							throw new ModuleFormatException("unexpected content after last section");
-						}
-						seenStart = true;
 						start = readSection(size, this::readStartSectionContent);
 					}
 					case 9 -> {
-						if(elems != null) {
-							throw new ModuleFormatException("duplicate elem section");
-						}
 						elems = readSection(size, this::readElementSectionContent);
 					}
 					case 10 -> {
-						if(codeSec != null) {
-							throw new ModuleFormatException("duplicate code section");
-						}
 						codeSec = readSection(size, this::readCodeSectionContent);
 					}
 					case 11 -> {
-						if(datas != null) {
-							throw new ModuleFormatException("duplicate data section");
-						}
 						datas = readSection(size, this::readDataSectionContent);
 					}
 					case 12 -> {
-						seenDataCount = true;
+						hasDataCount = true;
 						dataCount = readSection(size, this::readDataCountSectionContent);
 					}
 					default -> throw new ModuleFormatException("malformed section id");
 				}
-			}
 
-			if(types == null) types = new ArrayList<>();
-			if(funcTypes == null) funcTypes = new ArrayList<>();
-			if(tables == null) tables = new ArrayList<>();
-			if(mems == null) mems = new ArrayList<>();
-			if(globals == null) globals = new ArrayList<>();
-			if(elems == null) elems = new ArrayList<>();
-			if(datas == null) datas = new ArrayList<>();
-			if(imports == null) imports = new ArrayList<>();
-			if(exports == null) exports = new ArrayList<>();
-			if(codeSec == null) codeSec = new ArrayList<>();
+				lastSection = section;
+			}
 
 			if(funcTypes.size() != codeSec.size()) {
 				throw new ModuleFormatException("function and code section have inconsistent lengths");
 			}
 
-			if(seenDataCount && dataCount != datas.size()) {
+			if(hasDataCount && dataCount != datas.size()) {
 				throw new ModuleFormatException("data count and data section have inconsistent lengths");
-			}
-
-			if(!seenDataCount && hasDataIdx) {
-				throw new ModuleFormatException("data count section required");
 			}
 
 			List<Func> funcs = new ArrayList<>(funcTypes.size());

@@ -15,8 +15,8 @@ public class SpecTestModule implements WasmModule {
 		this.output = output;
 		exports.put("global_i32", new WasmGlobal(new GlobalType(Mut.Const, NumType.I32), 666));
 		exports.put("global_i64", new WasmGlobal(new GlobalType(Mut.Const, NumType.I64), 666L));
-		exports.put("global_f32", new WasmGlobal(new GlobalType(Mut.Const, NumType.F32), 0.0f));
-		exports.put("global_f64", new WasmGlobal(new GlobalType(Mut.Const, NumType.F64), 0.0));
+		exports.put("global_f32", new WasmGlobal(new GlobalType(Mut.Const, NumType.F32), 666.6f));
+		exports.put("global_f64", new WasmGlobal(new GlobalType(Mut.Const, NumType.F64), 666.6));
 		exports.put("memory", WasmMemory.create(engine, new MemType(new Limits(1, 2))));
 		exports.put("table", new WasmTable(new TableType(new Limits(10, 20), new FuncRef())));
 		exports.put("print", new Print());

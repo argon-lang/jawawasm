@@ -2,14 +2,14 @@ package jvmwasm.engine;
 
 import jvmwasm.format.modules.Module;
 
-import java.lang.foreign.MemorySession;
+import java.lang.foreign.Arena;
 
 public class Engine implements AutoCloseable {
 	public Engine() {
-		session = MemorySession.openShared();
+		arena = Arena.ofShared();
 	}
 
-	private final MemorySession session;
+	private final Arena arena;
 
 	private int maxMemory = 0;
 
@@ -28,11 +28,11 @@ public class Engine implements AutoCloseable {
 	}
 
 	WasmMemoryNoResize allocateMemory(int pages) {
-		return new WasmMemoryImpl(session.allocate((long)pages * Util.PAGE_SIZE));
+		return new WasmMemoryImpl(arena.allocate((long)pages * Util.PAGE_SIZE));
 	}
 
 	@Override
 	public void close() throws Exception {
-		session.close();
+		arena.close();
 	}
 }
