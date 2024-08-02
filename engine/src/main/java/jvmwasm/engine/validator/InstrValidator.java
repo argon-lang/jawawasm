@@ -44,10 +44,10 @@ public class InstrValidator extends ValidatorBase {
 			case NumericInstr.I64_Const(var n) -> {}
 			case NumericInstr.F32_Const(var n) -> {}
 			case NumericInstr.F64_Const(var n) -> {}
-//			case NumericInstr.Inn_IBinOp(var size, var op)
-//				when op == NumericInstr.IBinOp.ADD
-//					|| op == NumericInstr.IBinOp.SUB
-//					|| op == NumericInstr.IBinOp.MUL -> {}
+			case NumericInstr.Inn_IBinOp(var size, var op)
+				when op == NumericInstr.IBinOp.ADD
+					|| op == NumericInstr.IBinOp.SUB
+					|| op == NumericInstr.IBinOp.MUL -> {}
 			case VectorInstr.V128_Const(var n) -> {}
 			case ReferenceInstr.Ref_Null(var t) -> {}
 			case ReferenceInstr.Ref_Func(var func) -> {}
