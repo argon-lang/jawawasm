@@ -7,6 +7,7 @@ import dev.argon.jvmwasm.format.text.ScriptCommand;
 import dev.argon.jvmwasm.format.text.ScriptReader;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.io.PrintWriter;

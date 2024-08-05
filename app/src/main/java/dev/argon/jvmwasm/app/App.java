@@ -3,13 +3,18 @@
  */
 package dev.argon.jvmwasm.app;
 
+import dev.argon.jvmwasm.engine.ModuleLinkException;
+import dev.argon.jvmwasm.engine.validator.ValidationException;
+import dev.argon.jvmwasm.format.ModuleFormatException;
 import dev.argon.jvmwasm.format.text.ScriptCommand;
 import dev.argon.jvmwasm.format.text.ScriptReader;
 
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 /**
  * App for executing wast scripts.
@@ -22,6 +27,7 @@ public class App {
 	 * Execute wast scripts.
 	 * @param args Command line arguments.
 	 * @throws Throwable if an error occurs.
+	 *
 	 */
     public static void main(String[] args) throws Throwable {
 		String scriptFile = args[0];
@@ -39,6 +45,5 @@ public class App {
 		try(var interpreter = new ScriptInterpreter(wasmExecutable, new PrintWriter(System.out))) {
 			interpreter.executeScript(commands);
 		}
-
     }
 }

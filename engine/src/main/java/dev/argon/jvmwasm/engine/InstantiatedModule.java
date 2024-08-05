@@ -7,10 +7,14 @@ import dev.argon.jvmwasm.format.types.*;
 import org.jspecify.annotations.Nullable;
 
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 
-final class InstantiatedModule implements WasmModule {
+/**
+ * A fully linked and instantiated module.
+ */
+public final class InstantiatedModule implements WasmModule {
 
-	InstantiatedModule(Engine engine, Module module, ModuleResolver resolver) throws Throwable {
+	InstantiatedModule(Engine engine, Module module, ModuleResolver resolver) throws ExecutionException, ModuleLinkException {
 		this.engine = engine;
 		this.module = module;
 		this.resolver = resolver;
@@ -32,39 +36,45 @@ final class InstantiatedModule implements WasmModule {
 			elements[i] = new WasmElements(values);
 		}
 
-		for(int i = 0; i < module.elems().size(); ++i) {
-			Elem elem = module.elems().get(i);
-			switch(elem.mode()) {
-				case ElemMode.Active(var tableIdx, var offsetExpr) -> {
-					var instElem = getElement(new ElemIdx(i));
+		try {
+			for(int i = 0; i < module.elems().size(); ++i) {
+				Elem elem = module.elems().get(i);
+				switch(elem.mode()) {
+					case ElemMode.Active(var tableIdx, var offsetExpr) -> {
+						var instElem = getElement(new ElemIdx(i));
 
-					var table = getTable(tableIdx);
-					int offset = (int)evaluateInitializer(offsetExpr.body(), elem.type());
-					WasmTable.init(offset, 0, instElem.size(), table, instElem);
-					dropElement(new ElemIdx(i));
-				}
+						var table = getTable(tableIdx);
+						int offset = (int)evaluateInitializer(offsetExpr.body(), elem.type());
+						WasmTable.init(offset, 0, instElem.size(), table, instElem);
+						dropElement(new ElemIdx(i));
+					}
 
-				case ElemMode.Declarative() -> {
-					dropElement(new ElemIdx(i));
+					case ElemMode.Declarative() -> {
+						dropElement(new ElemIdx(i));
+					}
+					case ElemMode.Passive() -> {}
 				}
-				case ElemMode.Passive() -> {}
+			}
+
+			for(int i = 0; i < module.datas().size(); ++i) {
+				Data data = module.datas().get(i);
+				switch(data.mode()) {
+					case DataMode.Active(var memoryIdx, var offsetExpr) -> {
+						var memory = getMemory(memoryIdx);
+						int offset = (int)evaluateInitializer(offsetExpr.body(), NumType.I32);
+						memory.init(offset, 0, data.init().length, data);
+					}
+					case DataMode.Passive() -> {}
+				}
 			}
 		}
-
-		for(int i = 0; i < module.datas().size(); ++i) {
-			Data data = module.datas().get(i);
-			switch(data.mode()) {
-				case DataMode.Active(var memoryIdx, var offsetExpr) -> {
-					var memory = getMemory(memoryIdx);
-					int offset = (int)evaluateInitializer(offsetExpr.body(), NumType.I32);
-					memory.init(offset, 0, data.init().length, data);
-				}
-				case DataMode.Passive() -> {}
-			}
+		catch(Throwable ex) {
+			throw new ExecutionException(ex);
 		}
 
 		if(module.start() != null) {
-			getFunction(module.start().func()).invokeNow(new Object[] {});
+			var startFunc = getFunction(module.start().func());
+			FunctionResult.resolveWith(() -> startFunc.invoke(new Object[] {}));
 		}
 	}
 
@@ -83,7 +93,7 @@ final class InstantiatedModule implements WasmModule {
 	private final Map<String, WasmModule> referencedModules = new HashMap<>();
 	private final Map<String, WasmExport> exports = new HashMap<>();
 
-	private synchronized WasmModule getReference(String name) throws Throwable {
+	private synchronized WasmModule getReference(String name) throws ModuleResolutionException {
 		WasmModule ref = referencedModules.get(name);
 		if(ref == null) {
 			ref = resolver.resolve(name);
@@ -124,8 +134,8 @@ final class InstantiatedModule implements WasmModule {
 		};
 	}
 
-	private Object evaluateInitializer(List<? extends Instr> init, ValType type) throws Throwable {
-		Object[] values = FunctionResult.resolve(
+	private Object evaluateInitializer(List<? extends Instr> init, ValType type) throws ExecutionException {
+		Object[] values = FunctionResult.resolveWith(() ->
 				new StackFrame(
 						InstantiatedModule.this,
 						init,
@@ -161,9 +171,9 @@ final class InstantiatedModule implements WasmModule {
 		protected abstract T checkImport(TImportDesc desc, WasmExport export) throws ModuleLinkException;
 
 		protected abstract List<? extends Def> definitions();
-		protected abstract T create(Def def) throws Throwable;
+		protected abstract T create(Def def) throws ExecutionException;
 
-		public final void build(List<T> items) throws Throwable {
+		public final void build(List<T> items) throws ModuleLinkException {
 			for(Import imp : module.imports()) {
 				TImportDesc desc = castImportDesc(imp.desc());
 				if(desc == null) {
@@ -181,7 +191,15 @@ final class InstantiatedModule implements WasmModule {
 			}
 
 			for(var def : definitions()) {
-				items.add(create(def));
+				T item;
+				try {
+					item = create(def);
+				}
+				catch(ExecutionException ex) {
+					throw new ModuleLinkException(ex);
+				}
+
+				items.add(item);
 			}
 		}
 
@@ -316,7 +334,7 @@ final class InstantiatedModule implements WasmModule {
 		}
 
 		@Override
-		protected WasmGlobal create(Global global) throws Throwable {
+		protected WasmGlobal create(Global global) throws ExecutionException {
 			Object value = evaluateInitializer(global.init().body(), global.type().type());
 			return new WasmGlobal(global.type(), value);
 		}

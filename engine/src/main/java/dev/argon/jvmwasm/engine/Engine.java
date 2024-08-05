@@ -3,6 +3,7 @@ package dev.argon.jvmwasm.engine;
 import dev.argon.jvmwasm.format.modules.Module;
 
 import java.lang.foreign.Arena;
+import java.util.concurrent.ExecutionException;
 
 /**
  * A WebAssembly engine
@@ -41,9 +42,10 @@ public class Engine implements AutoCloseable {
 	 * @param module The module to instantiate.
 	 * @param resolver The resolver to use.
 	 * @return The instantiated module.
-	 * @throws Throwable when an error occurs, potentially thrown by the WebAssembly start function.
+	 * @throws ExecutionException when an error occurs executing WebAssembly code.
+	 * @throws ModuleLinkException when an error occurs while linking.
 	 */
-	public InstantiatedModule instantiateModule(Module module, ModuleResolver resolver) throws Throwable {
+	public InstantiatedModule instantiateModule(Module module, ModuleResolver resolver) throws ExecutionException, ModuleLinkException {
 		return new InstantiatedModule(this, module, resolver);
 	}
 
@@ -52,7 +54,7 @@ public class Engine implements AutoCloseable {
 	}
 
 	@Override
-	public void close() throws Exception {
+	public void close() {
 		arena.close();
 	}
 }

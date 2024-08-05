@@ -2,6 +2,8 @@ package dev.argon.jvmwasm.engine;
 
 import dev.argon.jvmwasm.format.types.FuncType;
 
+import java.util.concurrent.ExecutionException;
+
 /**
  * A WebAssembly function.
  */

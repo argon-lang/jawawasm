@@ -1,5 +1,7 @@
 package dev.argon.jvmwasm.engine;
 
+import java.util.concurrent.ExecutionException;
+
 /**
  * The result of a function call.
  */
@@ -38,6 +40,21 @@ public sealed interface FunctionResult {
 			}
 		}
 		return value;
+	}
+
+	/**
+	 * Resolve a function result to get the return value.
+	 * @param result The function result.
+	 * @return The return values.
+	 * @throws ExecutionException if an error occurs during evaluation.
+	 */
+	public static Object[] resolveWith(FunctionResult.Delay result) throws ExecutionException {
+		try {
+			return resolve(result);
+		}
+		catch(Throwable ex) {
+			throw new ExecutionException(ex);
+		}
 	}
 
 }

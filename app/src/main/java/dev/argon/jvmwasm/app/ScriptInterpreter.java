@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 
 /**
@@ -57,12 +58,12 @@ public final class ScriptInterpreter implements AutoCloseable {
 	private static record F32x4Result(Object f0, Object f1, Object f2, Object f3) {}
 	private static record F64x2Result(Object f0, Object f1) {}
 
-	private WasmModule getModuleByName(@Nullable String name) throws Exception {
+	private WasmModule getModuleByName(@Nullable String name) throws ScriptExecutionException {
 		WasmModule module;
 		if(name != null) {
 			module = namedModules.get(name);
 			if(module == null) {
-				throw new Exception("Unknown module: " + name);
+				throw new ScriptExecutionException("Unknown module: " + name);
 			}
 		}
 		else {
@@ -79,9 +80,15 @@ public final class ScriptInterpreter implements AutoCloseable {
 	/**
 	 * Execute a script command.
 	 * @param command The command to execute.
-	 * @throws Throwable if an error occurred.
+	 * @throws ExecutionException if an error occurred while executing WebAssembly.
+	 * @throws ScriptExecutionException if an error occurred while executing the script.
+	 * @throws ModuleFormatException if a module is malformed.
+	 * @throws ValidationException if a module failed validation.
+	 * @throws ModuleLinkException if a module link error occurred.
+	 * @throws IOException if an IO error occurred.
+	 * @throws InterruptedException if execution was interrupted.
 	 */
-	public void executeCommand(ScriptCommand command) throws Throwable {
+	public void executeCommand(ScriptCommand command) throws ExecutionException, ScriptExecutionException, ModuleFormatException, ValidationException, ModuleLinkException, IOException, InterruptedException {
 		switch(command) {
 			case ScriptCommand.ScriptModule(var name, var moduleExpr) -> {
 				var convertedModule = getModuleAsBinary(moduleExpr);
@@ -107,7 +114,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 				Object[] expected = getConstantValues(results);
 				Object[] actual = runAction(action);
 				if(!valuesEqual(expected, actual)) {
-					throw new Exception("Assertion failed\nAssertion: " + command + "\nExpected: " + Arrays.toString(expected) + "\nActual: " + Arrays.toString(actual));
+					throw new ScriptAssertionException("Assertion failed\nAssertion: " + command + "\nExpected: " + Arrays.toString(expected) + "\nActual: " + Arrays.toString(actual));
 				}
 
 			}
@@ -122,8 +129,13 @@ public final class ScriptInterpreter implements AutoCloseable {
 						try {
 							runAction(action);
 						}
-						catch(StackOverflowError ex) {
-							foundError = true;
+						catch(ExecutionException ex) {
+							if(ex.getCause() instanceof StackOverflowError) {
+								foundError = true;
+							}
+							else {
+								throw ex;
+							}
 						}
 					}
 
@@ -131,7 +143,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 				}
 
 				if(!foundError) {
-					throw new Exception("Expected action to exhaust resources, but completed successfully.");
+					throw new ScriptAssertionException("Expected action to exhaust resources, but completed successfully.");
 				}
 			}
 
@@ -158,12 +170,12 @@ public final class ScriptInterpreter implements AutoCloseable {
 						foundError = true;
 					}
 					else {
-						throw new Exception("Found malformed module, but got unexpected message.\nExpected: " + message + "\nActual: " + ex.getMessage(), ex);
+						throw new ScriptAssertionException("Found malformed module, but got unexpected message.\nExpected: " + message + "\nActual: " + ex.getMessage(), ex);
 					}
 				}
 
 				if(!foundError) {
-					throw new Exception("Expected malformed module, but parsing succeeded");
+					throw new ScriptAssertionException("Expected malformed module, but parsing succeeded");
 				}
 			}
 
@@ -179,12 +191,12 @@ public final class ScriptInterpreter implements AutoCloseable {
 						foundError = true;
 					}
 					else {
-						throw new Exception("Found invalid module, but got unexpected message.\nExpected: " + message + "\nActual: " + ex.getMessage(), ex);
+						throw new ScriptAssertionException("Found invalid module, but got unexpected message.\nExpected: " + message + "\nActual: " + ex.getMessage(), ex);
 					}
 				}
 
 				if(!foundError) {
-					throw new Exception("Expected invalid module, but validation succeeded");
+					throw new ScriptAssertionException("Expected invalid module, but validation succeeded");
 				}
 			}
 
@@ -201,12 +213,12 @@ public final class ScriptInterpreter implements AutoCloseable {
 						foundError = true;
 					}
 					else {
-						throw new Exception("Found unlinkable module, but got unexpected message.\nExpected: " + message + "\nActual: " + ex.getMessage(), ex);
+						throw new ScriptAssertionException("Found unlinkable module, but got unexpected message.\nExpected: " + message + "\nActual: " + ex.getMessage(), ex);
 					}
 				}
 
 				if(!foundError) {
-					throw new Exception("Expected unlinkable module, but linking succeeded");
+					throw new ScriptAssertionException("Expected unlinkable module, but linking succeeded");
 				}
 			}
 			case ScriptCommand.Assertion.AssertTrapInstantiation(var module, var message) -> {
@@ -275,88 +287,82 @@ public final class ScriptInterpreter implements AutoCloseable {
 	}
 
 	private static interface TrapCheck {
-		void run() throws Throwable;
+		void run() throws ExecutionException, ModuleFormatException, ScriptExecutionException, ModuleLinkException;
 	}
 
-	private void assertTrapIn(TrapCheck check, String message) throws Throwable {
+	private void assertTrapIn(TrapCheck check, String message) throws ScriptExecutionException, ModuleFormatException, ModuleLinkException {
 		boolean gotExpectedError = false;
+
+		Throwable error = null;
+		try {
+			check.run();
+		}
+		catch(ExecutionException ex) {
+			error = ex.getCause();
+		}
+
 		switch(message) {
 			case "integer divide by zero", "integer overflow", "invalid conversion to integer" -> {
-				try {
-					check.run();
-				}
-				catch(ArithmeticException ex) {
+				if(error instanceof ArithmeticException) {
 					gotExpectedError = true;
 				}
 			}
 
 			case "out of bounds memory access", "out of bounds table access", "undefined element" -> {
-				try {
-					check.run();
-				}
-				catch(IndexOutOfBoundsException ex) {
+				if(error instanceof IndexOutOfBoundsException) {
 					gotExpectedError = true;
 				}
 			}
 
 			case "indirect call type mismatch" -> {
-				try {
-					check.run();
-				}
-				catch(IndirectCallTypeMismatchException ex) {
+				if(error instanceof IndirectCallTypeMismatchException) {
 					gotExpectedError = true;
 				}
 			}
 
 			case "unreachable" -> {
-				try {
-					check.run();
-				}
-				catch(UnreachableException ex) {
+				if(error instanceof UnreachableException) {
 					gotExpectedError = true;
 				}
 			}
 
 			case String m when m.startsWith("uninitialized element") -> {
-				try {
-					check.run();
-				}
-				catch(NullPointerException ex) {
+				if(error instanceof NullPointerException) {
 					gotExpectedError = true;
 				}
 			}
 
-			default -> throw new Exception("Unknown failure message: " + message);
+			default -> throw new ScriptAssertionException("Unknown failure message: " + message);
 		}
 
 		if(!gotExpectedError) {
-			throw new Exception("Action completed, expected failure: " + message);
+			throw new ScriptAssertionException("Action completed, expected failure: " + message);
 		}
 	}
 
 	/**
 	 * Execute a script.
 	 * @param commands The commands in the script.
-	 * @throws Throwable if an error occurred.
+	 * @throws ExecutionException if an error occurred while executing WebAssembly.
+	 * @throws ScriptExecutionException if an error occurred while executing the script.
+	 * @throws ModuleFormatException if a module is malformed.
+	 * @throws ValidationException if a module failed validation.
+	 * @throws ModuleLinkException if a module link error occurred.
+	 * @throws IOException if an IO error occurred.
+	 * @throws InterruptedException if execution was interrupted.
 	 */
-	public void executeScript(List<? extends ScriptCommand> commands) throws Throwable {
+	public void executeScript(List<? extends ScriptCommand> commands) throws ExecutionException, ValidationException, ScriptExecutionException, ModuleFormatException, ModuleLinkException, IOException, InterruptedException {
 		for(var command : commands) {
-			try {
-				executeCommand(command);
-			}
-			catch(Throwable ex) {
-				System.err.println("Error executing command: " + command);
-				throw ex;
-			}
+			executeCommand(command);
 		}
 	}
 
-	private Object[] runAction(ScriptCommand.Action action) throws Throwable {
+	private Object[] runAction(ScriptCommand.Action action) throws ExecutionException, ScriptExecutionException {
 		return switch(action) {
 			case ScriptCommand.Action.Invoke(var name, var exportName, var exprs) -> {
 				var module = getModuleByName(name);
 				var export = (WasmFunction)module.getExport(exportName);
-				yield export.invokeNow(getConstantValues(exprs));
+				yield FunctionResult.resolveWith(() -> export.invoke(getConstantValues(exprs)));
 			}
 
 			case ScriptCommand.Action.Get(var name, var exportName) -> {
@@ -367,7 +373,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 		};
 	}
 
-	private Module getModuleAsBinary(SExpr expr) throws Exception {
+	private Module getModuleAsBinary(SExpr expr) throws ModuleFormatException, IOException, InterruptedException {
 		var exprs = ((SExpr.ExprList)expr).exprs();
 		if(exprs.size() > 2 && exprs.get(1) instanceof SExpr.Identifier binarySpecifier && binarySpecifier.name().equals("binary")) {
 			return getModuleAsBinaryLiteral(exprs);
@@ -387,7 +393,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 		return new ModuleReader(is, os.size()).readModule();
 	}
 
-	private Module getModuleAsBinaryExternal(SExpr expr) throws Exception {
+	private Module getModuleAsBinaryExternal(SExpr expr) throws ModuleFormatException, IOException, InterruptedException {
 		Path tempIn = Files.createTempFile("wasm-", ".wast");
 		try {
 			Files.writeString(tempIn, expr.toString());
@@ -416,16 +422,16 @@ public final class ScriptInterpreter implements AutoCloseable {
 
 	private final class ScriptResolver implements ModuleResolver {
 		@Override
-		public WasmModule resolve(String name) throws Throwable {
+		public WasmModule resolve(String name) throws ModuleResolutionException {
 			var module = registeredModules.get(name);
 			if(module == null) {
-				throw new IllegalArgumentException();
+				throw new ModuleResolutionException();
 			}
 			return module;
 		}
 	}
 
-	private @Nullable Object getConstantValue(SExpr expr) throws Throwable {
+	private @Nullable Object getConstantValue(SExpr expr) throws ModuleFormatException {
 		var exprs = ((SExpr.ExprList)expr).exprs();
 		return switch(ScriptReader.getSExprConstructor(expr)) {
 			case "i32.const" -> ((SExpr.NumberValue)exprs.get(1)).intValue();
@@ -475,12 +481,12 @@ public final class ScriptInterpreter implements AutoCloseable {
 							yield V128.buildF64(i -> (double)values[i]);
 						}
 					}
-					default -> throw new Exception("Unexpected vector shape in literal: " + shape);
+					default -> throw new ModuleFormatException("Unexpected vector shape in literal: " + shape);
 				};
 			}
 			case "ref.extern" -> getExternRef(((SExpr.NumberValue)exprs.get(1)).intValue());
 			case "ref.null" -> null;
-			default -> throw new Exception("Unexpected constant expression: " + expr);
+			default -> throw new ModuleFormatException("Unexpected constant expression: " + expr);
 		};
 	}
 
@@ -510,7 +516,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 		}
 	}
 
-	private Object[] getConstantValues(List<? extends SExpr> exprs) throws Throwable {
+	private Object[] getConstantValues(List<? extends SExpr> exprs) throws ModuleFormatException {
 		Object[] values = new Object[exprs.size()];
 		for(int i = 0; i < exprs.size(); ++i) {
 			values[i] = getConstantValue(exprs.get(i));
@@ -519,7 +525,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 	}
 
 	@Override
-	public void close() throws Exception {
+	public void close() {
 		engine.close();
 	}
 }
