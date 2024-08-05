@@ -7,6 +7,9 @@ plugins {
     java
 }
 
+group = "dev.argon.jvmwasm"
+version = "0.1.0"
+
 repositories {
     // Use Maven Central for resolving dependencies.
     mavenCentral()
@@ -17,9 +20,13 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.1")
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(22)
+    }
 
-tasks.withType<JavaCompile> {
-    options.release.set(22)
+    withSourcesJar()
+    withJavadocJar()
 }
 
 tasks.named<Test>("test") {
