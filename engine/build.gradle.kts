@@ -3,7 +3,7 @@
  */
 
 plugins {
-    id("jvmwasm.java-library-conventions")
+    id("jawawasm.java-library-conventions")
     `maven-publish`
     signing
 }
@@ -11,14 +11,13 @@ plugins {
 
 dependencies {
     api(project(":format"))
-    implementation("org.ow2.asm:asm:9.4")
-    implementation("org.ow2.asm:asm-commons:9.4")
 }
 
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
             artifactId = "wasm-engine"
+            from(components["java"])
         }
     }
 }

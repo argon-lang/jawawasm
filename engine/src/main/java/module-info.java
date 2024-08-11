@@ -1,10 +1,10 @@
 /**
  * JVM WebAssembly engine
  */
-module dev.argon.jvmwasm.engine {
-	requires transitive dev.argon.jvmwasm.format;
-	requires org.jspecify;
+module dev.argon.jawawasm.engine {
+	requires transitive dev.argon.jawawasm.format;
+	requires static org.jspecify;
 
-	exports dev.argon.jvmwasm.engine;
-	exports dev.argon.jvmwasm.engine.validator;
+	exports dev.argon.jawawasm.engine;
+	exports dev.argon.jawawasm.engine.validator;
 }

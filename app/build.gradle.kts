@@ -3,7 +3,7 @@
  */
 
 plugins {
-    id("jvmwasm.java-application-conventions")
+    id("jawawasm.java-application-conventions")
 }
 
 dependencies {
@@ -16,6 +16,6 @@ dependencies {
 
 application {
     // Define the main class for the application.
-    mainClass.set("jvmwasm.app.App")
+    mainClass.set("dev.argon.jawawasm.app.App")
 }
 

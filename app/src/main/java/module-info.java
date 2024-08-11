@@ -1,8 +1,8 @@
 /**
  * JVM WebAssembly executable.
  */
-module dev.argon.jvmwasm.app {
+module dev.argon.jawawasm.app {
 	requires org.jspecify;
-	requires dev.argon.jvmwasm.format;
-	requires dev.argon.jvmwasm.engine;
+	requires dev.argon.jawawasm.format;
+	requires dev.argon.jawawasm.engine;
 }
