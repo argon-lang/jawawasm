@@ -34,7 +34,12 @@ class ScriptTests {
 			commands = new ScriptReader(reader).readCommands();
 		}
 
-		try(var interpreter = new ScriptInterpreter(Path.of("../webassembly-spec/interpreter/wasm"), new PrintWriter(System.out))) {
+		String wasmPathStr = System.getenv("JAWAWASM_WASM_PATH");
+		if(wasmPathStr == null) {
+			wasmPathStr = "../webassembly-spec/interpreter/wasm";
+		}
+
+		try(var interpreter = new ScriptInterpreter(Path.of(wasmPathStr), new PrintWriter(System.out))) {
 			interpreter.executeScript(commands);
 		}
 	}
