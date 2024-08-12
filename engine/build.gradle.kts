@@ -53,7 +53,9 @@ publishing {
                     }
                 }
                 scm {
-                    connection = "scm:"
+                    connection = "scm:git:git@github.com:argon-lang/jawawasm.git"
+                    developerConnection = "scm:git:git@github.com:argon-lang/jawawasm.git"
+                    url = "https://github.com/argon-lang/jawawasm/tree/master"
                 }
             }
         }
