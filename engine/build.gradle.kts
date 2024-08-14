@@ -9,6 +9,9 @@ plugins {
 }
 
 
+group = "dev.argon.jawawasm"
+version = "0.1.0"
+
 repositories {
     mavenCentral()
 }
@@ -58,6 +61,12 @@ publishing {
                     url = "https://github.com/argon-lang/jawawasm/tree/master"
                 }
             }
+        }
+    }
+
+    repositories {
+        maven {
+            url = uri(layout.buildDirectory.dir("repo"))
         }
     }
 }
