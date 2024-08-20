@@ -1,10 +1,7 @@
 package dev.argon.jawawasm.engine;
 
 import dev.argon.jawawasm.format.data.V128;
-import dev.argon.jawawasm.format.types.NumType;
-import dev.argon.jawawasm.format.types.ValType;
-import dev.argon.jawawasm.format.types.VecType;
-import dev.argon.jawawasm.format.types.RefType;
+import dev.argon.jawawasm.format.types.*;
 
 final class Defaults {
 	private Defaults() {}
@@ -18,11 +15,13 @@ final class Defaults {
 				case F64 -> 0.0;
 			};
 
-			case RefType refType -> null;
+			case RefType _ -> null;
 
 			case VecType vecType -> switch(vecType) {
 				case V128 -> V128.splat8((byte)0);
 			};
+
+			case BotType() -> throw new IllegalArgumentException();
 		};
 	}
 }

@@ -23,4 +23,7 @@ public sealed interface ReferenceInstr extends Instr {
 	 * @param func The function index.
 	 */
 	public static record Ref_Func(FuncIdx func) implements ReferenceInstr {}
+
+
+	public static record Ref_AsNonNull() implements ReferenceInstr {}
 }

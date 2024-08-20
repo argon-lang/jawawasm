@@ -1648,14 +1648,22 @@ class StackFrame {
 				var func = module.getFunction(refFunc.func());
 				push(func);
 			}
-			case ReferenceInstr.Ref_IsNull refIsNull -> {
+			case ReferenceInstr.Ref_IsNull _ -> {
 				Object o = pop();
 				int result = o == null ? 1 : 0;
 				push(result);
 			}
 
-			case ReferenceInstr.Ref_Null refNull -> {
+			case ReferenceInstr.Ref_Null _ -> {
 				push(null);
+			}
+
+			case ReferenceInstr.Ref_AsNonNull() -> {
+				Object o = pop();
+				if(o == null) {
+					throw new NullPointerException();
+				}
+				push(o);
 			}
 		}
 	}
@@ -1665,7 +1673,7 @@ class StackFrame {
 			case ParametricInstr.Drop() -> {
 				pop();
 			}
-			case ParametricInstr.Select select -> {
+			case ParametricInstr.Select _ -> {
 				int c = (int)pop();
 				Object val2 = pop();
 				Object val1 = pop();
@@ -2265,12 +2273,41 @@ class StackFrame {
 				branch(labelIdx.index());
 				yield null;
 			}
+			case ControlInstr.Br_OnNull(var label) -> {
+				Object o = pop();
+				if(o == null) {
+					branch(label.index());
+				}
+				else {
+					push(o);
+				}
+				yield null;
+			}
+			case ControlInstr.Br_OnNonNull(var label) -> {
+				Object o = pop();
+				if(o != null) {
+					push(o);
+					branch(label.index());
+				}
+				yield null;
+			}
 			case ControlInstr.Return() -> {
 				var result = getTopValues(topBlockType.results().types().size());
 				yield new FunctionResult.Values(result);
 			}
 			case ControlInstr.Call(var funcIdx) -> {
 				var func = module.getFunction(funcIdx);
+				var args = getTopValues(func.type().args().types().size());
+				Object[] results = func.invokeNow(args);
+				pushAll(results);
+				yield null;
+			}
+			case ControlInstr.Call_Ref _ -> {
+				var func = (WasmFunction)pop();
+				if(func == null) {
+					throw new NullPointerException();
+				}
+
 				var args = getTopValues(func.type().args().types().size());
 				Object[] results = func.invokeNow(args);
 				pushAll(results);
@@ -2293,6 +2330,15 @@ class StackFrame {
 			}
 			case ControlInstr.Return_Call(var funcIdx) -> {
 				var func = module.getFunction(funcIdx);
+				var args = getTopValues(func.type().args().types().size());
+				yield (FunctionResult.Delay)() -> func.invoke(args);
+			}
+			case ControlInstr.Return_Call_Ref _ -> {
+				var func = (WasmFunction)pop();
+				if(func == null) {
+					throw new NullPointerException();
+				}
+
 				var args = getTopValues(func.type().args().types().size());
 				yield (FunctionResult.Delay)() -> func.invoke(args);
 			}

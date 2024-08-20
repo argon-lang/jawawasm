@@ -9,7 +9,7 @@ import java.util.*;
 class Context {
 
 	private final List<FuncType> types = new ArrayList<>();
-	private final List<FuncType> funcs = new ArrayList<>();
+	private final List<TypeIdx> funcs = new ArrayList<>();
 	private final List<TableType> tables = new ArrayList<>();
 	private final List<MemType> mems = new ArrayList<>();
 	private final List<GlobalType> globals = new ArrayList<>();
@@ -56,11 +56,14 @@ class Context {
 			throw new ValidationException("unknown function " + idx.index());
 		}
 	}
-	public FuncType getFunc(FuncIdx idx) {
+	public TypeIdx getFunc(FuncIdx idx) {
 		return funcs.get(idx.index());
 	}
+	public FuncType getFuncType(FuncIdx idx) {
+		return types.get(funcs.get(idx.index()).index());
+	}
 
-	public void addFunc(FuncType t) {
+	public void addFunc(TypeIdx t) {
 		funcs.add(t);
 	}
 

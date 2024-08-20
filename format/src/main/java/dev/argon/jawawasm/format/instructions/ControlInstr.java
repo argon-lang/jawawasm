@@ -85,6 +85,9 @@ public sealed interface ControlInstr extends Instr {
 	 */
 	public static record Br_Table(List<? extends LabelIdx> labels, LabelIdx fallback) implements ControlInstr {}
 
+	public static record Br_OnNull(LabelIdx label) implements ControlInstr {}
+	public static record Br_OnNonNull(LabelIdx label) implements ControlInstr {}
+
 	/**
 	 * WebAssembly `return` instruction
 	 */
@@ -95,6 +98,12 @@ public sealed interface ControlInstr extends Instr {
 	 * @param func The function to call.
 	 */
 	public static record Call(FuncIdx func) implements ControlInstr {}
+
+	/**
+	 * WebAssembly `call_ref` instruction
+	 * @param funcType The function type.
+	 */
+	public static record Call_Ref(TypeIdx funcType) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `call_indirect` instruction
@@ -108,6 +117,12 @@ public sealed interface ControlInstr extends Instr {
 	 * @param func The function to call.
 	 */
 	public static record Return_Call(FuncIdx func) implements ControlInstr {}
+
+	/**
+	 * WebAssembly `return_call_ref` instruction
+	 * @param funcType The function type.
+	 */
+	public static record Return_Call_Ref(TypeIdx funcType) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `return_call_indirect` instruction

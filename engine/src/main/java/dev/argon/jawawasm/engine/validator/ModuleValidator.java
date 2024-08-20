@@ -40,8 +40,7 @@ public class ModuleValidator extends ValidatorBase {
 			switch(import_.desc()) {
 				case ImportDesc.Func func -> {
 					c.requireType(func.type());
-					var t = c.getType(func.type());
-					c.addFunc(t);
+					c.addFunc(func.type());
 				}
 				case ImportDesc.Global global -> {
 					c.addGlobal(global.type());
@@ -58,8 +57,7 @@ public class ModuleValidator extends ValidatorBase {
 
 		for(Func func : module.funcs()) {
 			c.requireType(func.type());
-			var t = c.getType(func.type());
-			c.addFunc(t);
+			c.addFunc(func.type());
 		}
 
 		for(Global global : module.globals()) {
@@ -155,7 +153,7 @@ public class ModuleValidator extends ValidatorBase {
 	private void validateStart(Start start) throws ValidationException {
 		context.requireFunc(start.func());
 
-		var t = context.getFunc(start.func());
+		var t = context.getFuncType(start.func());
 		require(t.args().types().size() == 0, "start function");
 		require(t.results().types().size() == 0, "start function");
 	}

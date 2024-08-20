@@ -189,6 +189,35 @@ public class ModuleReader {
 		return value;
 	}
 
+	private long readS33() throws IOException, ModuleFormatException {
+		byte b;
+		long value = 0;
+		int shift = 0;
+
+		do {
+			b = readByte();
+
+			if(shift == 28) {
+				if((b & 0x80) == 0x80) {
+					throw new ModuleFormatException("integer representation too long");
+				}
+				else if((b & 0x7F) != 0 && (b & 0x7F) != 0x7F) {
+					throw new ModuleFormatException("integer too large");
+				}
+			}
+
+			value |= (long)(b & 0x7F) << shift;
+			shift += 7;
+
+		} while((b & 0x80) == 0x80);
+
+		if((b & 0x40) == 0x40) {
+			value |= ~0L << shift;
+		}
+
+		return value;
+	}
+
 	private float readF32() throws IOException, ModuleFormatException {
 		byte[] buff = readAllNBytes(4);
 		return ByteBuffer.wrap(buff).order(ByteOrder.LITTLE_ENDIAN).getFloat(0);
@@ -218,22 +247,24 @@ public class ModuleReader {
 	}
 
 
-	private ValType intToValType(int i) throws ModuleFormatException {
+	private ValType readValTypeRest(int i) throws IOException, ModuleFormatException {
 		return switch(i) {
 			case -1 -> NumType.I32;
 			case -2 -> NumType.I64;
 			case -3 -> NumType.F32;
 			case -4 -> NumType.F64;
 			case -5 -> VecType.V128;
-			case -16 -> new FuncRef();
-			case -17 -> new ExternRef();
+			case -29 -> new RefType(true, readHeapType());
+			case -28 -> new RefType(false, readHeapType());
+			case -16 -> new RefType(true, new HeapType.Func());
+			case -17 -> new RefType(true, new HeapType.Extern());
 			default -> throw new ModuleFormatException("Unexpected value type: " + Integer.toHexString(i));
 		};
 	}
 
 	private ValType readValType() throws IOException, ModuleFormatException {
 		int i = readS7();
-		return intToValType(i);
+		return readValTypeRest(i);
 	}
 
 	private RefType readRefType() throws IOException, ModuleFormatException {
@@ -261,6 +292,20 @@ public class ModuleReader {
 		var to = readResultType();
 
 		return new FuncType(from, to);
+	}
+
+	private HeapType readHeapType() throws IOException, ModuleFormatException {
+		long value = readS33();
+
+		if(value > 0) {
+			return new TypeIdx((int)value);
+		}
+
+		return switch((int)value) {
+			case -17 -> new HeapType.Extern();
+			case -16 -> new HeapType.Func();
+			default -> throw new ModuleFormatException("Invalid heap type");
+		};
 	}
 
 	private Limits readLimits() throws IOException, ModuleFormatException {
@@ -306,16 +351,16 @@ public class ModuleReader {
 
 
 	private ControlInstr.BlockType readBlockType() throws IOException, ModuleFormatException {
-		int value = readS32();
+		long value = readS33();
 
 		if(value == -64) {
 			return new ControlInstr.BlockType.Empty();
 		}
 		else if(value < 0) {
-			return new ControlInstr.BlockType.OfValType(intToValType(value));
+			return new ControlInstr.BlockType.OfValType(readValTypeRest((int)value));
 		}
 		else {
-			return new ControlInstr.BlockType.OfIndex(new TypeIdx(value));
+			return new ControlInstr.BlockType.OfIndex(new TypeIdx((int)value));
 		}
 	}
 
@@ -450,6 +495,16 @@ public class ModuleReader {
 				yield new ControlInstr.Return_Call_Indirect(table, t);
 			}
 
+			case 0x14 -> {
+				var t = readTypeIdx();
+				yield new ControlInstr.Call_Ref(t);
+			}
+
+			case 0x15 -> {
+				var t = readTypeIdx();
+				yield new ControlInstr.Return_Call_Ref(t);
+			}
+
 
 			// Reference
 			case 0xD0 -> {
@@ -461,6 +516,16 @@ public class ModuleReader {
 			case 0xD2 -> {
 				var f = readFuncIdx();
 				yield new ReferenceInstr.Ref_Func(f);
+			}
+
+			case 0xD4 -> new ReferenceInstr.Ref_AsNonNull();
+			case 0xD5 -> {
+				var idx = readLabelIdx();
+				yield new ControlInstr.Br_OnNull(idx);
+			}
+			case 0xD6 -> {
+				var idx = readLabelIdx();
+				yield new ControlInstr.Br_OnNonNull(idx);
 			}
 
 			// Parametric
@@ -1552,7 +1617,7 @@ public class ModuleReader {
 					type = readRefType();
 				}
 				else {
-					type = new FuncRef();
+					type = new RefType(true, new HeapType.Func());
 				}
 
 				init = readVector(this::readExpr);
@@ -1581,14 +1646,14 @@ public class ModuleReader {
 	}
 
 	private enum ElemKind {
-		FUNC_REF(new FuncRef()),
+		FUNC_REF(new RefType(true, new HeapType.Func())),
 		;
 
 		ElemKind(RefType refType) {
 			this.refType = refType;
 		}
 
-		private RefType refType;
+		private final RefType refType;
 
 		public RefType getRefType() {
 			return refType;

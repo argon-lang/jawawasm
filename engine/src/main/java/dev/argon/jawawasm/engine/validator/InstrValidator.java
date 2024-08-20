@@ -1,6 +1,7 @@
 package dev.argon.jawawasm.engine.validator;
 
 import dev.argon.jawawasm.format.instructions.*;
+import dev.argon.jawawasm.format.modules.TypeIdx;
 import dev.argon.jawawasm.format.types.*;
 import dev.argon.jawawasm.format.modules.LabelIdx;
 import dev.argon.jawawasm.format.modules.MemIdx;
@@ -59,6 +60,27 @@ class InstrValidator extends ValidatorBase {
 		}
 	}
 
+	public RefType requireRefType(ValType valType) throws ValidationException {
+		if(valType instanceof BotType botType) {
+			return new RefType(false, botType);
+		}
+		else if(valType instanceof RefType refType) {
+			return refType;
+		}
+		else {
+			throw new ValidationException("type mismatch");
+		}
+	}
+
+	public void requireFuncType(HeapType heapType) throws ValidationException {
+		if(heapType instanceof TypeIdx funcType) {
+			context.requireType(funcType);
+		}
+		else if(!(heapType instanceof BotType || heapType instanceof FuncType || heapType instanceof HeapType.Func)) {
+			throw new ValidationException("type mismatch");
+		}
+	}
+
 	private final class StackValidator {
 		public StackValidator(List<OperandType> stack) {
 			this.stack = stack;
@@ -83,7 +105,7 @@ class InstrValidator extends ValidatorBase {
 		}
 
 		private OperandType pop() throws ValidationException {
-			if(stack.size() == 0) {
+			if(stack.isEmpty()) {
 				if(unreachable) {
 					return new OperandType.Bottom();
 				}
@@ -92,7 +114,7 @@ class InstrValidator extends ValidatorBase {
 				}
 			}
 
-			return stack.remove(stack.size() - 1);
+			return stack.removeLast();
 		}
 
 		private void pop(OperandType t) throws ValidationException {
@@ -111,7 +133,7 @@ class InstrValidator extends ValidatorBase {
 		private void pop(ValType t) throws ValidationException {
 			switch(pop()) {
 				case OperandType.OfValType(var t2) -> {
-					if(t2 != null && !t2.equals(t)) {
+					if(t2 != null && !new Subtyping(context).isSubtypeVal(t2, t)) {
 						throw new ValidationException("type mismatch");
 					}
 				}
@@ -295,15 +317,24 @@ class InstrValidator extends ValidatorBase {
 				case ReferenceInstr.Ref_Null(var t) -> push(t);
 				case ReferenceInstr.Ref_IsNull() -> {
 					switch(pop()) {
-						case OperandType.Bottom bottom -> {}
-						case OperandType.OfValType(var t) -> require(t instanceof RefType, "type mismatch");
+						case OperandType.Bottom _ -> {}
+						case OperandType.OfValType(var t) -> requireRefType(t);
 					}
 					push(NumType.I32);
 				}
 				case ReferenceInstr.Ref_Func(var funcIdx) -> {
 					context.requireRef(funcIdx);
 					context.requireFunc(funcIdx);
-					push(new FuncRef());
+					push(new OperandType.OfValType(new RefType(false, context.getFunc(funcIdx))));
+				}
+				case ReferenceInstr.Ref_AsNonNull() -> {
+					switch(pop()) {
+						case OperandType.Bottom _ -> {}
+						case OperandType.OfValType(var t) -> {
+							var refType = requireRefType(t);
+							push(new RefType(false, refType.heapType()));
+						}
+					}
 				}
 			}
 		}
@@ -998,6 +1029,41 @@ class InstrValidator extends ValidatorBase {
 					unreachable = true;
 				}
 
+				case ControlInstr.Br_OnNull(var label) -> {
+					context.requireLabel(label);
+
+					var labelType = context.getLabel(label);
+
+					switch(pop()) {
+						case OperandType.Bottom _ -> {}
+						case OperandType.OfValType(var t) -> {
+							var refType = requireRefType(t);
+							pop(labelType);
+							push(labelType);
+							push(new RefType(false, refType.heapType()));
+						}
+					}
+				}
+
+				case ControlInstr.Br_OnNonNull(var label) -> {
+					context.requireLabel(label);
+
+					var labelType = context.getLabel(label);
+					if(labelType.types().isEmpty()) {
+						throw new ValidationException("br_on_non_null target must contain at least one type");
+					}
+
+					var labelType2Types = new ArrayList<>(labelType.types());
+					var lastType = labelType2Types.removeLast();
+					var labelType2 = new ResultType(labelType2Types);
+
+					var lastRefType = requireRefType(lastType);
+
+					pop(new RefType(true, lastRefType.heapType()));
+					pop(labelType2);
+					push(labelType);
+				}
+
 				case ControlInstr.Return() -> {
 					context.requireReturn();
 					var t = context.getReturn();
@@ -1009,15 +1075,24 @@ class InstrValidator extends ValidatorBase {
 
 				case ControlInstr.Call(var func) -> {
 					context.requireFunc(func);
-					var t = context.getFunc(func);
+					var t = context.getFuncType(func);
 
 					pop(t.args());
 					push(t.results());
 				}
 
+				case ControlInstr.Call_Ref(var funcTypeIdx) -> {
+					context.requireType(funcTypeIdx);
+					var funcType = context.getType(funcTypeIdx);
+					pop(new RefType(true, funcType));
+					pop(funcType.args());
+					push(funcType.results());
+				}
+
 				case ControlInstr.Call_Indirect(var table, var funcType) -> {
 					context.requireTable(table);
-					require(context.getTable(table).elementType() instanceof FuncRef, "type mismatch");
+
+					requireFuncType(context.getTable(table).elementType().heapType());
 
 					context.requireType(funcType);
 					var t = context.getType(funcType);
@@ -1029,6 +1104,11 @@ class InstrValidator extends ValidatorBase {
 
 				case ControlInstr.Return_Call(var func) -> {
 					validateControlInstr(new ControlInstr.Call(func));
+					validateControlInstr(new ControlInstr.Return());
+				}
+
+				case ControlInstr.Return_Call_Ref(var funcTypeIdx) -> {
+					validateControlInstr(new ControlInstr.Call_Ref(funcTypeIdx));
 					validateControlInstr(new ControlInstr.Return());
 				}
 
