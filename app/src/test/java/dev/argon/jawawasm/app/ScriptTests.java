@@ -40,7 +40,7 @@ class ScriptTests {
 		}
 
 		try(var interpreter = new ScriptInterpreter(Path.of(wasmPathStr), new PrintWriter(System.out))) {
-			interpreter.executeScript(commands);
+			interpreter.executeScript(path.getFileName().toString(), commands);
 		}
 	}
 }

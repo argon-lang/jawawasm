@@ -690,21 +690,13 @@ public class ModuleReader {
 			}
 
 			case 0x3F -> {
-				var index = readByte();
-				if(index != 0) {
-					throw new ModuleFormatException("zero byte expected");
-				}
-
-				yield new MemoryInstr.Memory_Size();
+				var index = readU32();
+				yield new MemoryInstr.Memory_Size(new MemIdx(index));
 			}
 
 			case 0x40 -> {
-				var index = readByte();
-				if(index != 0) {
-					throw new ModuleFormatException("zero byte expected");
-				}
-
-				yield new MemoryInstr.Memory_Grow();
+				var index = readU32();
+				yield new MemoryInstr.Memory_Grow(new MemIdx(index));
 			}
 
 			// Numeric
@@ -885,12 +877,9 @@ public class ModuleReader {
 				// Memory
 				case 8 -> {
 					var data = readDataIdx();
-					var index = readByte();
-					if(index != 0) {
-						throw new ModuleFormatException("expected 0");
-					}
+					var index = readU32();
 
-					yield new MemoryInstr.Memory_Init(data);
+					yield new MemoryInstr.Memory_Init(new MemIdx(index), data);
 				}
 
 				case 9 -> {
@@ -899,26 +888,16 @@ public class ModuleReader {
 				}
 
 				case 10 -> {
-					var src = readByte();
-					if(src != 0) {
-						throw new ModuleFormatException("expected 0");
-					}
+					var dest = readU32();
+					var src = readU32();
 
-					var dest = readByte();
-					if(dest != 0) {
-						throw new ModuleFormatException("expected 0");
-					}
-
-					yield new MemoryInstr.Memory_Copy();
+					yield new MemoryInstr.Memory_Copy(new MemIdx(dest), new MemIdx(src));
 				}
 
 				case 11 -> {
-					var index = readByte();
-					if(index != 0) {
-						throw new ModuleFormatException("expected 0");
-					}
+					var index = readU32();
 
-					yield new MemoryInstr.Memory_Fill();
+					yield new MemoryInstr.Memory_Fill(new MemIdx(index));
 				}
 
 				// Table
@@ -1422,11 +1401,17 @@ public class ModuleReader {
 		var align = readU32();
 		var offset = readU32();
 
+		int memIndex = 0;
+		if((align & 0x40) == 0x40) {
+			align = align & ~0x40;
+			memIndex = readU32();
+		}
+
 		if(align >= 32) {
 			throw new ModuleFormatException("malformed memop flags");
 		}
 
-		return new MemoryInstr.MemArg(offset, align);
+		return new MemoryInstr.MemArg(new MemIdx(memIndex), offset, align);
 	}
 
 

@@ -38,7 +38,7 @@ public class App {
 
 		System.out.println("Executing script");
 		try(var interpreter = new ScriptInterpreter(wasmExecutable, new PrintWriter(System.out))) {
-			interpreter.executeScript(commands);
+			interpreter.executeScript(scriptFile, commands);
 		}
     }
 }

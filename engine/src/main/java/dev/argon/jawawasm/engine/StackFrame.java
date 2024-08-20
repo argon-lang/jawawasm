@@ -1769,7 +1769,7 @@ class StackFrame {
 	private void evaluateMemoryInstruction(MemoryInstr instr) throws Throwable {
 		switch(instr) {
 			case MemoryInstr.Inn_Load innLoad -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(innLoad.memArg().memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, innLoad.memArg().offset());
 
@@ -1780,7 +1780,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.Fnn_Load fnnLoad -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(fnnLoad.memArg().memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, fnnLoad.memArg().offset());
 
@@ -1791,7 +1791,7 @@ class StackFrame {
 			}
 			
 			case MemoryInstr.Inn_Store innStore -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(innStore.memArg().memIdx());
 				Object value = pop();
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, innStore.memArg().offset());
@@ -1803,7 +1803,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.Fnn_Store fnnStore -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(fnnStore.memArg().memIdx());
 				Object value = pop();
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, fnnStore.memArg().offset());
@@ -1815,14 +1815,14 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Load v128Load -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(v128Load.memArg().memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, v128Load.memArg().offset());
 				push(memory.loadV128(address));
 			}
 
 			case MemoryInstr.V128_Store v128Store -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(v128Store.memArg().memIdx());
 				V128 value = (V128)pop();
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, v128Store.memArg().offset());
@@ -1831,7 +1831,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.Inn_Load8_U innLoad8U -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(innLoad8U.memArg().memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, innLoad8U.memArg().offset());
 				byte value = memory.loadI8(address);
@@ -1843,7 +1843,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.Inn_Load8_S innLoad8S -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(innLoad8S.memArg().memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, innLoad8S.memArg().offset());
 				byte value = memory.loadI8(address);
@@ -1855,7 +1855,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.Inn_Load16_U innLoad16U -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(innLoad16U.memArg().memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, innLoad16U.memArg().offset());
 				short value = memory.loadI16(address);
@@ -1867,7 +1867,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.Inn_Load16_S innLoad16S -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(innLoad16S.memArg().memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, innLoad16S.memArg().offset());
 				short value = memory.loadI16(address);
@@ -1879,7 +1879,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.I64_Load32_U(var memArg) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 				int value = memory.loadI32(address);
@@ -1887,7 +1887,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.I64_Load32_S(var memArg) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 				int value = memory.loadI32(address);
@@ -1895,7 +1895,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.Inn_Store8 innStore8 -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(innStore8.memArg().memIdx());
 				Object value = pop();
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, innStore8.memArg().offset());
@@ -1909,7 +1909,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.Inn_Store16 innStore16 -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(innStore16.memArg().memIdx());
 				Object value = pop();
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, innStore16.memArg().offset());
@@ -1923,7 +1923,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.I64_Store32(var memArg) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				int value = (int)(long)pop();
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
@@ -1934,7 +1934,7 @@ class StackFrame {
 
 
 			case MemoryInstr.V128_Load8x8_U(var memArg) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 
@@ -1948,7 +1948,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Load8x8_S(var memArg) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 
@@ -1962,7 +1962,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Load16x4_U(var memArg) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 
@@ -1976,7 +1976,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Load16x4_S(var memArg) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 
@@ -1990,7 +1990,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Load32x2_U(var memArg) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 
@@ -2004,7 +2004,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Load32x2_S(var memArg) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 
@@ -2018,7 +2018,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Load32_Zero(var memArg) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 
@@ -2028,7 +2028,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Load64_Zero(var memArg) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 
@@ -2038,7 +2038,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Load8_Splat(var memArg) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 				byte value = memory.loadI8(address);
@@ -2047,7 +2047,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Load16_Splat(var memArg) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 				short value = memory.loadI16(address);
@@ -2056,7 +2056,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Load32_Splat(var memArg) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 				int value = memory.loadI32(address);
@@ -2065,7 +2065,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Load64_Splat(var memArg) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 				long value = memory.loadI64(address);
@@ -2074,7 +2074,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Load8_Lane(var memArg, var laneIdx) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				V128 v = (V128)pop();
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
@@ -2084,7 +2084,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Load16_Lane(var memArg, var laneIdx) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				V128 v = (V128)pop();
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
@@ -2094,7 +2094,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Load32_Lane(var memArg, var laneIdx) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				V128 v = (V128)pop();
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
@@ -2104,7 +2104,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Load64_Lane(var memArg, var laneIdx) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				V128 v = (V128)pop();
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
@@ -2114,7 +2114,7 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Store8_Lane(var memArg, var laneIdx) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				V128 v = (V128)pop();
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
@@ -2122,40 +2122,40 @@ class StackFrame {
 			}
 
 			case MemoryInstr.V128_Store16_Lane(var memArg, var laneIdx) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				V128 v = (V128)pop();
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 				memory.storeI16(address, v.extractLane16(laneIdx));
 			}
 			case MemoryInstr.V128_Store32_Lane(var memArg, var laneIdx) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				V128 v = (V128)pop();
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 				memory.storeI32(address, v.extractLane32(laneIdx));
 			}
 			case MemoryInstr.V128_Store64_Lane(var memArg, var laneIdx) -> {
-				var memory = module.getMemory(new MemIdx(0));
+				var memory = module.getMemory(memArg.memIdx());
 				V128 v = (V128)pop();
 				int i = (int)pop();
 				int address = calculateMemoryAddress(i, memArg.offset());
 				memory.storeI64(address, v.extractLane64(laneIdx));
 			}
 
-			case MemoryInstr.Memory_Size() -> {
-				int size = module.getMemory(new MemIdx(0)).pageSize();
+			case MemoryInstr.Memory_Size(var memIdx) -> {
+				int size = module.getMemory(memIdx).pageSize();
 				push(size);
 			}
 
-			case MemoryInstr.Memory_Grow() -> {
+			case MemoryInstr.Memory_Grow(var memIdx) -> {
 				int n = (int)pop();
-				int growRes = module.getMemory(new MemIdx(0)).grow(n);
+				int growRes = module.getMemory(memIdx).grow(n);
 				push(growRes);
 			}
 
-			case MemoryInstr.Memory_Fill() -> {
-				var memory = module.getMemory(new MemIdx(0));
+			case MemoryInstr.Memory_Fill(var memIdx) -> {
+				var memory = module.getMemory(memIdx);
 				int n = (int)pop();
 				byte val = (byte)(int)pop();
 				int d = (int)pop();
@@ -2171,20 +2171,21 @@ class StackFrame {
 				}
 			}
 
-			case MemoryInstr.Memory_Copy() -> {
-				var memory = module.getMemory(new MemIdx(0));
+			case MemoryInstr.Memory_Copy(var dstMemIdx, var srcMemIdx) -> {
+				var dstMemory = module.getMemory(dstMemIdx);
+				var srcMemory = module.getMemory(srcMemIdx);
 				int n = (int)pop();
 				int s = (int)pop();
 				int d = (int)pop();
 
-				if(!Util.sumInRange(d, n, memory.byteSize()) || !Util.sumInRange(s, n, memory.byteSize())) {
+				if(!Util.sumInRange(d, n, dstMemory.byteSize()) || !Util.sumInRange(s, n, srcMemory.byteSize())) {
 					throw new IndexOutOfBoundsException();
 				}
 
 				if(d <= s) {
 					while(n != 0) {
-						byte b = memory.loadI8(s);
-						memory.storeI8(d, b);
+						byte b = srcMemory.loadI8(s);
+						dstMemory.storeI8(d, b);
 						++d;
 						++s;
 						--n;
@@ -2192,15 +2193,15 @@ class StackFrame {
 				}
 				else {
 					while(n != 0) {
-						byte b = memory.loadI8(s + n - 1);
-						memory.storeI8(d + n - 1, b);
+						byte b = srcMemory.loadI8(s + n - 1);
+						dstMemory.storeI8(d + n - 1, b);
 						--n;
 					}
 				}
 			}
 
-			case MemoryInstr.Memory_Init(var dataIdx) -> {
-				var memory = module.getMemory(new MemIdx(0));
+			case MemoryInstr.Memory_Init(var memIdx, var dataIdx) -> {
+				var memory = module.getMemory(memIdx);
 				var data = module.getData(dataIdx);
 				int n = (int)pop();
 				int s = (int)pop();

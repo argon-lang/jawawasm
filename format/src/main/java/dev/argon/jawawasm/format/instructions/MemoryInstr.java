@@ -1,6 +1,7 @@
 package dev.argon.jawawasm.format.instructions;
 
 import dev.argon.jawawasm.format.modules.DataIdx;
+import dev.argon.jawawasm.format.modules.MemIdx;
 
 /**
  * A WebAssembly memory instruction
@@ -11,7 +12,7 @@ public sealed interface MemoryInstr extends Instr {
 	 * @param offset Fixed address offset to the instruction operand.
 	 * @param align Alignment of the memory.
 	 */
-	public static record MemArg(int offset, int align) {}
+	public static record MemArg(MemIdx memIdx, int offset, int align) {}
 
 	/**
 	 * WebAssembly `inn.load` instruction
@@ -253,28 +254,28 @@ public sealed interface MemoryInstr extends Instr {
 	/**
 	 * WebAssembly `memory.size` instruction
 	 */
-	public static record Memory_Size() implements MemoryInstr {}
+	public static record Memory_Size(MemIdx memIdx) implements MemoryInstr {}
 
 	/**
 	 * WebAssembly `memory.grow` instruction
 	 */
-	public static record Memory_Grow() implements MemoryInstr {}
+	public static record Memory_Grow(MemIdx memIdx) implements MemoryInstr {}
 
 	/**
 	 * WebAssembly `memory.fill` instruction
 	 */
-	public static record Memory_Fill() implements MemoryInstr {}
+	public static record Memory_Fill(MemIdx memIdx) implements MemoryInstr {}
 
 	/**
 	 * WebAssembly `memory.copy` instruction
 	 */
-	public static record Memory_Copy() implements MemoryInstr {}
+	public static record Memory_Copy(MemIdx dstMemIdx, MemIdx srcMemIdx) implements MemoryInstr {}
 
 	/**
 	 * WebAssembly `memory.init` instruction
 	 * @param data The data index.
 	 */
-	public static record Memory_Init(DataIdx data) implements MemoryInstr {}
+	public static record Memory_Init(MemIdx memIdx, DataIdx data) implements MemoryInstr {}
 
 	/**
 	 * WebAssembly `data.drop` instruction
