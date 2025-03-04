@@ -63,10 +63,15 @@ final class TypeValidator extends ValidatorBase {
 
 	public void validateHeapType(HeapType heapType) throws ValidationException {
 		switch(heapType) {
-			case HeapType.Extern(), HeapType.Func(), BotType() -> {}
+			case HeapType.AbstractHeapType _, BotType() -> {}
 			case TypeIdx index -> context.requireType(index);
 			case FuncType funcType -> validateFuncType(funcType);
 		}
 	}
 
+	public void validateTagType(TagType t) throws ValidationException {
+		context.requireType(t.funcType());
+		var funcType = context.getType(t.funcType());
+		require(funcType.results().types().isEmpty(), "Tag result type must be empty");
+	}
 }

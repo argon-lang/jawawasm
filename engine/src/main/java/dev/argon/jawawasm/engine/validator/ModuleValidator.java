@@ -52,6 +52,9 @@ public class ModuleValidator extends ValidatorBase {
 					c.addMem(mem.type());
 					++memCount;
 				}
+				case ImportDesc.Tag tag -> {
+					c.addTag(tag.type());
+				}
 			}
 		}
 
@@ -77,6 +80,10 @@ public class ModuleValidator extends ValidatorBase {
 			throw new ValidationException("multiple memories");
 		}
 
+		for(Tag tag : module.tags()) {
+			c.addTag(tag.type());
+		}
+
 		for(Elem elem : module.elems()) {
 			c.addElem(elem.type());
 			refWalker.walkElem(elem);
@@ -100,6 +107,10 @@ public class ModuleValidator extends ValidatorBase {
 
 		for(Mem mem : module.mems()) {
 			validator.validateMem(mem);
+		}
+
+		for(Tag tag : module.tags()) {
+			validator.validateTag(tag);
 		}
 
 		for(Global global : module.globals()) {
@@ -154,8 +165,8 @@ public class ModuleValidator extends ValidatorBase {
 		context.requireFunc(start.func());
 
 		var t = context.getFuncType(start.func());
-		require(t.args().types().size() == 0, "start function");
-		require(t.results().types().size() == 0, "start function");
+		require(t.args().types().isEmpty(), "start function");
+		require(t.results().types().isEmpty(), "start function");
 	}
 
 	private void validateImport(Import import_) throws ValidationException {
@@ -165,6 +176,7 @@ public class ModuleValidator extends ValidatorBase {
 			case ImportDesc.Global(var t) -> {}
 			case ImportDesc.Mem(var t) -> tv.validateMemoryType(t);
 			case ImportDesc.Table(var t) -> tv.validateTableType(t);
+			case ImportDesc.Tag(var t) -> tv.validateTagType(t);
 		}
 	}
 
@@ -174,6 +186,7 @@ public class ModuleValidator extends ValidatorBase {
 			case ExportDesc.Global(var g) -> context.requireGlobal(g);
 			case ExportDesc.Mem(var m) -> context.requireMem(m);
 			case ExportDesc.Table(var t) -> context.requireTable(t);
+			case ExportDesc.Tag(var t) -> context.requireTag(t);
 		}
 	}
 
@@ -183,6 +196,10 @@ public class ModuleValidator extends ValidatorBase {
 
 	private void validateMem(Mem mem) throws ValidationException {
 		new TypeValidator(context).validateMemoryType(mem.type());
+	}
+
+	private void validateTag(Tag tag) throws ValidationException {
+		new TypeValidator(context).validateTagType(tag.type());
 	}
 
 	private void validateGlobal(Global global) throws ValidationException {

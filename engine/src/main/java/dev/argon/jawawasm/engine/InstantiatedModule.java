@@ -23,6 +23,8 @@ public final class InstantiatedModule implements WasmModule {
 		new TableBuilder().build(tables);
 		new MemoryBuilder().build(memories);
 		new GlobalBuilder().build(globals);
+		new TagBuilder().build(tags);
+
 
 		elements = new WasmElements[module.elems().size()];
 		for(int i = 0; i < elements.length; ++i) {
@@ -86,6 +88,7 @@ public final class InstantiatedModule implements WasmModule {
 	private final List<WasmTable> tables = new ArrayList<>();
 	private final List<WasmMemory> memories = new ArrayList<>();
 	private final List<WasmGlobal> globals = new ArrayList<>();
+	private final List<WasmTag> tags = new ArrayList<>();
 	private final WasmElements[] elements;
 	private final Set<Integer> droppedData = new HashSet<>();
 
@@ -131,6 +134,7 @@ public final class InstantiatedModule implements WasmModule {
 			case ExportDesc.Table table -> getTable(table.table());
 			case ExportDesc.Mem mem -> getMemory(mem.mem());
 			case ExportDesc.Global global -> getGlobal(global.global());
+			case ExportDesc.Tag tag -> getTag(tag.tag());
 		};
 	}
 
@@ -340,6 +344,33 @@ public final class InstantiatedModule implements WasmModule {
 		}
 	}
 
+	private final class TagBuilder extends IndexSpaceBuilder<WasmTag, ImportDesc.Tag, Tag> {
+		@Override
+		protected ImportDesc.Tag castImportDesc(ImportDesc desc) {
+			return (desc instanceof ImportDesc.Tag t) ? t : null;
+		}
+
+		@Override
+		protected WasmTag checkImport(ImportDesc.Tag desc, WasmExport export) throws ModuleLinkException {
+			if(!(export instanceof WasmTag tag)) {
+				throw new ModuleLinkException("incompatible import type");
+			}
+
+			return tag;
+		}
+
+		@Override
+		protected List<? extends Tag> definitions() {
+			return module.tags();
+		}
+
+		@Override
+		protected WasmTag create(Tag tag) throws ExecutionException {
+			var func = getType(tag.type().funcType());
+			return new WasmTag(func);
+		}
+	}
+
 
 
 	FuncType getType(TypeIdx index) {
@@ -360,6 +391,10 @@ public final class InstantiatedModule implements WasmModule {
 
 	WasmGlobal getGlobal(GlobalIdx index) {
 		return globals.get(index.index());
+	}
+
+	WasmTag getTag(TagIdx index) {
+		return tags.get(index.index());
 	}
 
 	WasmElements getElement(ElemIdx index) {

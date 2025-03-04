@@ -52,13 +52,13 @@ class StackFrame {
 	}
 	
 	private Object pop() {
-		Object value = stack.get(stack.size() - 1);
-		stack.remove(stack.size() - 1);
+		Object value = stack.getLast();
+		stack.removeLast();
 		return value;
 	}
 
 	private Object peek() {
-		return stack.get(stack.size() - 1);
+		return stack.getLast();
 	}
 
 	private Object[] getTopValues(int n) {
@@ -78,21 +78,26 @@ class StackFrame {
 	public FunctionResult evaluate() throws Throwable {
 		while(true) {
 			for(; ip < block.size(); ++ip) {
-				FunctionResult result = null;
+				try {
+					FunctionResult result = null;
 
-				switch(block.get(ip)) {
-					case NumericInstr numInstr -> evaluateNumInstr(numInstr);
-					case VectorInstr vectorInstr -> evaluateVectorInstr(vectorInstr);
-					case ReferenceInstr referenceInstr -> evaluateReferenceInstr(referenceInstr);
-					case ParametricInstr parametricInstr -> evaluateParametricInstruction(parametricInstr);
-					case VariableInstr variableInstr -> evaluateVariableInstruction(variableInstr);
-					case TableInstr tableInstr -> evaluateTableInstruction(tableInstr);
-					case MemoryInstr memoryInstr -> evaluateMemoryInstruction(memoryInstr);
-					case ControlInstr controlInstr -> result = evaluateControlInstruction(controlInstr);
+					switch(block.get(ip)) {
+						case NumericInstr numInstr -> evaluateNumInstr(numInstr);
+						case VectorInstr vectorInstr -> evaluateVectorInstr(vectorInstr);
+						case ReferenceInstr referenceInstr -> evaluateReferenceInstr(referenceInstr);
+						case ParametricInstr parametricInstr -> evaluateParametricInstruction(parametricInstr);
+						case VariableInstr variableInstr -> evaluateVariableInstruction(variableInstr);
+						case TableInstr tableInstr -> evaluateTableInstruction(tableInstr);
+						case MemoryInstr memoryInstr -> evaluateMemoryInstruction(memoryInstr);
+						case ControlInstr controlInstr -> result = evaluateControlInstruction(controlInstr);
+					}
+
+					if(result != null) {
+						return result;
+					}
 				}
-
-				if(result != null) {
-					return result;
+				catch(WebAssemblyException ex) {
+					handleException(ex);
 				}
 			}
 
@@ -106,6 +111,9 @@ class StackFrame {
 			block = label.block;
 			blockType = label.outerBlockType;
 			ip = label.endIndex;
+
+			if(!stack.isEmpty() && peek() instanceof ExceptionHandler) pop();
+
 			pushAll(values);
 		}
 	}
@@ -116,6 +124,8 @@ class StackFrame {
 			return "Label[outerBlockType=" + outerBlockType + ", resultType=" + resultType + ", branchIndex=" + branchIndex + ", endIndex=" + endIndex + "]";
 		}
 	}
+
+	private record ExceptionHandler(List<? extends ControlInstr.CatchClause> catchClauses) {}
 
 	private void evaluateNumInstr(NumericInstr instr) {
 		switch(instr) {
@@ -2249,6 +2259,14 @@ class StackFrame {
 				enterBlock(type, innerBlock, ip + 1, true);
 				yield null;
 			}
+			case ControlInstr.Throw(var tag) -> {
+				var wasmTag = module.getTag(tag);
+				var values = getTopValues(wasmTag.type().args().types().size());
+				throw new WebAssemblyException(wasmTag, values);
+			}
+			case ControlInstr.Throw_Ref() -> {
+				throw (WebAssemblyException)pop();
+			}
 			case ControlInstr.Br(var label) -> {
 				branch(label.index());
 				yield null;
@@ -2356,7 +2374,53 @@ class StackFrame {
 				var args = getTopValues(func.type().args().types().size());
 				yield (FunctionResult.Delay)() -> func.invoke(args);
 			}
+			case ControlInstr.Try_Table(var blockType, var catchClauses, var innerBlock) -> {
+				enterBlock(blockType, innerBlock, new ExceptionHandler(catchClauses), ip + 1, true);
+				yield null;
+			}
 		};
+	}
+
+
+	private void handleException(WebAssemblyException ex) throws WebAssemblyException {
+		while(!this.stack.isEmpty()) {
+			if(!(pop() instanceof ExceptionHandler(var catchClauses))) {
+				continue;
+			}
+
+			for(int i = catchClauses.size() - 1; i >= 0; --i) {
+				switch(catchClauses.get(i)) {
+					case ControlInstr.CatchTag(var tagIdx, var labelIdx) -> {
+						var tag = module.getTag(tagIdx);
+						if(ex.getTag() == tag) {
+							pushAll(ex.getValues());
+							branch(labelIdx.index());
+							return;
+						}
+					}
+					case ControlInstr.CatchTagRef(var tagIdx, var labelIdx) -> {
+						var tag = module.getTag(tagIdx);
+						if(ex.getTag() == tag) {
+							pushAll(ex.getValues());
+							push(ex);
+							branch(labelIdx.index());
+							return;
+						}
+					}
+					case ControlInstr.CatchAll(var labelIdx) -> {
+						branch(labelIdx.index());
+						return;
+					}
+					case ControlInstr.CatchAllRef(var labelIdx) -> {
+						push(ex);
+						branch(labelIdx.index());
+						return;
+					}
+				}
+			}
+		}
+
+		throw ex;
 	}
 
 
@@ -2370,11 +2434,16 @@ class StackFrame {
 	}
 
 	private void enterBlock(ControlInstr.BlockType type, List<? extends Instr> innerBlock, int branchIP, boolean useResultType) {
+		enterBlock(type, innerBlock, null, branchIP, useResultType);
+	}
+
+	private void enterBlock(ControlInstr.BlockType type, List<? extends Instr> innerBlock, ExceptionHandler handler, int branchIP, boolean useResultType) {
 		var expandedType = expandBlockType(type);
 		var label = new Label(block, blockType, useResultType ? expandedType.results() : expandedType.args(), branchIP, ip + 1);
 
 		Object[] values = getTopValues(expandedType.args().types().size());
 
+		if(handler != null) push(handler);
 		push(label);
 
 		for(Object value : values) {

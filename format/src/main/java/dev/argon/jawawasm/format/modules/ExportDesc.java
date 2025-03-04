@@ -27,4 +27,6 @@ public sealed interface ExportDesc {
 	 * @param global The global.
 	 */
 	public static record Global(GlobalIdx global) implements ExportDesc {}
+
+	public static record Tag(TagIdx tag)  implements ExportDesc {}
 }

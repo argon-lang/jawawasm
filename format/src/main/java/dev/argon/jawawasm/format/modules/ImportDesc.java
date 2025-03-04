@@ -3,6 +3,7 @@ package dev.argon.jawawasm.format.modules;
 import dev.argon.jawawasm.format.types.MemType;
 import dev.argon.jawawasm.format.types.GlobalType;
 import dev.argon.jawawasm.format.types.TableType;
+import dev.argon.jawawasm.format.types.TagType;
 
 /**
  * An import descriptor.
@@ -31,4 +32,6 @@ public sealed interface ImportDesc {
 	 * @param type The global type.
 	 */
 	public static record Global(GlobalType type) implements ImportDesc {}
+
+	public static record Tag(TagType type) implements ImportDesc {}
 }

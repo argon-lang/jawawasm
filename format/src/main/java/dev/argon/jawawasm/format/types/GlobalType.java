@@ -5,5 +5,5 @@ package dev.argon.jawawasm.format.types;
  * @param mutability The mutability of the global.
  * @param type The type of the value.
  */
-public record GlobalType(Mut mutability, ValType type) {
+public record GlobalType(Mut mutability, ValType type) implements ExternalType {
 }

@@ -15,4 +15,10 @@ public abstract class ValidatorBase {
 			throw new ValidationException(message);
 		}
 	}
+
+	void require(boolean value, String testMessage, String message) throws ValidationException {
+		if(!value) {
+			throw new ValidationException(testMessage, message);
+		}
+	}
 }

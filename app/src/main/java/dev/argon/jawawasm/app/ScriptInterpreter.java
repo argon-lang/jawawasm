@@ -9,6 +9,7 @@ import dev.argon.jawawasm.format.data.V128;
 import dev.argon.jawawasm.format.modules.Module;
 import dev.argon.jawawasm.format.text.SExpr;
 import dev.argon.jawawasm.format.text.ScriptCommand;
+import dev.argon.jawawasm.format.text.ScriptCommandInfo;
 import dev.argon.jawawasm.format.text.ScriptReader;
 import org.jspecify.annotations.Nullable;
 
@@ -55,6 +56,8 @@ public final class ScriptInterpreter implements AutoCloseable {
 	private static final class F64NanCanonical {}
 	private static final class F64NanArithmetic {}
 
+	private static final class AnyFuncRef {}
+
 	private static record F32x4Result(Object f0, Object f1, Object f2, Object f3) {}
 	private static record F64x2Result(Object f0, Object f1) {}
 
@@ -88,27 +91,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 	 * @throws IOException if an IO error occurred.
 	 * @throws InterruptedException if execution was interrupted.
 	 */
-	public void executeCommand(String scriptName, int commandIndex, ScriptCommand command) throws ExecutionException, ScriptExecutionException, ModuleFormatException, ValidationException, ModuleLinkException, IOException, InterruptedException {
-		switch(scriptName) {
-			case "binary.wast" -> {
-				switch(commandIndex) {
-					// Ignore non-zero byte for memory instructions
-					case 41, 42, 43, 44, 45, 46, 47, 48, 49, 50 -> {
-						return;
-					}
-				}
-			}
-
-			case "align.wast" -> {
-				// Ignore the flag bit for multiple memory in alignment
-				switch(commandIndex) {
-					case 160, 161 -> {
-						return;
-					}
-				}
-			}
-		}
-
+	public void executeCommand(ScriptCommand command) throws ExecutionException, ScriptExecutionException, ModuleFormatException, ValidationException, ModuleLinkException, IOException, InterruptedException {
 		switch(command) {
 			case ScriptCommand.ScriptModule(var name, var moduleExpr) -> {
 				var convertedModule = getModuleAsBinary(moduleExpr);
@@ -137,6 +120,23 @@ public final class ScriptInterpreter implements AutoCloseable {
 					throw new ScriptAssertionException("Assertion failed\nAssertion: " + command + "\nExpected: " + Arrays.toString(expected) + "\nActual: " + Arrays.toString(actual));
 				}
 
+			}
+
+			case ScriptCommand.Assertion.AssertException(var action) -> {
+				Object[] actual;
+
+				try {
+					actual = runAction(action);
+				}
+				catch(ExecutionException ex) {
+					if(ex.getCause() instanceof WebAssemblyException) {
+						return;
+					}
+
+					throw ex;
+				}
+
+				throw new ScriptAssertionException("Assertion failed\nAssertion: " + command + "\nExpected an exception\nActual: " + Arrays.toString(actual));
 			}
 
 			case ScriptCommand.Assertion.AssertTrap(var action, var message) ->
@@ -195,7 +195,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 				}
 
 				if(!foundError) {
-					throw new ScriptAssertionException("Expected malformed module, but parsing succeeded. Command: " + scriptName + " #" + commandIndex + ", Expected error: " + message);
+					throw new ScriptAssertionException("Expected malformed module, but parsing succeeded. Expected error: " + message);
 				}
 			}
 
@@ -207,7 +207,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 					ModuleValidator.validateModule(convertedModule);
 				}
 				catch(ValidationException ex) {
-					if(ex.getMessage() != null && ex.getMessage().startsWith(message)) {
+					if(ex.getTestMessage() != null && ex.getTestMessage().equals(message)) {
 						foundError = true;
 					}
 					else {
@@ -301,6 +301,9 @@ public final class ScriptInterpreter implements AutoCloseable {
 			return valueEqual(v1.f0(), v2.extractLaneF64(0)) &&
 					valueEqual(v1.f1(), v2.extractLaneF64(1));
 		}
+		else if(expected instanceof AnyFuncRef && actual instanceof WasmFunction) {
+			return true;
+		}
 		else {
 			return expected == actual;
 		}
@@ -363,7 +366,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 	/**
 	 * Execute a script.
 	 * @param commands The commands in the script.
-	 * @throws ExecutionException if an error occurred while executing WebAssembly.
+	 * @throws ExecutionException if an error occurred within WebAssembly or an assertion failed.
 	 * @throws ScriptExecutionException if an error occurred while executing the script.
 	 * @throws ModuleFormatException if a module is malformed.
 	 * @throws ValidationException if a module failed validation.
@@ -371,10 +374,15 @@ public final class ScriptInterpreter implements AutoCloseable {
 	 * @throws IOException if an IO error occurred.
 	 * @throws InterruptedException if execution was interrupted.
 	 */
-	public void executeScript(String scriptName, List<? extends ScriptCommand> commands) throws ExecutionException, ValidationException, ScriptExecutionException, ModuleFormatException, ModuleLinkException, IOException, InterruptedException {
+	public void executeScript(String scriptName, List<? extends ScriptCommandInfo> commands) throws Exception {
 		int i = 0;
 		for(var command : commands) {
-			executeCommand(scriptName, i, command);
+			try {
+				executeCommand(command.command());
+			}
+			catch(Exception e) {
+				throw new Exception("Script " + scriptName + " failed at #" + i + " on line " + command.lineNumber(), e);
+			}
 			++i;
 		}
 	}
@@ -508,6 +516,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 			}
 			case "ref.extern" -> getExternRef(((SExpr.NumberValue)exprs.get(1)).intValue());
 			case "ref.null" -> null;
+			case "ref.func" -> new AnyFuncRef();
 			default -> throw new ModuleFormatException("Unexpected constant expression: " + expr);
 		};
 	}

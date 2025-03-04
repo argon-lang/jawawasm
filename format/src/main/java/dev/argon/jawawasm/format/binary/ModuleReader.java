@@ -247,23 +247,43 @@ public class ModuleReader {
 	}
 
 
-	private ValType readValTypeRest(int i) throws IOException, ModuleFormatException {
-		return switch(i) {
-			case -1 -> NumType.I32;
-			case -2 -> NumType.I64;
-			case -3 -> NumType.F32;
-			case -4 -> NumType.F64;
-			case -5 -> VecType.V128;
-			case -29 -> new RefType(true, readHeapType());
-			case -28 -> new RefType(false, readHeapType());
-			case -16 -> new RefType(true, new HeapType.Func());
-			case -17 -> new RefType(true, new HeapType.Extern());
-			default -> throw new ModuleFormatException("Unexpected value type: " + Integer.toHexString(i));
-		};
+	private ValType readValTypeRest(long i) throws IOException, ModuleFormatException {
+		ValType result = null;
+		if(i < 0) {
+			result = switch((int) i) {
+				// numtype
+				case -1 -> NumType.I32;
+				case -2 -> NumType.I64;
+				case -3 -> NumType.F32;
+				case -4 -> NumType.F64;
+
+				// vectype
+				case -5 -> VecType.V128;
+
+				// reftype
+				case -29 -> new RefType(true, readHeapType());
+				case -28 -> new RefType(false, readHeapType());
+
+				default -> {
+					var heapType = tryReadAbsHeapTypeRest((int)i);
+					if(heapType != null) {
+						yield new RefType(true, heapType);
+					}
+
+					yield null;
+				}
+			};
+		}
+
+		if(result == null) {
+			throw new ModuleFormatException("Unexpected value type: " + i);
+		}
+
+		return result;
 	}
 
 	private ValType readValType() throws IOException, ModuleFormatException {
-		int i = readS7();
+		long i = readS33();
 		return readValTypeRest(i);
 	}
 
@@ -296,17 +316,28 @@ public class ModuleReader {
 
 	private HeapType readHeapType() throws IOException, ModuleFormatException {
 		long value = readS33();
-
-		if(value > 0) {
+		if(value >= 0) {
 			return new TypeIdx((int)value);
 		}
 
-		return switch((int)value) {
-			case -17 -> new HeapType.Extern();
-			case -16 -> new HeapType.Func();
-			default -> throw new ModuleFormatException("Invalid heap type");
+		var heapType = tryReadAbsHeapTypeRest((int)value);
+		if(heapType == null) {
+			throw new ModuleFormatException("Invalid heap type: " + value);
+		}
+
+		return heapType;
+	}
+
+	private HeapType tryReadAbsHeapTypeRest(int value) {
+		return switch(value) {
+			case -16 -> HeapType.AbstractHeapType.FUNC;
+			case -17 -> HeapType.AbstractHeapType.EXTERN;
+			case -23 -> HeapType.AbstractHeapType.EXN;
+			default -> null;
 		};
 	}
+
+
 
 	private Limits readLimits() throws IOException, ModuleFormatException {
 		int b = readU7();
@@ -348,6 +379,17 @@ public class ModuleReader {
 		return new GlobalType(mut, t);
 	}
 
+	private TagType readTagType() throws IOException, ModuleFormatException {
+		byte b = readByte();
+		if(b != 0) {
+			throw new ModuleFormatException("Tag reserved byte must be zero");
+		}
+
+		var type = readTypeIdx();
+
+		return new TagType(type);
+	}
+
 
 
 	private ControlInstr.BlockType readBlockType() throws IOException, ModuleFormatException {
@@ -373,40 +415,14 @@ public class ModuleReader {
 			case 0x01 -> new ControlInstr.Nop();
 			case 0x02 -> {
 				var bt = readBlockType();
-
-				List<Instr> instrs = new ArrayList<>();
-				while(true) {
-					var instr = readInstrOrTerminator();
-					if(instr == BlockTerminator.END) {
-						break;
-					}
-					else if(instr instanceof Instr i) {
-						instrs.add(i);
-					}
-					else {
-						throw new ModuleFormatException("END opcode expected");
-					}
-				}
+				var instrs = readInstructionBlock();
 
 				yield new ControlInstr.Block(bt, instrs);
 			}
 
 			case 0x03 -> {
 				var bt = readBlockType();
-
-				List<Instr> instrs = new ArrayList<>();
-				while(true) {
-					var instr = readInstrOrTerminator();
-					if(instr == BlockTerminator.END) {
-						break;
-					}
-					else if(instr instanceof Instr i) {
-						instrs.add(i);
-					}
-					else {
-						throw new ModuleFormatException("END opcode expected");
-					}
-				}
+				var instrs = readInstructionBlock();
 
 				yield new ControlInstr.Loop(bt, instrs);
 			}
@@ -453,6 +469,12 @@ public class ModuleReader {
 			}
 
 			case 0x05 -> BlockTerminator.ELSE;
+
+			case 0x08 -> {
+				var idx = readTagIdx();
+				yield new ControlInstr.Throw(idx);
+			}
+
 			case 0x0B -> BlockTerminator.END;
 
 			case 0x0C -> {
@@ -534,6 +556,42 @@ public class ModuleReader {
 			case 0x1C -> {
 				var t = readVector(this::readValType);
 				yield new ParametricInstr.Select(t);
+			}
+
+			// Try
+			case 0x1F -> {
+				var blockType = readBlockType();
+				var catchClauses = readVector(() -> {
+					var catchType = readByte();
+					return switch(catchType) {
+						case 0x00 -> {
+							var tagIdx = readTagIdx();
+							var labelIdx = readLabelIdx();
+							yield new ControlInstr.CatchTag(tagIdx, labelIdx);
+						}
+
+						case 0x01 -> {
+							var tagIdx = readTagIdx();
+							var labelIdx = readLabelIdx();
+							yield new ControlInstr.CatchTagRef(tagIdx, labelIdx);
+						}
+
+						case 0x02 -> {
+							var labelIdx = readLabelIdx();
+							yield new ControlInstr.CatchAll(labelIdx);
+						}
+
+						case 0x03 -> {
+							var labelIdx = readLabelIdx();
+							yield new ControlInstr.CatchAllRef(labelIdx);
+						}
+
+						default -> throw new ModuleFormatException("Invalid catch type");
+					};
+				});
+				var body = readInstructionBlock();
+
+				yield new ControlInstr.Try_Table(blockType, catchClauses, body);
 			}
 
 			// Variable
@@ -1393,8 +1451,25 @@ public class ModuleReader {
 			}
 
 
-			default -> throw new ModuleFormatException("illegal opcode");
+			default -> throw new ModuleFormatException("illegal opcode: " + Integer.toHexString(b));
 		};
+	}
+
+	private List<? extends Instr> readInstructionBlock() throws IOException, ModuleFormatException {
+		List<Instr> instrs = new ArrayList<>();
+		while(true) {
+			var instr = readInstrOrTerminator();
+			if(instr == BlockTerminator.END) {
+				break;
+			}
+			else if(instr instanceof Instr i) {
+				instrs.add(i);
+			}
+			else {
+				throw new ModuleFormatException("END opcode expected");
+			}
+		}
+		return instrs;
 	}
 
 	private MemoryInstr.MemArg readMemArg() throws IOException, ModuleFormatException {
@@ -1453,6 +1528,9 @@ public class ModuleReader {
 	private GlobalIdx readGlobalIdx() throws IOException, ModuleFormatException {
 		return new GlobalIdx(readU32());
 	}
+	private TagIdx readTagIdx() throws IOException, ModuleFormatException {
+		return new TagIdx(readU32());
+	}
 	private ElemIdx readElemIdx() throws IOException, ModuleFormatException {
 		return new ElemIdx(readU32());
 	}
@@ -1497,6 +1575,11 @@ public class ModuleReader {
 					yield new ImportDesc.Global(type);
 				}
 
+				case 0x04 -> {
+					var type = readTagType();
+					yield new ImportDesc.Tag(type);
+				}
+
 				default -> throw new ModuleFormatException("malformed import kind");
 			};
 
@@ -1519,6 +1602,13 @@ public class ModuleReader {
 		return readVector(() -> {
 			var type = readMemType();
 			return new Mem(type);
+		});
+	}
+
+	private List<? extends Tag> readTagSectionContent() throws IOException, ModuleFormatException {
+		return readVector(() -> {
+			var type = readTagType();
+			return new Tag(type);
 		});
 	}
 
@@ -1553,6 +1643,11 @@ public class ModuleReader {
 				case 0x03 -> {
 					var global = readGlobalIdx();
 					yield new ExportDesc.Global(global);
+				}
+
+				case 0x04 -> {
+					var tag = readTagIdx();
+					yield new ExportDesc.Tag(tag);
 				}
 
 				default -> throw new ModuleFormatException("illegal export descriptor");
@@ -1602,7 +1697,7 @@ public class ModuleReader {
 					type = readRefType();
 				}
 				else {
-					type = new RefType(true, new HeapType.Func());
+					type = new RefType(true, HeapType.AbstractHeapType.FUNC);
 				}
 
 				init = readVector(this::readExpr);
@@ -1631,7 +1726,7 @@ public class ModuleReader {
 	}
 
 	private enum ElemKind {
-		FUNC_REF(new RefType(true, new HeapType.Func())),
+		FUNC_REF(new RefType(true, HeapType.AbstractHeapType.FUNC)),
 		;
 
 		ElemKind(RefType refType) {
@@ -1711,7 +1806,7 @@ public class ModuleReader {
 		return readU32();
 	}
 
-	private static final int[] SECTION_ORDER = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 10, 11 };
+	private static final int[] SECTION_ORDER = { 1, 2, 3, 4, 5, 13, 6, 7, 8, 9, 12, 10, 11 };
 
 	private int getSectionIndex(int section) {
 		for(int i = 0; i < SECTION_ORDER.length; ++i) {
@@ -1735,6 +1830,7 @@ public class ModuleReader {
 		List<? extends TypeIdx> funcTypes = new ArrayList<>();
 		List<? extends Table> tables = new ArrayList<>();
 		List<? extends Mem> mems = new ArrayList<>();
+		List<? extends Tag> tags = new ArrayList<>();
 		List<? extends Global> globals = new ArrayList<>();
 		List<? extends Elem> elems = new ArrayList<>();
 		List<? extends Data> datas = new ArrayList<>();
@@ -1827,6 +1923,9 @@ public class ModuleReader {
 						hasDataCount = true;
 						dataCount = readSection(size, this::readDataCountSectionContent);
 					}
+					case 13 -> {
+						tags = readSection(size, this::readTagSectionContent);
+					}
 					default -> throw new ModuleFormatException("malformed section id");
 				}
 
@@ -1852,6 +1951,7 @@ public class ModuleReader {
 					funcs,
 					tables,
 					mems,
+					tags,
 					globals,
 					elems,
 					datas,

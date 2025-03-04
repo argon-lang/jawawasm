@@ -23,7 +23,7 @@ class Subtyping {
 
 	public boolean isSubtypeHeap(HeapType a, HeapType b) {
 		return a.equals(b) ||
-			(a instanceof FuncType && b instanceof HeapType.Func) ||
+			(a instanceof FuncType && b == HeapType.AbstractHeapType.FUNC) ||
 			(a instanceof FuncType af && b instanceof FuncType bf && isSubtypeFunc(af, bf)) ||
 			(a instanceof TypeIdx at && isSubtypeHeap(context.getType(at), b)) ||
 			(b instanceof TypeIdx bt && isSubtypeHeap(a, context.getType(bt)));

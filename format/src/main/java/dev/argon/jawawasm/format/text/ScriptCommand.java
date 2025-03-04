@@ -53,6 +53,8 @@ public sealed interface ScriptCommand {
 		 */
 		public static record AssertReturn(Action action, List<? extends SExpr> results) implements Assertion {}
 
+		public static record AssertException(Action action) implements Assertion {}
+
 		/**
 		 * Asserts that a trap occurs
 		 * @param action The action.

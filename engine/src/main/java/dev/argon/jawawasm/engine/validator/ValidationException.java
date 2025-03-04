@@ -9,6 +9,17 @@ public class ValidationException extends Exception {
 	 * @param message The error message.
 	 */
 	public ValidationException(String message) {
+		this(message, message);
+	}
+
+	public ValidationException(String testMessage, String message) {
 		super(message);
+		this.testMessage = testMessage;
+	}
+
+	private final String testMessage;
+
+	public String getTestMessage() {
+		return testMessage;
 	}
 }

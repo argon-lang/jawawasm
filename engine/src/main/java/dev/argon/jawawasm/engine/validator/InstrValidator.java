@@ -76,7 +76,7 @@ class InstrValidator extends ValidatorBase {
 		if(heapType instanceof TypeIdx funcType) {
 			context.requireType(funcType);
 		}
-		else if(!(heapType instanceof BotType || heapType instanceof FuncType || heapType instanceof HeapType.Func)) {
+		else if(!(heapType instanceof BotType || heapType instanceof FuncType || heapType == HeapType.AbstractHeapType.FUNC)) {
 			throw new ValidationException("type mismatch");
 		}
 	}
@@ -977,6 +977,24 @@ class InstrValidator extends ValidatorBase {
 					push(t.results());
 				}
 
+				case ControlInstr.Throw(var tag) -> {
+					context.requireTag(tag);
+					var tagType = context.getTag(tag);
+
+					context.requireType(tagType.funcType());
+					var funcType = context.getType(tagType.funcType());
+
+					pop(funcType.args());
+					stack.clear();
+					unreachable = true;
+				}
+
+				case ControlInstr.Throw_Ref() -> {
+					pop(new RefType(true, HeapType.AbstractHeapType.EXN));
+					stack.clear();
+					unreachable = true;
+				}
+
 				case ControlInstr.Br(var label) -> {
 					context.requireLabel(label);
 					var t = context.getLabel(label);
@@ -1117,7 +1135,78 @@ class InstrValidator extends ValidatorBase {
 					validateControlInstr(new ControlInstr.Call_Indirect(table, funcType));
 					validateControlInstr(new ControlInstr.Return());
 				}
+
+				case ControlInstr.Try_Table(var blockType, var catchClauses, var body) -> {
+					new TypeValidator(context).validateBlockType(blockType);
+					var t = expandBlockType(blockType);
+
+					for(var catchClause : catchClauses) {
+						validateCatchClause(catchClause);
+					}
+
+					var c2 = context.copy();
+					c2.addLabel(t.results());
+					var iv2 = new InstrValidator(c2);
+					iv2.validateInstructions(body, t.args(), t.results());
+
+					pop(t.args());
+					push(t.results());
+				}
 			}
+		}
+
+		private void validateCatchClause(ControlInstr.CatchClause catchClause) throws ValidationException {
+			switch(catchClause) {
+				case ControlInstr.CatchTag(var tagIdx, var labelIdx) -> {
+					context.requireTag(tagIdx);
+					var tag = context.getTag(tagIdx);
+
+					context.requireType(tag.funcType());
+					var t = context.getType(tag.funcType());
+
+					require(t.results().types().isEmpty(), "Tag type must have empty result");
+
+					context.requireLabel(labelIdx);
+					var label = context.getLabel(labelIdx);
+					require(new Subtyping(context).isSubtypeResult(t.args(), label), "type mismatch", "catch clause must match target block type " + t.args() + ", " + label);
+				}
+
+				case ControlInstr.CatchTagRef(var tagIdx, var labelIdx) -> {
+					context.requireTag(tagIdx);
+					var tag = context.getTag(tagIdx);
+
+					context.requireType(tag.funcType());
+					var t = context.getType(tag.funcType());
+
+					require(t.results().types().isEmpty(), "Tag type must have empty result");
+
+					var resType = new ArrayList<ValType>();
+					resType.addAll(t.args().types());
+					resType.add(new RefType(false, HeapType.AbstractHeapType.EXN));
+
+					context.requireLabel(labelIdx);
+					var label = context.getLabel(labelIdx);
+					require(new Subtyping(context).isSubtypeResult(new ResultType(resType), label), "type mismatch", "catch_ref clause must match target block type" + resType + ", " + label);
+				}
+
+				case ControlInstr.CatchAll(var labelIdx) -> {
+					context.requireLabel(labelIdx);
+					var label = context.getLabel(labelIdx);
+
+					require(label.types().isEmpty(), "type mismatch", "catch_all label type must be empty");
+				}
+
+				case ControlInstr.CatchAllRef(var labelIdx) -> {
+					context.requireLabel(labelIdx);
+					var label = context.getLabel(labelIdx);
+
+					var resType = new ArrayList<ValType>();
+					resType.add(new RefType(false, HeapType.AbstractHeapType.EXN));
+
+					require(new Subtyping(context).isSubtypeResult(new ResultType(resType), label), "type mismatch", "catch_all_ref clause must be ref exn");
+				}
+			}
+
 		}
 
 		private FuncType expandBlockType(ControlInstr.BlockType blockType) {

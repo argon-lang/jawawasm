@@ -4,6 +4,7 @@
 package dev.argon.jawawasm.app;
 
 import dev.argon.jawawasm.format.text.ScriptCommand;
+import dev.argon.jawawasm.format.text.ScriptCommandInfo;
 import dev.argon.jawawasm.format.text.ScriptReader;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
@@ -12,24 +13,75 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ScriptTests {
 
-	private final List<String> excludedTests = List.of("inline-module.wast");
+	private final List<String> excludedTests = List.of(new String[] {
+		"inline-module.wast",
+
+		// Exceptions
+//		"try_table.wast",
+//		"exports.wast",
+//		"instance.wast",
+
+		// Memory64
+		"table_fill.wast",
+		"memory_copy.wast",
+		"memory_fill.wast",
+		"memory64.wast",
+		"memory_grow64.wast",
+
+		// ref types and ref type functions
+		"tag.wast",
+		"ref.wast",
+		"elem.wast",
+		"type-equivalence.wast",
+
+
+		"gc/",
+		"relaxed-simd/",
+		"multi-memory/",
+
+		"simd/simd_memory-multi.wast",
+	});
+
+	private static final String testDir = "../webassembly-spec/test/core";
 
     @TestFactory
 	Stream<DynamicTest> wastScriptTests() throws IOException {
-		return Files.walk(Path.of("../webassembly-spec/test/core"))
-				.filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".wast") && !excludedTests.contains(path.getFileName().toString()))
-				.map(path -> DynamicTest.dynamicTest(path.getFileName().toString(), () -> runWastScript(path)));
+		var testPath = Path.of(testDir);
+		return Files.walk(testPath)
+				.filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".wast") && !isExcludedTest(testPath.relativize(path)))
+				.map(path -> DynamicTest.dynamicTest(testPath.relativize(path).toString(), () -> runWastScript(path)));
+	}
+
+	private boolean isExcludedTest(Path path) {
+		if(excludedTests.contains(path.toString().replace('\\', '/'))) {
+			return true;
+		}
+
+		var parent = path.getParent();
+		if(parent != null) {
+			if(excludedTests.contains(parent.toString().replace('\\', '/') + "/")) {
+				return true;
+			}
+		}
+
+//		if(!path.toString().equals("try_table.wast")) {
+//			return true;
+//		}
+
+		return false;
 	}
 
 	private void runWastScript(Path path) throws Throwable {
-		List<? extends ScriptCommand> commands;
+		List<? extends ScriptCommandInfo> commands;
 		try(var reader = Files.newBufferedReader(path)) {
 			commands = new ScriptReader(reader).readCommands();
 		}

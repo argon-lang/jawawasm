@@ -12,6 +12,7 @@ class Context {
 	private final List<TypeIdx> funcs = new ArrayList<>();
 	private final List<TableType> tables = new ArrayList<>();
 	private final List<MemType> mems = new ArrayList<>();
+	private final List<TagType> tags = new ArrayList<>();
 	private final List<GlobalType> globals = new ArrayList<>();
 	private final List<RefType> elems = new ArrayList<>();
 	private int datas = 0;
@@ -26,6 +27,7 @@ class Context {
 		other.funcs.addAll(funcs);
 		other.tables.addAll(tables);
 		other.mems.addAll(mems);
+		other.tags.addAll(tags);
 		other.globals.addAll(globals);
 		other.elems.addAll(elems);
 		other.datas = datas;
@@ -53,7 +55,7 @@ class Context {
 
 	public void requireFunc(FuncIdx idx) throws ValidationException {
 		if(!(idx.index() >= 0 && idx.index() < funcs.size())) {
-			throw new ValidationException("unknown function " + idx.index());
+			throw new ValidationException("unknown function", "unknown function " + idx.index());
 		}
 	}
 	public TypeIdx getFunc(FuncIdx idx) {
@@ -84,7 +86,7 @@ class Context {
 
 	public void requireMem(MemIdx idx) throws ValidationException {
 		if(!(idx.index() >= 0 && idx.index() < mems.size())) {
-			throw new ValidationException("unknown memory " + idx.index());
+			throw new ValidationException("unknown memory", "unknown memory " + idx.index());
 		}
 	}
 	MemType getMem(MemIdx idx) {
@@ -95,6 +97,18 @@ class Context {
 		mems.add(t);
 	}
 
+
+	public void requireTag(TagIdx idx) throws ValidationException {
+		if(!(idx.index() >= 0 && idx.index() < tags.size())) {
+			throw new ValidationException("unknown tag " + idx.index());
+		}
+	}
+	public TagType getTag(TagIdx idx) {
+		return tags.get(idx.index());
+	}
+	public void addTag(TagType t) {
+		tags.add(t);
+	}
 
 	public void requireGlobal(GlobalIdx idx) throws ValidationException {
 		if(!(idx.index() >= 0 && idx.index() < globals.size())) {

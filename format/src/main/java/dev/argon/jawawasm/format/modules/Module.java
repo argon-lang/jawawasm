@@ -23,6 +23,7 @@ public record Module(
     List<? extends Func> funcs,
     List<? extends Table> tables,
     List<? extends Mem> mems,
+	List<? extends Tag> tags,
     List<? extends Global> globals,
     List<? extends Elem> elems,
     List<? extends Data> datas,

@@ -28,6 +28,7 @@ public class ScriptReader {
 	private boolean isEOF;
 	private final char[] lookahead = new char[2];
 	private int lookaheadSize = 0;
+	private int lineNumber = 1;
 
 	private int tryNextChar() throws IOException {
 		if(lookaheadSize > 0) {
@@ -36,6 +37,9 @@ public class ScriptReader {
 				lookahead[i] = lookahead[i + 1];
 			}
 			--lookaheadSize;
+			if(ch == '\n') {
+				++lineNumber;
+			}
 			return ch;
 		}
 		else if(isEOF) {
@@ -45,6 +49,9 @@ public class ScriptReader {
 			int ch = reader.read();
 			if(ch < 0) {
 				isEOF = true;
+			}
+			if(ch == '\n') {
+				++lineNumber;
 			}
 			return ch;
 		}
@@ -91,10 +98,10 @@ public class ScriptReader {
 	 * @throws IOException if an underlying IO error occurs.
 	 * @throws ModuleFormatException If the format is invalid.
 	 */
-	public List<? extends SExpr> readExpressions() throws IOException, ModuleFormatException {
-		List<SExpr> exprs = new ArrayList<>();
+	public List<? extends SExprInfo> readExpressions() throws IOException, ModuleFormatException {
+		List<SExprInfo> exprs = new ArrayList<>();
 		while(true) {
-			SExpr expr = tryReadExpr();
+			SExprInfo expr = tryReadExpr();
 			if(expr == null) {
 				break;
 			}
@@ -116,38 +123,44 @@ public class ScriptReader {
 	 * @throws IOException if an underlying IO error occurs.
 	 * @throws ModuleFormatException If the format is invalid.
 	 */
-	public List<? extends ScriptCommand> readCommands() throws IOException, ModuleFormatException {
+	public List<? extends ScriptCommandInfo> readCommands() throws IOException, ModuleFormatException {
 		var exprs = readExpressions();
-		List<ScriptCommand> commands = new ArrayList<>(exprs.size());
+		List<ScriptCommandInfo> commands = new ArrayList<>(exprs.size());
 		for(var expr : exprs) {
-			commands.add(buildCommand(expr));
+			var command = buildCommand(expr.expr());
+			commands.add(new ScriptCommandInfo(command, expr.lineNumber(), expr.expr()));
 		}
 		return commands;
 	}
 
-	private SExpr tryReadExpr() throws IOException, ModuleFormatException {
+	private SExprInfo tryReadExpr() throws IOException, ModuleFormatException {
 		skipToNextToken();
+
+		int line = lineNumber;
 
 		int ch = peek(0);
 		if(ch < 0) {
 			return null;
 		}
 
+		SExpr expr;
 		if(Character.isDigit(ch) || ch == '-' || ch == '+') {
-			return readNumericExpr();
+			expr = readNumericExpr();
 		}
 		else if(ch == '"') {
-			return readStringExpr();
+			expr = readStringExpr();
 		}
 		else if(ch == '$' || Character.isLetter(ch)) {
-			return readIdentifierExpr();
+			expr = readIdentifierExpr();
 		}
 		else if(ch == '(') {
-			return readListExpr();
+			expr = readListExpr();
 		}
 		else {
 			return null;
 		}
+
+		return new SExprInfo(expr, line);
 	}
 
 
@@ -264,11 +277,11 @@ public class ScriptReader {
 
 		List<SExpr> exprs = new ArrayList<>();
 		while(true) {
-			SExpr expr = tryReadExpr();
-			if(expr == null) {
+			SExprInfo exprInfo = tryReadExpr();
+			if(exprInfo == null) {
 				break;
 			}
-			exprs.add(expr);
+			exprs.add(exprInfo.expr());
 		}
 
 		int ch = nextChar();
@@ -325,6 +338,12 @@ public class ScriptReader {
 				var action = buildScriptAction(exprs.get(1));
 
 				yield new ScriptCommand.Assertion.AssertReturn(action, exprs.stream().skip(2).toList());
+			}
+			case "assert_exception" -> {
+				var exprs = ((SExpr.ExprList)expr).exprs();
+				var action = buildScriptAction(exprs.get(1));
+
+				yield new ScriptCommand.Assertion.AssertException(action);
 			}
 			case "assert_trap" -> {
 				var exprs = ((SExpr.ExprList)expr).exprs();

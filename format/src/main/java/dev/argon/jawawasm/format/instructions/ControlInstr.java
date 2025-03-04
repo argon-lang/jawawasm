@@ -1,9 +1,6 @@
 package dev.argon.jawawasm.format.instructions;
 
-import dev.argon.jawawasm.format.modules.FuncIdx;
-import dev.argon.jawawasm.format.modules.LabelIdx;
-import dev.argon.jawawasm.format.modules.TableIdx;
-import dev.argon.jawawasm.format.modules.TypeIdx;
+import dev.argon.jawawasm.format.modules.*;
 import dev.argon.jawawasm.format.types.ValType;
 
 import java.util.List;
@@ -65,6 +62,9 @@ public sealed interface ControlInstr extends Instr {
 	 * @param elseBody The body of the block executed when false.
 	 */
 	public static record If(BlockType type, List<? extends Instr> thenBody, List<? extends Instr> elseBody) implements ControlInstr {}
+
+	public static record Throw(TagIdx tag) implements ControlInstr {}
+	public static record Throw_Ref() implements ControlInstr {}
 
 	/**
 	 * WebAssembly `br` instruction
@@ -131,4 +131,12 @@ public sealed interface ControlInstr extends Instr {
 	 */
 	public static record Return_Call_Indirect(TableIdx table, TypeIdx funcType) implements ControlInstr {}
 
+	public static record Try_Table(BlockType blockType, List<? extends CatchClause> catchClauses, List<? extends Instr> body) implements ControlInstr {}
+
+	public static sealed interface CatchClause {}
+
+	public static record CatchTag(TagIdx tagIdx, LabelIdx labelIdx) implements CatchClause {}
+	public static record CatchTagRef(TagIdx tagIdx, LabelIdx labelIdx) implements CatchClause {}
+	public static record CatchAll(LabelIdx labelIdx) implements CatchClause {}
+	public static record CatchAllRef(LabelIdx labelIdx) implements CatchClause {}
 }

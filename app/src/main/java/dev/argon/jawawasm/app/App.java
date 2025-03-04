@@ -4,6 +4,7 @@
 package dev.argon.jawawasm.app;
 
 import dev.argon.jawawasm.format.text.ScriptCommand;
+import dev.argon.jawawasm.format.text.ScriptCommandInfo;
 import dev.argon.jawawasm.format.text.ScriptReader;
 
 import java.io.PrintWriter;
@@ -30,7 +31,7 @@ public class App {
 		String wasmExecutableStr = System.getenv("JAWAWASM_WASM_PATH");
 		Path wasmExecutable = Path.of(wasmExecutableStr);
 
-		List<? extends ScriptCommand> commands;
+		List<? extends ScriptCommandInfo> commands;
 		System.out.println("Reading module");
 		try(var reader = Files.newBufferedReader(Path.of(scriptFile))) {
 			commands = new ScriptReader(reader).readCommands();

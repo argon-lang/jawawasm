@@ -5,5 +5,5 @@ package dev.argon.jawawasm.format.types;
  * @param args The argument types.
  * @param results The result types.
  */
-public record FuncType(ResultType args, ResultType results) implements HeapType {
+public record FuncType(ResultType args, ResultType results) implements HeapType, ExternalType {
 }
