@@ -1511,7 +1511,6 @@ public class ModuleReader {
 
 	private MemoryInstr.MemArg readMemArg() throws IOException, ModuleFormatException {
 		var align = readU32();
-		var offset = readU64();
 
 		int memIndex = 0;
 		if((align & 0x40) == 0x40) {
@@ -1519,9 +1518,7 @@ public class ModuleReader {
 			memIndex = readU32();
 		}
 
-		if(align >= 32) {
-			throw new ModuleFormatException("malformed memop flags");
-		}
+		var offset = readU64();
 
 		return new MemoryInstr.MemArg(new MemIdx(memIndex), offset, align);
 	}

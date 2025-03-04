@@ -30,8 +30,6 @@ public class ModuleValidator extends ValidatorBase {
 
 		var refWalker = new ReferenceWalker(c);
 
-		int memCount = 0;
-
 		for(FuncType t : module.types()) {
 			c.addType(t);
 		}
@@ -50,7 +48,6 @@ public class ModuleValidator extends ValidatorBase {
 				}
 				case ImportDesc.Mem mem -> {
 					c.addMem(mem.type());
-					++memCount;
 				}
 				case ImportDesc.Tag tag -> {
 					c.addTag(tag.type());
@@ -72,12 +69,7 @@ public class ModuleValidator extends ValidatorBase {
 		}
 
 		for(Mem mem : module.mems()) {
-			++memCount;
 			c.addMem(mem.type());
-		}
-
-		if(memCount > 1) {
-			throw new ValidationException("multiple memories");
 		}
 
 		for(Tag tag : module.tags()) {

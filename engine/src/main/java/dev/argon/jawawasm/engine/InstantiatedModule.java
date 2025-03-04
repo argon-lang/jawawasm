@@ -46,11 +46,8 @@ public final class InstantiatedModule implements WasmModule {
 						var instElem = getElement(new ElemIdx(i));
 
 						var table = getTable(tableIdx);
-						Object offsetObj = evaluateInitializer(offsetExpr.body(), elem.type());
-						long offset = switch(table.type().addrType()) {
-							case I32 -> Integer.toUnsignedLong((int)offsetObj);
-							case I64 -> (long)offsetObj;
-						};
+						var addrType = table.type().addrType();
+						long offset = addrType.unboxAddress(evaluateInitializer(offsetExpr.body(), addrType.asNumType()));
 						WasmTable.init(offset, 0, instElem.size(), table, instElem);
 						dropElement(new ElemIdx(i));
 					}
@@ -67,7 +64,8 @@ public final class InstantiatedModule implements WasmModule {
 				switch(data.mode()) {
 					case DataMode.Active(var memoryIdx, var offsetExpr) -> {
 						var memory = getMemory(memoryIdx);
-						int offset = (int)evaluateInitializer(offsetExpr.body(), NumType.I32);
+						var addrType = memory.type().addrType();
+						long offset = addrType.unboxAddress(evaluateInitializer(offsetExpr.body(), addrType.asNumType()));
 						memory.init(offset, 0, data.init().length, data);
 					}
 					case DataMode.Passive() -> {}

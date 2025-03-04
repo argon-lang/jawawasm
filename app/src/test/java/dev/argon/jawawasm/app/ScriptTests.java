@@ -73,7 +73,7 @@ class ScriptTests {
 			}
 		}
 
-//		if(!path.toString().equals("call_indirect.wast")) {
+//		if(!path.toString().equals("align.wast")) {
 //			return true;
 //		}
 

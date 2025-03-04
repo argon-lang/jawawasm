@@ -1780,10 +1780,7 @@ class StackFrame {
 	}
 
 	private long popIndex(WasmTable table) {
-		return switch(table.type().addrType()) {
-			case I32 -> Integer.toUnsignedLong((int)pop());
-			case I64 -> (long)pop();
-		};
+		return table.type().addrType().unboxAddress(pop());
 	}
 
 	private long popIndex(WasmTable table1, WasmTable table2) {
@@ -1794,10 +1791,7 @@ class StackFrame {
 	}
 
 	private void pushIndex(WasmTable table, long index) {
-		switch(table.type().addrType()) {
-			case I32 -> push((int)index);
-			case I64 -> push(index);
-		};
+		push(table.type().addrType().boxAddress(index));
 	}
 
 	private void evaluateMemoryInstruction(MemoryInstr instr) throws Throwable {
@@ -2252,10 +2246,7 @@ class StackFrame {
 	}
 
 	private long popAddress(WasmMemory memory) {
-		return switch(memory.type().addrType()) {
-			case I32 -> Integer.toUnsignedLong((int)pop());
-			case I64 -> (long)pop();
-		};
+		return memory.type().addrType().unboxAddress(pop());
 	}
 
 	private long popAddress(WasmMemory memory1, WasmMemory memory2) {
