@@ -46,7 +46,11 @@ public final class InstantiatedModule implements WasmModule {
 						var instElem = getElement(new ElemIdx(i));
 
 						var table = getTable(tableIdx);
-						int offset = (int)evaluateInitializer(offsetExpr.body(), elem.type());
+						Object offsetObj = evaluateInitializer(offsetExpr.body(), elem.type());
+						long offset = switch(table.type().addrType()) {
+							case I32 -> Integer.toUnsignedLong((int)offsetObj);
+							case I64 -> (long)offsetObj;
+						};
 						WasmTable.init(offset, 0, instElem.size(), table, instElem);
 						dropElement(new ElemIdx(i));
 					}

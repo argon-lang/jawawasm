@@ -6,100 +6,105 @@ import dev.argon.jawawasm.format.types.Limits;
 
 final class WasmMemoryMeta implements WasmMemory {
 
-	public WasmMemoryMeta(Engine engine, Integer maxSize, WasmMemoryNoResize mem) {
+	public WasmMemoryMeta(Engine engine, Long maxSize, WasmMemoryNoResize mem) {
 		this.engine = engine;
 		this.maxSize = maxSize;
 		this.mem = mem;
 	}
 
 	private final Engine engine;
-	private final Integer maxSize;
+	private final Long maxSize;
 	private WasmMemoryNoResize mem;
 
 	@Override
-	public MemType type() {
-		return new MemType(new Limits(mem.pageSize(), maxSize));
+	public MemType.AddrType addressType() {
+		return mem.addressType();
 	}
 
 	@Override
-	public int byteSize() {
+	public MemType type() {
+		return new MemType(mem.addressType(), new Limits(mem.pageSize(), maxSize));
+	}
+
+	@Override
+	public long byteSize() {
 		return mem.byteSize();
 	}
 
 	@Override
-	public int pageSize() {
+	public long pageSize() {
 		return mem.pageSize();
 	}
 
 	@Override
-	public byte loadI8(int address) {
+	public byte loadI8(long address) {
 		return mem.loadI8(address);
 	}
 
 	@Override
-	public short loadI16(int address) {
+	public short loadI16(long address) {
 		return mem.loadI16(address);
 	}
 
 	@Override
-	public int loadI32(int address) {
+	public int loadI32(long address) {
 		return mem.loadI32(address);
 	}
 
 	@Override
-	public long loadI64(int address) {
+	public long loadI64(long address) {
 		return mem.loadI64(address);
 	}
 
 	@Override
-	public float loadF32(int address) {
+	public float loadF32(long address) {
 		return mem.loadF32(address);
 	}
 
 	@Override
-	public double loadF64(int address) {
+	public double loadF64(long address) {
 		return mem.loadF64(address);
 	}
 
 	@Override
-	public V128 loadV128(int address) {
+	public V128 loadV128(long address) {
 		return mem.loadV128(address);
 	}
 
 	@Override
-	public void storeI8(int address, byte value) {
+	public void storeI8(long address, byte value) {
 		mem.storeI8(address, value);
 	}
 
 	@Override
-	public void storeI16(int address, short value) {
+	public void storeI16(long address, short value) {
 		mem.storeI16(address, value);
 	}
 
 	@Override
-	public void storeI32(int address, int value) {
+	public void storeI32(long address, int value) {
 		mem.storeI32(address, value);
 	}
 
 	@Override
-	public void storeI64(int address, long value) {
+	public void storeI64(long address, long value) {
 		mem.storeI64(address, value);
 	}
 
 	@Override
-	public void storeF32(int address, float value) {
+	public void storeF32(long address, float value) {
 		mem.storeF32(address, value);
 	}
 
 	@Override
-	public void storeF64(int address, double value) {
+	public void storeF64(long address, double value) {
 		mem.storeF64(address, value);
 	}
 
 
 	@Override
-	public int grow(int pages) {
-		int oldPages = mem.pageSize();
+	public long grow(long pages) {
+		long oldPages = mem.pageSize();
 		var newPages = oldPages + pages;
 		if(pages < 0 || newPages < 0 || (maxSize != null && maxSize < newPages)) {
 			return -1;
@@ -110,8 +115,8 @@ final class WasmMemoryMeta implements WasmMemory {
 			return -1;
 		}
 
-		var newMem = engine.allocateMemory(newPages);
-		for(int address = 0; address < mem.byteSize(); address += 8) {
+		var newMem = engine.allocateMemory(addressType(), newPages);
+		for(long address = 0; address < mem.byteSize(); address += 8) {
 			newMem.storeI64(address, mem.loadI64(address));
 		}
 

@@ -12,7 +12,7 @@ public sealed interface MemoryInstr extends Instr {
 	 * @param offset Fixed address offset to the instruction operand.
 	 * @param align Alignment of the memory.
 	 */
-	public static record MemArg(MemIdx memIdx, int offset, int align) {}
+	public static record MemArg(MemIdx memIdx, long offset, int align) {}
 
 	/**
 	 * WebAssembly `inn.load` instruction

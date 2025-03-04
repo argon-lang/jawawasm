@@ -9,7 +9,7 @@ sealed interface OperandType {
 			return valType().toString();
 		}
 	}
-	public static final class Bottom implements OperandType {
+	public static record Bottom() implements OperandType {
 		@Override
 		public String toString() {
 			return "Bottom";

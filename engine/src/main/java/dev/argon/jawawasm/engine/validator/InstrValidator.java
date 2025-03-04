@@ -1,6 +1,7 @@
 package dev.argon.jawawasm.engine.validator;
 
 import dev.argon.jawawasm.format.instructions.*;
+import dev.argon.jawawasm.format.modules.TableIdx;
 import dev.argon.jawawasm.format.modules.TypeIdx;
 import dev.argon.jawawasm.format.types.*;
 import dev.argon.jawawasm.format.modules.LabelIdx;
@@ -19,6 +20,7 @@ class InstrValidator extends ValidatorBase {
 	}
 
 	public void validateInstructions(List<? extends Instr> instrs, ResultType argType, ResultType resultType) throws ValidationException {
+		System.err.println(instrs);
 		List<OperandType> stack = new ArrayList<>(argType.types().size());
 		for(ValType t : argType.types()) {
 			stack.add(new OperandType.OfValType(t));
@@ -28,6 +30,9 @@ class InstrValidator extends ValidatorBase {
 		for(Instr instr : instrs) {
 			sv.validateInstr(instr);
 		}
+
+		System.err.println(resultType);
+		System.err.println(stack);
 
 		sv.pop(resultType);
 		require(stack.isEmpty(), "type mismatch");
@@ -41,17 +46,17 @@ class InstrValidator extends ValidatorBase {
 
 	public void requireConstantInstr(Instr instr) throws ValidationException {
 		switch(instr) {
-			case NumericInstr.I32_Const(var n) -> {}
-			case NumericInstr.I64_Const(var n) -> {}
-			case NumericInstr.F32_Const(var n) -> {}
-			case NumericInstr.F64_Const(var n) -> {}
-			case NumericInstr.Inn_IBinOp(var size, var op)
+			case NumericInstr.I32_Const(_) -> {}
+			case NumericInstr.I64_Const(_) -> {}
+			case NumericInstr.F32_Const(_) -> {}
+			case NumericInstr.F64_Const(_) -> {}
+			case NumericInstr.Inn_IBinOp(_, var op)
 				when op == NumericInstr.IBinOp.ADD
 					|| op == NumericInstr.IBinOp.SUB
 					|| op == NumericInstr.IBinOp.MUL -> {}
-			case VectorInstr.V128_Const(var n) -> {}
-			case ReferenceInstr.Ref_Null(var t) -> {}
-			case ReferenceInstr.Ref_Func(var func) -> {}
+			case VectorInstr.V128_Const(_) -> {}
+			case ReferenceInstr.Ref_Null(_) -> {}
+			case ReferenceInstr.Ref_Func(_) -> {}
 			case VariableInstr.Global_Get(var global) -> {
 				context.requireGlobal(global);
 				require(context.getGlobal(global).mutability() == Mut.Const, "constant expression required");
@@ -104,6 +109,14 @@ class InstrValidator extends ValidatorBase {
 			}
 		}
 
+		private void pushAddress(MemIdx memIdx) throws ValidationException {
+			push(context.getMem(memIdx).addrType().asNumType());
+		}
+
+		private void pushIndex(TableIdx tableIdx) throws ValidationException {
+			push(context.getTable(tableIdx).addrType().asNumType());
+		}
+
 		private OperandType pop() throws ValidationException {
 			if(stack.isEmpty()) {
 				if(unreachable) {
@@ -121,12 +134,12 @@ class InstrValidator extends ValidatorBase {
 			switch(pop()) {
 				case OperandType.OfValType(var t2) -> {
 					switch(t) {
-						case OperandType.Bottom bottom -> throw new ValidationException("type mismatch");
+						case OperandType.Bottom() -> throw new ValidationException("type mismatch");
 						case OperandType.OfValType(var t3) -> require(t2.equals(t3), "type mismatch");
 					}
 				}
 
-				case OperandType.Bottom bottom -> {}
+				case OperandType.Bottom() -> {}
 			}
 		}
 
@@ -138,13 +151,35 @@ class InstrValidator extends ValidatorBase {
 					}
 				}
 
-				case OperandType.Bottom t2 -> {}
+				case OperandType.Bottom() -> {}
 			}
 		}
 
 		private void pop(ResultType t) throws ValidationException {
 			for(int i = t.types().size() - 1; i >= 0; --i) {
 				pop(t.types().get(i));
+			}
+		}
+
+		private void popAddress(MemIdx memIdx) throws ValidationException {
+			pop(context.getMem(memIdx).addrType().asNumType());
+		}
+
+		private void popAddress(MemIdx memIdx1, MemIdx memIdx2) throws ValidationException {
+			switch(context.getMem(memIdx1).addrType()) {
+				case I32 -> pop(NumType.I32);
+				case I64 -> popAddress(memIdx2);
+			}
+		}
+
+		private void popIndex(TableIdx tableIdx) throws ValidationException {
+			pop(context.getTable(tableIdx).addrType().asNumType());
+		}
+
+		private void popIndex(TableIdx tableIdx1, TableIdx tableIdx2) throws ValidationException {
+			switch(context.getTable(tableIdx1).addrType()) {
+				case I32 -> pop(NumType.I32);
+				case I64 -> popIndex(tableIdx2);
 			}
 		}
 
@@ -164,50 +199,50 @@ class InstrValidator extends ValidatorBase {
 
 		private void validateNumericInstr(NumericInstr instr) throws ValidationException {
 			switch(instr) {
-				case NumericInstr.I32_Const(var n) -> push(NumType.I32);
-				case NumericInstr.I64_Const(var n) -> push(NumType.I64);
-				case NumericInstr.F32_Const(var n) -> push(NumType.F32);
-				case NumericInstr.F64_Const(var n) -> push(NumType.F64);
-				case NumericInstr.Inn_IUnOp(var numSize, var op) -> {
+				case NumericInstr.I32_Const(_) -> push(NumType.I32);
+				case NumericInstr.I64_Const(_) -> push(NumType.I64);
+				case NumericInstr.F32_Const(_) -> push(NumType.F32);
+				case NumericInstr.F64_Const(_) -> push(NumType.F64);
+				case NumericInstr.Inn_IUnOp(var numSize, _) -> {
 					var t = intTypeForSize(numSize);
 					pop(t);
 					push(t);
 				}
 
-				case NumericInstr.Fnn_FUnOp(var numSize, var op) -> {
+				case NumericInstr.Fnn_FUnOp(var numSize, _) -> {
 					var t = floatTypeForSize(numSize);
 					pop(t);
 					push(t);
 				}
 
-				case NumericInstr.Inn_IBinOp(var numSize, var op) -> {
+				case NumericInstr.Inn_IBinOp(var numSize, _) -> {
 					var t = intTypeForSize(numSize);
 					pop(t);
 					pop(t);
 					push(t);
 				}
 
-				case NumericInstr.Fnn_FBinOp(var numSize, var op) -> {
+				case NumericInstr.Fnn_FBinOp(var numSize, _) -> {
 					var t = floatTypeForSize(numSize);
 					pop(t);
 					pop(t);
 					push(t);
 				}
 
-				case NumericInstr.Inn_ITestOp(var numSize, var op) -> {
+				case NumericInstr.Inn_ITestOp(var numSize, _) -> {
 					var t = intTypeForSize(numSize);
 					pop(t);
 					push(NumType.I32);
 				}
 
-				case NumericInstr.Inn_IRelOp(var numSize, var op) -> {
+				case NumericInstr.Inn_IRelOp(var numSize, _) -> {
 					var t = intTypeForSize(numSize);
 					pop(t);
 					pop(t);
 					push(NumType.I32);
 				}
 
-				case NumericInstr.Fnn_FRelOp(var numSize, var op) -> {
+				case NumericInstr.Fnn_FRelOp(var numSize, _) -> {
 					var t = floatTypeForSize(numSize);
 					pop(t);
 					pop(t);
@@ -236,12 +271,7 @@ class InstrValidator extends ValidatorBase {
 					push(NumType.I32);
 				}
 
-				case NumericInstr.I64_Extend_I32_S() -> {
-					pop(NumType.I32);
-					push(NumType.I64);
-				}
-
-				case NumericInstr.I64_Extend_I32_U() -> {
+				case NumericInstr.I64_Extend_I32_S(), NumericInstr.I64_Extend_I32_U() -> {
 					pop(NumType.I32);
 					push(NumType.I64);
 				}
@@ -577,7 +607,7 @@ class InstrValidator extends ValidatorBase {
 				case TableInstr.Table_Get(var tableIdx) -> {
 					context.requireTable(tableIdx);
 					var t = context.getTable(tableIdx);
-					pop(NumType.I32);
+					popIndex(tableIdx);
 					push(t.elementType());
 				}
 
@@ -585,28 +615,28 @@ class InstrValidator extends ValidatorBase {
 					context.requireTable(tableIdx);
 					var t = context.getTable(tableIdx);
 					pop(t.elementType());
-					pop(NumType.I32);
+					popIndex(tableIdx);
 				}
 
 				case TableInstr.Table_Size(var tableIdx) -> {
 					context.requireTable(tableIdx);
-					push(NumType.I32);
+					pushIndex(tableIdx);
 				}
 
 				case TableInstr.Table_Grow(var tableIdx) -> {
 					context.requireTable(tableIdx);
 					var t = context.getTable(tableIdx);
-					pop(NumType.I32);
+					popIndex(tableIdx);
 					pop(t.elementType());
-					push(NumType.I32);
+					pushIndex(tableIdx);
 				}
 
 				case TableInstr.Table_Fill(var tableIdx) -> {
 					context.requireTable(tableIdx);
 					var t = context.getTable(tableIdx);
-					pop(NumType.I32);
+					popIndex(tableIdx);
 					pop(t.elementType());
-					pop(NumType.I32);
+					popIndex(tableIdx);
 				}
 
 				case TableInstr.Table_Copy(var dest, var src) -> {
@@ -616,9 +646,9 @@ class InstrValidator extends ValidatorBase {
 					var t2 = context.getTable(src);
 					require(t1.elementType().equals(t2.elementType()), "type mismatch");
 
-					pop(NumType.I32);
-					pop(NumType.I32);
-					pop(NumType.I32);
+					popIndex(dest, src);
+					popIndex(src);
+					popIndex(dest);
 				}
 
 				case TableInstr.Table_Init(var tableIdx, var elemIdx) -> {
@@ -630,7 +660,7 @@ class InstrValidator extends ValidatorBase {
 
 					pop(NumType.I32);
 					pop(NumType.I32);
-					pop(NumType.I32);
+					popIndex(tableIdx);
 				}
 
 				case TableInstr.Elem_Drop(var elemIdx) -> {
@@ -644,14 +674,14 @@ class InstrValidator extends ValidatorBase {
 				case MemoryInstr.Inn_Load(var numSize, var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					checkNumSizeAlignment(numSize, memArg);
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(intTypeForSize(numSize));
 				}
 
 				case MemoryInstr.Fnn_Load(var numSize, var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					checkNumSizeAlignment(numSize, memArg);
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(floatTypeForSize(numSize));
 				}
 
@@ -659,20 +689,20 @@ class InstrValidator extends ValidatorBase {
 					context.requireMem(memArg.memIdx());
 					checkNumSizeAlignment(numSize, memArg);
 					pop(intTypeForSize(numSize));
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 				}
 
 				case MemoryInstr.Fnn_Store(var numSize, var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					checkNumSizeAlignment(numSize, memArg);
 					pop(floatTypeForSize(numSize));
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 				}
 
 				case MemoryInstr.V128_Load(var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					checkVectorAlignment(memArg);
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 
@@ -680,20 +710,20 @@ class InstrValidator extends ValidatorBase {
 					context.requireMem(memArg.memIdx());
 					checkVectorAlignment(memArg);
 					pop(VecType.V128);
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 				}
 
 				case MemoryInstr.Inn_Load8_U(var numSize, var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 0) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(intTypeForSize(numSize));
 				}
 
 				case MemoryInstr.Inn_Load8_S(var numSize, var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 0) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(intTypeForSize(numSize));
 				}
 
@@ -701,38 +731,38 @@ class InstrValidator extends ValidatorBase {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 0) <= 0, "alignment must not be larger than natural");
 					pop(intTypeForSize(numSize));
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 				}
 				case MemoryInstr.Inn_Load16_S(var numSize, var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 1) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(intTypeForSize(numSize));
 				}
 				case MemoryInstr.Inn_Load16_U(var numSize, var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 1) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(intTypeForSize(numSize));
 				}
 				case MemoryInstr.Inn_Store16(var numSize, var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 1) <= 0, "alignment must not be larger than natural");
 					pop(intTypeForSize(numSize));
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 				}
 
 				case MemoryInstr.I64_Load32_S(var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 2) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(NumType.I64);
 				}
 
 				case MemoryInstr.I64_Load32_U(var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 2) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(NumType.I64);
 				}
 
@@ -740,89 +770,89 @@ class InstrValidator extends ValidatorBase {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 2) <= 0, "alignment must not be larger than natural");
 					pop(NumType.I64);
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 				}
 
 				case MemoryInstr.V128_Load8x8_S(var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 3) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 
 				case MemoryInstr.V128_Load8x8_U(var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 3) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 
 				case MemoryInstr.V128_Load16x4_S(var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 3) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 
 				case MemoryInstr.V128_Load16x4_U(var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 3) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 
 				case MemoryInstr.V128_Load32x2_S(var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 3) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 
 				case MemoryInstr.V128_Load32x2_U(var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 3) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 
 				case MemoryInstr.V128_Load8_Splat(var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 0) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 
 				case MemoryInstr.V128_Load16_Splat(var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 1) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 
 				case MemoryInstr.V128_Load32_Splat(var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 2) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 
 				case MemoryInstr.V128_Load64_Splat(var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 3) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 
 				case MemoryInstr.V128_Load32_Zero(var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 2) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 				case MemoryInstr.V128_Load64_Zero(var memArg) -> {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 3) <= 0, "alignment must not be larger than natural");
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 
@@ -831,7 +861,7 @@ class InstrValidator extends ValidatorBase {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 0) <= 0, "alignment must not be larger than natural");
 					pop(VecType.V128);
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 				case MemoryInstr.V128_Load16_Lane(var memArg, var laneIdx) -> {
@@ -839,7 +869,7 @@ class InstrValidator extends ValidatorBase {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 1) <= 0, "alignment must not be larger than natural");
 					pop(VecType.V128);
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 				case MemoryInstr.V128_Load32_Lane(var memArg, var laneIdx) -> {
@@ -847,7 +877,7 @@ class InstrValidator extends ValidatorBase {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 2) <= 0, "alignment must not be larger than natural");
 					pop(VecType.V128);
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 
@@ -856,7 +886,7 @@ class InstrValidator extends ValidatorBase {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 3) <= 0, "alignment must not be larger than natural");
 					pop(VecType.V128);
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 					push(VecType.V128);
 				}
 
@@ -865,7 +895,7 @@ class InstrValidator extends ValidatorBase {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 0) <= 0, "alignment must not be larger than natural");
 					pop(VecType.V128);
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 				}
 
 				case MemoryInstr.V128_Store16_Lane(var memArg, var laneIdx) -> {
@@ -873,46 +903,46 @@ class InstrValidator extends ValidatorBase {
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 1) <= 0, "alignment must not be larger than natural");
 					pop(VecType.V128);
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 				}
 				case MemoryInstr.V128_Store32_Lane(var memArg, var laneIdx) -> {
 					require(Byte.toUnsignedInt(laneIdx) < 4, "invalid lane index");
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 2) <= 0, "alignment must not be larger than natural");
 					pop(VecType.V128);
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 				}
 				case MemoryInstr.V128_Store64_Lane(var memArg, var laneIdx) -> {
 					require(Byte.toUnsignedInt(laneIdx) < 2, "invalid lane index");
 					context.requireMem(memArg.memIdx());
 					require(Integer.compareUnsigned(memArg.align(), 3) <= 0, "alignment must not be larger than natural");
 					pop(VecType.V128);
-					pop(NumType.I32);
+					popAddress(memArg.memIdx());
 				}
 
 				case MemoryInstr.Memory_Size(var memIdx) -> {
 					context.requireMem(memIdx);
-					push(NumType.I32);
+					pushAddress(memIdx);
 				}
 				case MemoryInstr.Memory_Grow(var memIdx) -> {
 					context.requireMem(memIdx);
-					pop(NumType.I32);
-					push(NumType.I32);
+					popAddress(memIdx);
+					pushAddress(memIdx);
 				}
 
 				case MemoryInstr.Memory_Fill(var memIdx) -> {
 					context.requireMem(memIdx);
+					popAddress(memIdx);
 					pop(NumType.I32);
-					pop(NumType.I32);
-					pop(NumType.I32);
+					popAddress(memIdx);
 				}
 
 				case MemoryInstr.Memory_Copy(var dstMemIdx, var srcMemIdx) -> {
 					context.requireMem(dstMemIdx);
 					context.requireMem(srcMemIdx);
-					pop(NumType.I32);
-					pop(NumType.I32);
-					pop(NumType.I32);
+					popAddress(dstMemIdx, srcMemIdx);
+					popAddress(srcMemIdx);
+					popAddress(dstMemIdx);
 				}
 
 				case MemoryInstr.Memory_Init(var memIdx, var dataIdx) -> {
@@ -920,7 +950,7 @@ class InstrValidator extends ValidatorBase {
 					context.requireData(dataIdx);
 					pop(NumType.I32);
 					pop(NumType.I32);
-					pop(NumType.I32);
+					popAddress(memIdx);
 				}
 
 				case MemoryInstr.Data_Drop(var dataIdx) -> {
@@ -1116,9 +1146,13 @@ class InstrValidator extends ValidatorBase {
 					context.requireType(funcType);
 					var t = context.getType(funcType);
 
-					pop(NumType.I32);
+					System.err.println(stack);
+
+					popIndex(table);
 					pop(t.args());
 					push(t.results());
+
+					System.err.println(stack);
 				}
 
 				case ControlInstr.Return_Call(var func) -> {
@@ -1151,7 +1185,7 @@ class InstrValidator extends ValidatorBase {
 					context.requireType(funcType);
 					var t = context.getType(funcType);
 
-					pop(NumType.I32);
+					popIndex(table);
 					pop(t.args());
 
 					require(new Subtyping(context).isSubtypeResult(t.results(), context.getReturn()), "type mismatch");

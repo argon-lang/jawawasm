@@ -19,7 +19,7 @@ public sealed interface WasmMemory extends WasmMemoryNoResize, WasmExport permit
 	 * @param pages The number of pages by which to grow the memory.
 	 * @return The old number of pages.
 	 */
-	int grow(int pages);
+	long grow(long pages);
 
 	/**
 	 * Creates a WasmMemory
@@ -28,7 +28,7 @@ public sealed interface WasmMemory extends WasmMemoryNoResize, WasmExport permit
 	 * @return The created memory.
 	 */
 	public static WasmMemory create(Engine engine, MemType memType) {
-		return new WasmMemoryMeta(engine, memType.limits().max(), engine.allocateMemory(memType.limits().min()));
+		return new WasmMemoryMeta(engine, memType.limits().max(), engine.allocateMemory(memType.addrType(), memType.limits().min()));
 	}
 
 	/**
@@ -38,7 +38,7 @@ public sealed interface WasmMemory extends WasmMemoryNoResize, WasmExport permit
 	 * @param n The number of bytes to fill.
 	 * @param memory The memory to fill.
 	 */
-	public static void fill(int d, byte val, int n, WasmMemory memory) {
+	public static void fill(long d, byte val, long n, WasmMemory memory) {
 		if(!Util.sumInRange(d, n, memory.byteSize())) {
 			throw new IndexOutOfBoundsException();
 		}
@@ -57,7 +57,7 @@ public sealed interface WasmMemory extends WasmMemoryNoResize, WasmExport permit
 	 * @param n The number of bytes to copy.
 	 * @param memory The memory to copy data within.
 	 */
-	public static void copy(int d, int s, int n, WasmMemory memory) {
+	public static void copy(long d, long s, long n, WasmMemory memory) {
 		if(!Util.sumInRange(d, n, memory.byteSize()) || !Util.sumInRange(s, n, memory.byteSize())) {
 			throw new IndexOutOfBoundsException();
 		}
@@ -88,7 +88,7 @@ public sealed interface WasmMemory extends WasmMemoryNoResize, WasmExport permit
 	 * @param memory The destination memory.
 	 * @param data The source data segment.
 	 */
-	public static void init(int d, int s, int n, WasmMemory memory, Data data) {
+	public static void init(long d, int s, int n, WasmMemory memory, Data data) {
 		memory.init(d, s, n, data);
 	}
 }

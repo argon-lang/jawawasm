@@ -189,6 +189,31 @@ public class ModuleReader {
 		return value;
 	}
 
+	private long readU64() throws IOException, ModuleFormatException {
+		byte b;
+		long value = 0;
+		int shift = 0;
+
+		do {
+			b = readByte();
+
+			if(shift == 63) {
+				if((b & 0x80) == 0x80) {
+					throw new ModuleFormatException("integer representation too long");
+				}
+				else if((b & 0x7E) != 0) {
+					throw new ModuleFormatException("integer too large");
+				}
+			}
+
+			value |= (long)(b & 0x7F) << shift;
+			shift += 7;
+
+		} while((b & 0x80) == 0x80);
+
+		return value;
+	}
+
 	private long readS33() throws IOException, ModuleFormatException {
 		byte b;
 		long value = 0;
@@ -339,33 +364,45 @@ public class ModuleReader {
 
 
 
-	private Limits readLimits() throws IOException, ModuleFormatException {
+	private Limits readLimits(boolean hasMax) throws IOException, ModuleFormatException {
+		if(hasMax) {
+			long min = readU64();
+			long max = readU64();
+			return new Limits(min, max);
+		}
+		else {
+			long min = readU64();
+			return new Limits(min, null);
+		}
+	}
+
+	private MemType readMemType() throws IOException, ModuleFormatException {
 		int b = readU7();
 		return switch(b) {
 			case 0x00 -> {
-				int min = readU32();
-				yield new Limits(min, null);
+				var limits = readLimits(false);
+				yield new MemType(MemType.AddrType.I32, limits);
 			}
-
 			case 0x01 -> {
-				int min = readU32();
-				int max = readU32();
-				yield new Limits(min, max);
+				var limits = readLimits(true);
+				yield new MemType(MemType.AddrType.I32, limits);
 			}
-
+			case 0x04 -> {
+				var limits = readLimits(false);
+				yield new MemType(MemType.AddrType.I64, limits);
+			}
+			case 0x05 -> {
+				var limits = readLimits(true);
+				yield new MemType(MemType.AddrType.I64, limits);
+			}
 			default -> throw new ModuleFormatException("integer too large");
 		};
 	}
 
-	private MemType readMemType() throws IOException, ModuleFormatException {
-		var limits = readLimits();
-		return new MemType(limits);
-	}
-
 	private TableType readTableType() throws IOException, ModuleFormatException {
 		var elementType = readRefType();
-		var limits = readLimits();
-		return new TableType(limits, elementType);
+		var memType = readMemType();
+		return new TableType(memType.addrType(), memType.limits(), elementType);
 	}
 
 	private GlobalType readGlobalType() throws IOException, ModuleFormatException {
@@ -1474,7 +1511,7 @@ public class ModuleReader {
 
 	private MemoryInstr.MemArg readMemArg() throws IOException, ModuleFormatException {
 		var align = readU32();
-		var offset = readU32();
+		var offset = readU64();
 
 		int memIndex = 0;
 		if((align & 0x40) == 0x40) {

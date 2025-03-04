@@ -2,64 +2,67 @@ package dev.argon.jawawasm.engine;
 
 import dev.argon.jawawasm.format.data.V128;
 import dev.argon.jawawasm.format.modules.Data;
+import dev.argon.jawawasm.format.types.MemType;
 
 /**
  * A non-resizable memory.
  */
 public interface WasmMemoryNoResize {
+	MemType.AddrType addressType();
+
 	/**
 	 * Gets the size of the memory in bytes.
 	 * @return The size of the memory in bytes.
 	 */
-	int byteSize();
+	long byteSize();
 
 	/**
 	 * Gets the size of the memory in pages.
 	 * @return The size of the memory in pages.
 	 */
-	int pageSize();
+	long pageSize();
 
 	/**
 	 * Reads an 8-bit value.
 	 * @param address The address to read.
 	 * @return The value.
 	 */
-	byte loadI8(int address);
+	byte loadI8(long address);
 
 	/**
 	 * Reads a 16-bit value.
 	 * @param address The address to read.
 	 * @return The value.
 	 */
-	short loadI16(int address);
+	short loadI16(long address);
 
 	/**
 	 * Reads a 32-bit value.
 	 * @param address The address to read.
 	 * @return The value.
 	 */
-	int loadI32(int address);
+	int loadI32(long address);
 
 	/**
 	 * Reads a 64-bit value.
 	 * @param address The address to read.
 	 * @return The value.
 	 */
-	long loadI64(int address);
+	long loadI64(long address);
 
 	/**
 	 * Reads a 32-bit float value.
 	 * @param address The address to read.
 	 * @return The value.
 	 */
-	float loadF32(int address);
+	float loadF32(long address);
 
 	/**
 	 * Reads a 64-bit float value.
 	 * @param address The address to read.
 	 * @return The value.
 	 */
-	double loadF64(int address);
+	double loadF64(long address);
 
 
 	/**
@@ -67,7 +70,7 @@ public interface WasmMemoryNoResize {
 	 * @param address The address to read.
 	 * @return The value.
 	 */
-	default V128 loadV128(int address) {
+	default V128 loadV128(long address) {
 		int[] values = new int[4];
 		for(int i = 0; i < values.length; ++i) {
 			values[i] = loadI32(address + i * 4);
@@ -81,49 +84,49 @@ public interface WasmMemoryNoResize {
 	 * @param address The address to read.
 	 * @param value The value.
 	 */
-	void storeI8(int address, byte value);
+	void storeI8(long address, byte value);
 
 	/**
 	 * Stores a 16-bit value.
 	 * @param address The address to read.
 	 * @param value The value.
 	 */
-	void storeI16(int address, short value);
+	void storeI16(long address, short value);
 
 	/**
 	 * Stores an 32-bit value.
 	 * @param address The address to read.
 	 * @param value The value.
 	 */
-	void storeI32(int address, int value);
+	void storeI32(long address, int value);
 
 	/**
 	 * Stores a 64-bit value.
 	 * @param address The address to read.
 	 * @param value The value.
 	 */
-	void storeI64(int address, long value);
+	void storeI64(long address, long value);
 
 	/**
 	 * Stores a 32-bit float value.
 	 * @param address The address to read.
 	 * @param value The value.
 	 */
-	void storeF32(int address, float value);
+	void storeF32(long address, float value);
 
 	/**
 	 * Stores a 64-bit float value.
 	 * @param address The address to read.
 	 * @param value The value.
 	 */
-	void storeF64(int address, double value);
+	void storeF64(long address, double value);
 
 	/**
 	 * Stores a V128 value.
 	 * @param address The address to read.
 	 * @param value The value.
 	 */
-	default void storeV128(int address, V128 value) {
+	default void storeV128(long address, V128 value) {
 		for(int i = 0; i < 4; ++i) {
 			storeI32(address + i * 4, value.extractLane32(i));
 		}
@@ -136,7 +139,7 @@ public interface WasmMemoryNoResize {
 	 * @param n The number of types to copy.
 	 * @param data The data source.
 	 */
-	default void init(int d, int s, int n, Data data) {
+	default void init(long d, int s, int n, Data data) {
 		copyFromArray(d, s, n, data.init());
 	}
 
@@ -147,7 +150,7 @@ public interface WasmMemoryNoResize {
 	 * @param length The number of bytes to copy.
 	 * @param data The data.
 	 */
-	default void copyFromArray(int address, int offset, int length, byte[] data) {
+	default void copyFromArray(long address, int offset, int length, byte[] data) {
 		if(!Util.sumInRange(offset, length, data.length) || !Util.sumInRange(address, length, byteSize())) {
 			throw new IndexOutOfBoundsException();
 		}
@@ -167,7 +170,7 @@ public interface WasmMemoryNoResize {
 	 * @param length The number of bytes to copy.
 	 * @param data The data.
 	 */
-	default void copyToArray(int address, int offset, int length, byte[] data) {
+	default void copyToArray(long address, int offset, int length, byte[] data) {
 		if(!Util.sumInRange(offset, length, data.length) || !Util.sumInRange(address, length, byteSize())) {
 			throw new IndexOutOfBoundsException();
 		}

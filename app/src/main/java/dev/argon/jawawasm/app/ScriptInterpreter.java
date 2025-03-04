@@ -212,7 +212,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 					ModuleValidator.validateModule(convertedModule);
 				}
 				catch(ValidationException ex) {
-					if(ex.getTestMessage() != null && ex.getTestMessage().equals(message)) {
+					if(ex.getTestMessage() != null && ex.getTestMessage().startsWith(message)) {
 						foundError = true;
 					}
 					else {

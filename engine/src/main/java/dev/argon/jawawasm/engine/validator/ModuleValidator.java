@@ -117,6 +117,7 @@ public class ModuleValidator extends ValidatorBase {
 			validator.validateGlobal(global);
 		}
 
+		System.err.println("elems: " + module.elems());
 		for(Elem elem : module.elems()) {
 			validator.validateElem(elem);
 		}
@@ -128,6 +129,9 @@ public class ModuleValidator extends ValidatorBase {
 		for(Global global : module.globals()) {
 			c.addGlobal(global.type());
 		}
+
+
+		System.err.println("functions: " + module.funcs());
 
 		for(Func func : module.funcs()) {
 			validator.validateFunc(func);
@@ -218,14 +222,14 @@ public class ModuleValidator extends ValidatorBase {
 		switch(elem.mode()) {
 			case ElemMode.Active active -> {
 				context.requireTable(active.table());
-				var tableElementType = context.getTable(active.table()).elementType();
+				var table = context.getTable(active.table());
+				var tableElementType = table.elementType();
 
 				require(new Subtyping(context).isSubtypeRef(elem.type(), tableElementType), "type mismatch", "type mismatch " + elem.type() + ", " + tableElementType);
 				iv.requireConstantExpr(active.offset());
-				iv.validateExpr(active.offset(), new ResultType(List.of(NumType.I32)));
+				iv.validateExpr(active.offset(), new ResultType(List.of(table.addrType().asNumType())));
 			}
-			case ElemMode.Declarative declarative -> {}
-			case ElemMode.Passive passive -> {}
+			case ElemMode.Declarative(), ElemMode.Passive() -> {}
 		}
 	}
 
@@ -234,10 +238,11 @@ public class ModuleValidator extends ValidatorBase {
 			case DataMode.Active active -> {
 				var iv = new InstrValidator(context);
 				context.requireMem(active.memory());
+				var memory = context.getMem(active.memory());
 				iv.requireConstantExpr(active.offset());
-				iv.validateExpr(active.offset(), new ResultType(List.of(NumType.I32)));
+				iv.validateExpr(active.offset(), new ResultType(List.of(memory.addrType().asNumType())));
 			}
-			case DataMode.Passive passive -> {}
+			case DataMode.Passive() -> {}
 		}
 	}
 

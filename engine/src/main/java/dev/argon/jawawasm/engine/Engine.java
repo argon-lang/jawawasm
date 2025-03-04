@@ -1,6 +1,7 @@
 package dev.argon.jawawasm.engine;
 
 import dev.argon.jawawasm.format.modules.Module;
+import dev.argon.jawawasm.format.types.MemType;
 
 import java.lang.foreign.Arena;
 import java.util.concurrent.ExecutionException;
@@ -49,8 +50,8 @@ public class Engine implements AutoCloseable {
 		return new InstantiatedModule(this, module, resolver);
 	}
 
-	WasmMemoryNoResize allocateMemory(int pages) {
-		return new WasmMemoryImpl(arena.allocate((long)pages * Util.PAGE_SIZE));
+	WasmMemoryNoResize allocateMemory(MemType.AddrType addrType, long pages) {
+		return new WasmMemoryImpl(addrType, arena.allocate(Math.multiplyExact(pages, Util.PAGE_SIZE)));
 	}
 
 	@Override

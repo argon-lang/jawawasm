@@ -24,7 +24,7 @@ final class Util {
 	}
 
 
-	public static boolean sumInRange(int a, int b, int size) {
+	public static boolean sumInRange(long a, long b, long size) {
 		return a >= 0 && b >= 0 && (a + b) >= 0 && (a + b) <= size;
 	}
 

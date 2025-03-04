@@ -7,5 +7,5 @@ import org.jspecify.annotations.Nullable;
  * @param min The minimum size.
  * @param max The maximum size.
  */
-public record Limits(int min, @Nullable Integer max) {
+public record Limits(long min, @Nullable Long max) {
 }
