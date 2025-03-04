@@ -112,7 +112,7 @@ class Context {
 
 	public void requireGlobal(GlobalIdx idx) throws ValidationException {
 		if(!(idx.index() >= 0 && idx.index() < globals.size())) {
-			throw new ValidationException("unknown global " + idx.index());
+			throw new ValidationException("unknown global", "unknown global " + idx.index());
 		}
 	}
 	public GlobalType getGlobal(GlobalIdx idx) {
@@ -140,7 +140,7 @@ class Context {
 
 	public void requireData(DataIdx idx) throws ValidationException {
 		if(!(idx.index() >= 0 && idx.index() < datas)) {
-			throw new ValidationException("unknown data segment " + idx.index());
+			throw new ValidationException("unknown data segment", "unknown data segment " + idx.index());
 		}
 	}
 
@@ -161,7 +161,7 @@ class Context {
 
 	public void requireLocal(LocalIdx local) throws ValidationException {
 		if(!(local.index() >= 0 && local.index() < locals.size())) {
-			throw new ValidationException("unknown local " + local.index());
+			throw new ValidationException("unknown local", "unknown local " + local.index());
 		}
 	}
 
@@ -175,7 +175,7 @@ class Context {
 
 	public void requireLabel(LabelIdx labelIdx) throws ValidationException {
 		if(!(labelIdx.index() >= 0 && labelIdx.index() < labels.size())) {
-			throw new ValidationException("unknown label " + labelIdx.index());
+			throw new ValidationException("unknown label", "unknown label " + labelIdx.index());
 		}
 	}
 	public ResultType getLabel(LabelIdx labelIdx) {

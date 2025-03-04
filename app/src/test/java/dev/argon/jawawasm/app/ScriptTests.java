@@ -73,7 +73,7 @@ class ScriptTests {
 			}
 		}
 
-//		if(!path.toString().equals("try_table.wast")) {
+//		if(!path.toString().equals("return_call.wast")) {
 //			return true;
 //		}
 

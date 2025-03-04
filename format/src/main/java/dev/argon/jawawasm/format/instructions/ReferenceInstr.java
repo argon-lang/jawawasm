@@ -1,6 +1,7 @@
 package dev.argon.jawawasm.format.instructions;
 
 import dev.argon.jawawasm.format.modules.FuncIdx;
+import dev.argon.jawawasm.format.types.HeapType;
 import dev.argon.jawawasm.format.types.RefType;
 
 /**
@@ -11,7 +12,7 @@ public sealed interface ReferenceInstr extends Instr {
 	 * WebAssembly `ref.null` instruction
 	 * @param type The type of the reference.
 	 */
-	public static record Ref_Null(RefType type) implements ReferenceInstr {}
+	public static record Ref_Null(HeapType type) implements ReferenceInstr {}
 
 	/**
 	 * WebAssembly `ref.is_null` instruction

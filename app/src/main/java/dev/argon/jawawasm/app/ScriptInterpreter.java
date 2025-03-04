@@ -202,6 +202,11 @@ public final class ScriptInterpreter implements AutoCloseable {
 			case ScriptCommand.Assertion.AssertInvalid(var module, var message) -> {
 				boolean foundError = false;
 
+				int colonIndex = message.indexOf(":");
+				if(colonIndex >= 0) {
+					message = message.substring(0, colonIndex);
+				}
+
 				var convertedModule = getModuleAsBinary(module);
 				try {
 					ModuleValidator.validateModule(convertedModule);
@@ -211,7 +216,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 						foundError = true;
 					}
 					else {
-						throw new ScriptAssertionException("Found invalid module, but got unexpected message.\nExpected: " + message + "\nActual: " + ex.getMessage(), ex);
+						throw new ScriptAssertionException("Found invalid module, but got unexpected message.\nExpected: " + message + "\nActual: " + ex.getTestMessage(), ex);
 					}
 				}
 
@@ -349,7 +354,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 				}
 			}
 
-			case String m when m.startsWith("uninitialized element") -> {
+			case String m when m.startsWith("uninitialized element") || m.equals("null function reference") -> {
 				if(error instanceof NullPointerException) {
 					gotExpectedError = true;
 				}

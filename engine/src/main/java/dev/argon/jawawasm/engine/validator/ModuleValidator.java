@@ -218,7 +218,9 @@ public class ModuleValidator extends ValidatorBase {
 		switch(elem.mode()) {
 			case ElemMode.Active active -> {
 				context.requireTable(active.table());
-				require(elem.type().equals(context.getTable(active.table()).elementType()), "type mismatch");
+				var tableElementType = context.getTable(active.table()).elementType();
+
+				require(new Subtyping(context).isSubtypeRef(elem.type(), tableElementType), "type mismatch", "type mismatch " + elem.type() + ", " + tableElementType);
 				iv.requireConstantExpr(active.offset());
 				iv.validateExpr(active.offset(), new ResultType(List.of(NumType.I32)));
 			}

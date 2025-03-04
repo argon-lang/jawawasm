@@ -110,7 +110,7 @@ class InstrValidator extends ValidatorBase {
 					return new OperandType.Bottom();
 				}
 				else {
-					throw new ValidationException("type mismatch");
+					throw new ValidationException("type mismatch", "type mismatch due to empty stack");
 				}
 			}
 
@@ -134,7 +134,7 @@ class InstrValidator extends ValidatorBase {
 			switch(pop()) {
 				case OperandType.OfValType(var t2) -> {
 					if(t2 != null && !new Subtyping(context).isSubtypeVal(t2, t)) {
-						throw new ValidationException("type mismatch");
+						throw new ValidationException("type mismatch", "type mismatch expected: " + t + ", actual: " + t2);
 					}
 				}
 
@@ -314,7 +314,7 @@ class InstrValidator extends ValidatorBase {
 
 		private void validateReferenceInstr(ReferenceInstr instr) throws ValidationException {
 			switch(instr) {
-				case ReferenceInstr.Ref_Null(var t) -> push(t);
+				case ReferenceInstr.Ref_Null(var t) -> push(new RefType(true, t));
 				case ReferenceInstr.Ref_IsNull() -> {
 					switch(pop()) {
 						case OperandType.Bottom _ -> {}
@@ -1122,18 +1122,41 @@ class InstrValidator extends ValidatorBase {
 				}
 
 				case ControlInstr.Return_Call(var func) -> {
-					validateControlInstr(new ControlInstr.Call(func));
-					validateControlInstr(new ControlInstr.Return());
+					context.requireFunc(func);
+					var t = context.getFuncType(func);
+
+					pop(t.args());
+
+					require(new Subtyping(context).isSubtypeResult(t.results(), context.getReturn()), "type mismatch");
+					stack.clear();
+					unreachable = true;
 				}
 
 				case ControlInstr.Return_Call_Ref(var funcTypeIdx) -> {
-					validateControlInstr(new ControlInstr.Call_Ref(funcTypeIdx));
-					validateControlInstr(new ControlInstr.Return());
+					context.requireType(funcTypeIdx);
+					var funcType = context.getType(funcTypeIdx);
+					pop(new RefType(true, funcType));
+					pop(funcType.args());
+
+					require(new Subtyping(context).isSubtypeResult(funcType.results(), context.getReturn()), "type mismatch");
+					stack.clear();
+					unreachable = true;
 				}
 
 				case ControlInstr.Return_Call_Indirect(var table, var funcType) -> {
-					validateControlInstr(new ControlInstr.Call_Indirect(table, funcType));
-					validateControlInstr(new ControlInstr.Return());
+					context.requireTable(table);
+
+					requireFuncType(context.getTable(table).elementType().heapType());
+
+					context.requireType(funcType);
+					var t = context.getType(funcType);
+
+					pop(NumType.I32);
+					pop(t.args());
+
+					require(new Subtyping(context).isSubtypeResult(t.results(), context.getReturn()), "type mismatch");
+					stack.clear();
+					unreachable = true;
 				}
 
 				case ControlInstr.Try_Table(var blockType, var catchClauses, var body) -> {

@@ -530,7 +530,7 @@ public class ModuleReader {
 
 			// Reference
 			case 0xD0 -> {
-				var t = readRefType();
+				var t = readHeapType();
 				yield new ReferenceInstr.Ref_Null(t);
 			}
 
