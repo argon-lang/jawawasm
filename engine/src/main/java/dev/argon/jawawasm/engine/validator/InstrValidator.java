@@ -20,10 +20,7 @@ class InstrValidator extends ValidatorBase {
 	}
 
 	public void validateInstructions(List<? extends Instr> instrs, ResultType argType, ResultType resultType) throws ValidationException {
-		List<OperandType> stack = new ArrayList<>(argType.types().size());
-		for(ValType t : argType.types()) {
-			stack.add(new OperandType.OfValType(t));
-		}
+		List<ValType> stack = new ArrayList<>(argType.types());
 
 		var sv = new StackValidator(stack);
 		for(Instr instr : instrs) {
@@ -83,20 +80,16 @@ class InstrValidator extends ValidatorBase {
 	}
 
 	private final class StackValidator {
-		public StackValidator(List<OperandType> stack) {
+		public StackValidator(List<ValType> stack) {
 			this.stack = stack;
 
 		}
 
-		private final List<OperandType> stack;
+		private final List<ValType> stack;
 		private boolean unreachable = false;
 
-		private void push(OperandType t) {
-			stack.add(t);
-		}
-
 		private void push(ValType t) {
-			stack.add(new OperandType.OfValType(t));
+			stack.add(t);
 		}
 
 		private void push(ResultType t) {
@@ -113,10 +106,10 @@ class InstrValidator extends ValidatorBase {
 			push(context.getTable(tableIdx).addrType().asNumType());
 		}
 
-		private OperandType pop() throws ValidationException {
+		private ValType pop() throws ValidationException {
 			if(stack.isEmpty()) {
 				if(unreachable) {
-					return new OperandType.Bottom();
+					return new BotType();
 				}
 				else {
 					throw new ValidationException("type mismatch", "type mismatch due to empty stack");
@@ -126,28 +119,10 @@ class InstrValidator extends ValidatorBase {
 			return stack.removeLast();
 		}
 
-		private void pop(OperandType t) throws ValidationException {
-			switch(pop()) {
-				case OperandType.OfValType(var t2) -> {
-					switch(t) {
-						case OperandType.Bottom() -> throw new ValidationException("type mismatch");
-						case OperandType.OfValType(var t3) -> require(t2.equals(t3), "type mismatch");
-					}
-				}
-
-				case OperandType.Bottom() -> {}
-			}
-		}
-
 		private void pop(ValType t) throws ValidationException {
-			switch(pop()) {
-				case OperandType.OfValType(var t2) -> {
-					if(t2 != null && !new Subtyping(context).isSubtypeVal(t2, t)) {
-						throw new ValidationException("type mismatch", "type mismatch expected: " + t + ", actual: " + t2);
-					}
-				}
-
-				case OperandType.Bottom() -> {}
+			var t2 = pop();
+			if(t2 != null && !new Subtyping(context).isSubtypeVal(t2, t)) {
+				throw new ValidationException("type mismatch", "type mismatch expected: " + t + ", actual: " + t2);
 			}
 		}
 
@@ -342,25 +317,18 @@ class InstrValidator extends ValidatorBase {
 			switch(instr) {
 				case ReferenceInstr.Ref_Null(var t) -> push(new RefType(true, t));
 				case ReferenceInstr.Ref_IsNull() -> {
-					switch(pop()) {
-						case OperandType.Bottom _ -> {}
-						case OperandType.OfValType(var t) -> requireRefType(t);
-					}
+					requireRefType(pop());
 					push(NumType.I32);
 				}
 				case ReferenceInstr.Ref_Func(var funcIdx) -> {
 					context.requireRef(funcIdx);
 					context.requireFunc(funcIdx);
-					push(new OperandType.OfValType(new RefType(false, context.getFunc(funcIdx))));
+
+					push(new RefType(false, context.getFunc(funcIdx)));
 				}
 				case ReferenceInstr.Ref_AsNonNull() -> {
-					switch(pop()) {
-						case OperandType.Bottom _ -> {}
-						case OperandType.OfValType(var t) -> {
-							var refType = requireRefType(t);
-							push(new RefType(false, refType.heapType()));
-						}
-					}
+					var refType = requireRefType(pop());
+					push(new RefType(false, refType.heapType()));
 				}
 			}
 		}
@@ -551,11 +519,11 @@ class InstrValidator extends ValidatorBase {
 						pop(NumType.I32);
 						var t = pop();
 						switch(t) {
-							case OperandType.Bottom bottom -> t = pop();
-							case OperandType.OfValType(var t2) -> {
-								require(t2 instanceof NumType || t2 instanceof VecType, "type mismatch");
-								pop(t2);
+							case BotType() -> t = pop();
+							case NumType _, VecType _ -> {
+								pop(t);
 							}
+							default -> throw new ValidationException("type mismatch");
 						}
 						push(t);
 					}
@@ -1046,34 +1014,27 @@ class InstrValidator extends ValidatorBase {
 				case ControlInstr.Br_Table(var labels, var fallback) -> {
 					context.requireLabel(fallback);
 
-					List<OperandType> unifiedLabelType = new ArrayList<>();
-					for(var t : context.getLabel(fallback).types()) {
-						unifiedLabelType.add(new OperandType.OfValType(t));
+					pop(NumType.I32);
+
+					ValType[] results = new ValType[context.getLabel(fallback).types().size()];
+
+					for(int i = results.length - 1; i >= 0; --i) {
+						results[i] = pop();
 					}
+
+					var resultType = new ResultType(List.of(results));
+
+					var subtyping = new Subtyping(context);
+
+					require(subtyping.isSubtypeResult(resultType, context.getLabel(fallback)), "type mismatch");
 
 					for(LabelIdx label : labels) {
 						context.requireLabel(label);
 						var t = context.getLabel(label);
 
-						require(unifiedLabelType.size() == t.types().size(), "type mismatch");
-
-						for(int i = 0; i < t.types().size(); ++i) {
-							int j = unifiedLabelType.size() - t.types().size() + i;
-							switch(unifiedLabelType.get(j)) {
-								case OperandType.Bottom bottom -> {}
-								case OperandType.OfValType(var utj) -> {
-									if(!t.types().get(i).equals(utj)) {
-										unifiedLabelType.set(j, new OperandType.Bottom());
-									}
-								}
-							}
-						}
+						require(subtyping.isSubtypeResult(resultType, t), "type mismatch");
 					}
 
-					pop(NumType.I32);
-					for(int i = unifiedLabelType.size() - 1; i >= 0; --i) {
-						pop(unifiedLabelType.get(i));
-					}
 					stack.clear();
 					unreachable = true;
 				}
@@ -1083,15 +1044,11 @@ class InstrValidator extends ValidatorBase {
 
 					var labelType = context.getLabel(label);
 
-					switch(pop()) {
-						case OperandType.Bottom _ -> {}
-						case OperandType.OfValType(var t) -> {
-							var refType = requireRefType(t);
-							pop(labelType);
-							push(labelType);
-							push(new RefType(false, refType.heapType()));
-						}
-					}
+					var t = pop();
+					var refType = requireRefType(t);
+					pop(labelType);
+					push(labelType);
+					push(new RefType(false, refType.heapType()));
 				}
 
 				case ControlInstr.Br_OnNonNull(var label) -> {

@@ -21,7 +21,8 @@ public abstract class SubtypingBase {
 			(a instanceof FuncType && b == HeapType.AbstractHeapType.FUNC) ||
 			(a instanceof FuncType af && b instanceof FuncType bf && isSubtypeFunc(af, bf)) ||
 			(a instanceof TypeIdx at && isSubtypeHeap(resolveTypeIdx(at), b)) ||
-			(b instanceof TypeIdx bt && isSubtypeHeap(a, resolveTypeIdx(bt)));
+			(b instanceof TypeIdx bt && isSubtypeHeap(a, resolveTypeIdx(bt))) ||
+			a instanceof BotType;
 	}
 
 	public boolean isSubtypeRef(RefType a, RefType b) {

@@ -41,7 +41,6 @@ class ScriptTests {
 
 		"gc/",
 		"relaxed-simd/",
-		"multi-memory/",
 	});
 
 	private static final String testDir = "../webassembly-spec/test/core";
@@ -66,7 +65,7 @@ class ScriptTests {
 			}
 		}
 
-//		if(!path.toString().equals("br_table.wast")) {
+//		if(!path.toString().equals("unreached-valid.wast")) {
 //			return true;
 //		}
 
