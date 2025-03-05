@@ -377,7 +377,7 @@ public class ModuleReader {
 	}
 
 	private MemType readMemType() throws IOException, ModuleFormatException {
-		int b = readU7();
+		int b = readByte();
 		return switch(b) {
 			case 0x00 -> {
 				var limits = readLimits(false);
@@ -395,7 +395,7 @@ public class ModuleReader {
 				var limits = readLimits(true);
 				yield new MemType(MemType.AddrType.I64, limits);
 			}
-			default -> throw new ModuleFormatException("integer too large");
+			default -> throw new ModuleFormatException("malformed limits flags");
 		};
 	}
 
@@ -511,6 +511,8 @@ public class ModuleReader {
 				var idx = readTagIdx();
 				yield new ControlInstr.Throw(idx);
 			}
+
+			case 0x0A -> new ControlInstr.Throw_Ref();
 
 			case 0x0B -> BlockTerminator.END;
 

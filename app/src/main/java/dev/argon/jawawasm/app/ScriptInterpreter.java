@@ -46,6 +46,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 	private final Path wasmExecutable;
 
 	private WasmModule currentModule = null;
+	private Map<String, Module> definedModules = new HashMap<>();
 	private Map<String, WasmModule> registeredModules = new HashMap<>();
 	private Map<String, WasmModule> namedModules = new HashMap<>();
 	private Map<Integer, Object> externRefs = new HashMap<>();
@@ -102,6 +103,23 @@ public final class ScriptInterpreter implements AutoCloseable {
 				if(name != null) {
 					namedModules.put(name, module);
 				}
+			}
+
+			case ScriptCommand.ScriptModuleDefinition(var name, var moduleExpr) -> {
+				var convertedModule = getModuleAsBinary(moduleExpr);
+				ModuleValidator.validateModule(convertedModule);
+
+				if(name != null) {
+					definedModules.put(name, convertedModule);
+				}
+			}
+
+			case ScriptCommand.ScriptModuleInstance(var name, var definitionName) -> {
+				var convertedModule = definedModules.get(definitionName);
+
+				var module = engine.instantiateModule(convertedModule, resolver);
+				currentModule = module;
+				namedModules.put(name, module);
 			}
 
 			case ScriptCommand.Register(var importName, var name) -> {
@@ -354,7 +372,11 @@ public final class ScriptInterpreter implements AutoCloseable {
 				}
 			}
 
-			case String m when m.startsWith("uninitialized element") || m.equals("null function reference") -> {
+			case String m when
+				m.startsWith("uninitialized element") ||
+				m.equals("null function reference") ||
+				m.equals("null reference") ->
+			{
 				if(error instanceof NullPointerException) {
 					gotExpectedError = true;
 				}

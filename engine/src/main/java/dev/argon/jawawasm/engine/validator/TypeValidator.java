@@ -10,11 +10,11 @@ final class TypeValidator extends ValidatorBase {
 		super(context);
 	}
 
-	public void validateLimits(Limits limits, long maxSize) throws ValidationException {
-		require(Long.compareUnsigned(limits.min(), maxSize) <= 0, "memory size must be at most 65536 pages (4GiB)");
+	public void validateLimits(Limits limits, long maxSize, String message) throws ValidationException {
+		require(Long.compareUnsigned(limits.min(), maxSize) <= 0, message);
 
 		if(limits.max() != null) {
-			require(Long.compareUnsigned(limits.max(), maxSize) <= 0, "memory size must be at most 65536 pages (4GiB)");
+			require(Long.compareUnsigned(limits.max(), maxSize) <= 0, message);
 			require(Long.compareUnsigned(limits.min(), limits.max()) <= 0, "size minimum must not be greater than maximum");
 		}
 	}
@@ -36,7 +36,7 @@ final class TypeValidator extends ValidatorBase {
 			case I64 -> -1L;
 		};
 
-		validateLimits(tableType.limits(), maxSize);
+		validateLimits(tableType.limits(), maxSize, "table size");
 		validateReferenceType(tableType.elementType());
 	}
 
@@ -46,7 +46,7 @@ final class TypeValidator extends ValidatorBase {
 			case I64 -> 1L << 48;
 		};
 
-		validateLimits(memType.limits(), maxSize);
+		validateLimits(memType.limits(), maxSize, "memory size");
 	}
 
 	public void validateFuncType(FuncType funcType) throws ValidationException {

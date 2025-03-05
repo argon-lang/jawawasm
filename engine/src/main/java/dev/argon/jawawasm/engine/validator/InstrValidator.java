@@ -20,7 +20,6 @@ class InstrValidator extends ValidatorBase {
 	}
 
 	public void validateInstructions(List<? extends Instr> instrs, ResultType argType, ResultType resultType) throws ValidationException {
-		System.err.println(instrs);
 		List<OperandType> stack = new ArrayList<>(argType.types().size());
 		for(ValType t : argType.types()) {
 			stack.add(new OperandType.OfValType(t));
@@ -30,9 +29,6 @@ class InstrValidator extends ValidatorBase {
 		for(Instr instr : instrs) {
 			sv.validateInstr(instr);
 		}
-
-		System.err.println(resultType);
-		System.err.println(stack);
 
 		sv.pop(resultType);
 		require(stack.isEmpty(), "type mismatch");
@@ -578,14 +574,17 @@ class InstrValidator extends ValidatorBase {
 			switch(instr) {
 				case VariableInstr.Local_Get(var local) -> {
 					context.requireLocal(local);
+					context.requireInitLocal(local);
 					push(context.getLocal(local));
 				}
 				case VariableInstr.Local_Set(var local) -> {
 					context.requireLocal(local);
+					context.initializeLocal(local);
 					pop(context.getLocal(local));
 				}
 				case VariableInstr.Local_Tee(var local) -> {
 					context.requireLocal(local);
+					context.initializeLocal(local);
 					pop(context.getLocal(local));
 					push(context.getLocal(local));
 				}
@@ -596,7 +595,7 @@ class InstrValidator extends ValidatorBase {
 				}
 				case VariableInstr.Global_Set(var global) -> {
 					context.requireGlobal(global);
-					require(context.getGlobal(global).mutability() == Mut.Var, "global is immutable");
+					require(context.getGlobal(global).mutability() == Mut.Var, "immutable global");
 					pop(context.getGlobal(global).type());
 				}
 			}
@@ -673,34 +672,35 @@ class InstrValidator extends ValidatorBase {
 			switch(instr) {
 				case MemoryInstr.Inn_Load(var numSize, var memArg) -> {
 					context.requireMem(memArg.memIdx());
-					checkNumSizeAlignment(numSize, memArg);
+					checkMemArg(numSize, memArg);
 					popAddress(memArg.memIdx());
 					push(intTypeForSize(numSize));
 				}
 
 				case MemoryInstr.Fnn_Load(var numSize, var memArg) -> {
 					context.requireMem(memArg.memIdx());
-					checkNumSizeAlignment(numSize, memArg);
+					checkMemArg(numSize, memArg);
 					popAddress(memArg.memIdx());
 					push(floatTypeForSize(numSize));
 				}
 
 				case MemoryInstr.Inn_Store(var numSize, var memArg) -> {
 					context.requireMem(memArg.memIdx());
-					checkNumSizeAlignment(numSize, memArg);
+					checkMemArg(numSize, memArg);
 					pop(intTypeForSize(numSize));
 					popAddress(memArg.memIdx());
 				}
 
 				case MemoryInstr.Fnn_Store(var numSize, var memArg) -> {
 					context.requireMem(memArg.memIdx());
-					checkNumSizeAlignment(numSize, memArg);
+					checkMemArg(numSize, memArg);
 					pop(floatTypeForSize(numSize));
 					popAddress(memArg.memIdx());
 				}
 
 				case MemoryInstr.V128_Load(var memArg) -> {
 					context.requireMem(memArg.memIdx());
+
 					checkVectorAlignment(memArg);
 					popAddress(memArg.memIdx());
 					push(VecType.V128);
@@ -1110,7 +1110,7 @@ class InstrValidator extends ValidatorBase {
 
 					pop(new RefType(true, lastRefType.heapType()));
 					pop(labelType2);
-					push(labelType);
+					push(labelType2);
 				}
 
 				case ControlInstr.Return() -> {
@@ -1146,13 +1146,9 @@ class InstrValidator extends ValidatorBase {
 					context.requireType(funcType);
 					var t = context.getType(funcType);
 
-					System.err.println(stack);
-
 					popIndex(table);
 					pop(t.args());
 					push(t.results());
-
-					System.err.println(stack);
 				}
 
 				case ControlInstr.Return_Call(var func) -> {
@@ -1274,15 +1270,28 @@ class InstrValidator extends ValidatorBase {
 			};
 		}
 
-		private void checkNumSizeAlignment(NumericInstr.NumSize numSize, MemoryInstr.MemArg memArg) throws ValidationException {
-			switch(numSize) {
-				case _32 -> require(Integer.compareUnsigned(memArg.align(), 2) <= 0, "alignment must not be larger than natural");
-				case _64 -> require(Integer.compareUnsigned(memArg.align(), 3) <= 0, "alignment must not be larger than natural");
+		private void checkMemArg(NumericInstr.NumSize numSize, MemoryInstr.MemArg memArg) throws ValidationException {
+			int naturalAlignment = switch(numSize) {
+				case _32 -> 2;
+				case _64 -> 3;
+			};
+
+			require(Integer.compareUnsigned(memArg.align(), naturalAlignment) <= 0, "alignment must not be larger than natural");
+
+
+			switch(context.getMem(memArg.memIdx()).addrType()) {
+				case I32 -> require(Long.compareUnsigned(memArg.offset(), 1L << 32) < 0, "offset out of range");
+				case I64 -> {}
 			}
 		}
 
 		private void checkVectorAlignment(MemoryInstr.MemArg memArg) throws ValidationException {
 			require(Integer.compareUnsigned(memArg.align(), 4) <= 0, "alignment must not be larger than natural");
+
+			switch(context.getMem(memArg.memIdx()).addrType()) {
+				case I32 -> require(Long.compareUnsigned(memArg.offset(), 1L << 32) < 0, "offset out of range");
+				case I64 -> {}
+			}
 		}
 
 	}

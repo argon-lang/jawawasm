@@ -2428,8 +2428,8 @@ class StackFrame {
 				continue;
 			}
 
-			for(int i = catchClauses.size() - 1; i >= 0; --i) {
-				switch(catchClauses.get(i)) {
+			for(var catchClause : catchClauses) {
+				switch(catchClause) {
 					case ControlInstr.CatchTag(var tagIdx, var labelIdx) -> {
 						var tag = module.getTag(tagIdx);
 						if(ex.getTag() == tag) {

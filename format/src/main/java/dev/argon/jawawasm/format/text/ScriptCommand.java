@@ -16,6 +16,20 @@ public sealed interface ScriptCommand {
 	public static record ScriptModule(@Nullable String name, SExpr expr) implements ScriptCommand {}
 
 	/**
+	 * Defines a module, but does not instantiate it
+	 * @param name The name of the module.
+	 * @param expr The content of the module.
+	 */
+	public static record ScriptModuleDefinition(@Nullable String name, SExpr expr) implements ScriptCommand {}
+
+	/**
+	 * Instantiates a module
+	 * @param name The name of the module.
+	 * @param definitionName The name of the module to instantiate.
+	 */
+	public static record ScriptModuleInstance(String name, String definitionName) implements ScriptCommand {}
+
+	/**
 	 * Register a module as an import.
 	 * @param importName The name of the import.
 	 * @param name The name of the module.

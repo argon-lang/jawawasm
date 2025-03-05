@@ -23,32 +23,25 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class ScriptTests {
 
 	private final List<String> excludedTests = List.of(new String[] {
+		// Exclude tests for the text format.
+		"id.wast",
+		"annotations.wast",
 		"inline-module.wast",
 
-		// Exceptions
-//		"try_table.wast",
-//		"exports.wast",
-//		"instance.wast",
-
-		// Memory64
-		"table_fill.wast",
-		"memory_copy.wast",
-		"memory_fill.wast",
-		"memory64.wast",
-		"memory_grow64.wast",
 
 		// ref types and ref type functions
 		"tag.wast",
 		"ref.wast",
 		"elem.wast",
 		"type-equivalence.wast",
+		"type-rec.wast",
+		"type-canon.wast",
+		"type-sub.wast",
 
 
 		"gc/",
 		"relaxed-simd/",
 		"multi-memory/",
-
-		"simd/simd_memory-multi.wast",
 	});
 
 	private static final String testDir = "../webassembly-spec/test/core";
@@ -73,7 +66,7 @@ class ScriptTests {
 			}
 		}
 
-//		if(!path.toString().equals("align.wast")) {
+//		if(!path.toString().equals("br_table.wast")) {
 //			return true;
 //		}
 

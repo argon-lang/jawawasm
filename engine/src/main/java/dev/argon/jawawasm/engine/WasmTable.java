@@ -33,7 +33,11 @@ public final class WasmTable implements WasmExport {
 	 * @return The table type.
 	 */
 	public synchronized TableType type() {
-		return tableType;
+		return new TableType(
+			tableType.addrType(),
+			new Limits(values.size(), tableType.limits().max()),
+			tableType.elementType()
+		);
 	}
 
 	/**

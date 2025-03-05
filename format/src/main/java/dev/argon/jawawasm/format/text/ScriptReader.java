@@ -317,14 +317,39 @@ public class ScriptReader {
 			case "module" -> {
 				var exprs = ((SExpr.ExprList)expr).exprs();
 
+				boolean isInstance = exprs.size() == 4 &&
+					exprs.get(1) instanceof SExpr.Identifier(var dfn) &&
+					dfn.equals("instance");
+
+				if(isInstance) {
+					var instanceName = ((SExpr.Identifier)exprs.get(2)).name();
+					var moduleName = ((SExpr.Identifier)exprs.get(3)).name();
+					yield new ScriptCommand.ScriptModuleInstance(instanceName, moduleName);
+				}
+
+				int index = 1;
+
+				boolean isDefinition = exprs.size() > index &&
+					exprs.get(index) instanceof SExpr.Identifier(var dfn) &&
+					dfn.equals("definition");
+
+				if(isDefinition) {
+					++index;
+				}
+
 				@Nullable String name =
-						exprs.size() > 1 &&
-								exprs.get(1) instanceof SExpr.Identifier n &&
+						exprs.size() > index &&
+								exprs.get(index) instanceof SExpr.Identifier n &&
 								n.name().startsWith("$")
 						? n.name()
 						: null;
 
-				yield new ScriptCommand.ScriptModule(name, expr);
+				if(isDefinition) {
+					yield new ScriptCommand.ScriptModuleDefinition(name, expr);
+				}
+				else {
+					yield new ScriptCommand.ScriptModule(name, expr);
+				}
 			}
 			case "register" -> {
 				var args = ((SExpr.ExprList)expr).exprs();

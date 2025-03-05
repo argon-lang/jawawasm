@@ -107,9 +107,9 @@ public class ModuleValidator extends ValidatorBase {
 
 		for(Global global : module.globals()) {
 			validator.validateGlobal(global);
+			c.addGlobal(global.type());
 		}
 
-		System.err.println("elems: " + module.elems());
 		for(Elem elem : module.elems()) {
 			validator.validateElem(elem);
 		}
@@ -117,13 +117,6 @@ public class ModuleValidator extends ValidatorBase {
 		for(Data data : module.datas()) {
 			validator.validateData(data);
 		}
-
-		for(Global global : module.globals()) {
-			c.addGlobal(global.type());
-		}
-
-
-		System.err.println("functions: " + module.funcs());
 
 		for(Func func : module.funcs()) {
 			validator.validateFunc(func);
@@ -150,10 +143,11 @@ public class ModuleValidator extends ValidatorBase {
 	private void validateFunc(Func func) throws ValidationException {
 		var t = context.getType(func.type());
 		var c = context.copy();
-		c.addLocals(t.args().types());
+		c.addLocalsInit(t.args().types());
 		c.addLocals(func.locals());
 		c.addLabel(t.results());
 		c.setReturn(t.results());
+		System.err.println(func.body());
 		new InstrValidator(c).validateExpr(func.body(), t.results());
 	}
 

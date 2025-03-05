@@ -17,6 +17,7 @@ class Context {
 	private final List<RefType> elems = new ArrayList<>();
 	private int datas = 0;
 	private final List<ValType> locals = new ArrayList<>();
+	private final Set<LocalIdx> initLocals = new HashSet<>();
 	private final List<ResultType> labels = new ArrayList<>();
 	private @Nullable ResultType return_ = null;
 	private Set<FuncIdx> refs = new HashSet<>();
@@ -32,6 +33,7 @@ class Context {
 		other.elems.addAll(elems);
 		other.datas = datas;
 		other.locals.addAll(locals);
+		other.initLocals.addAll(initLocals);
 		other.labels.addAll(labels);
 		other.return_ = return_;
 		other.refs.addAll(refs);
@@ -55,7 +57,7 @@ class Context {
 
 	public void requireFunc(FuncIdx idx) throws ValidationException {
 		if(!(idx.index() >= 0 && idx.index() < funcs.size())) {
-			throw new ValidationException("unknown function", "unknown function " + idx.index());
+			throw new ValidationException("unknown function " + idx.index());
 		}
 	}
 	public TypeIdx getFunc(FuncIdx idx) {
@@ -171,6 +173,29 @@ class Context {
 
 	public void addLocals(Collection<? extends ValType> types) {
 		locals.addAll(types);
+	}
+
+	public void addLocalsInit(Collection<? extends ValType> types) {
+		int index = locals.size();
+		for(var t : types) {
+			locals.add(t);
+			initLocals.add(new LocalIdx(index));
+			++index;
+		}
+	}
+
+	public void requireInitLocal(LocalIdx local) throws ValidationException {
+		if(initLocals.contains(local)) {
+			return;
+		}
+
+		if(locals.get(local.index()) instanceof RefType rt && !rt.isNullable()) {
+			throw new ValidationException("uninitialized local " + local.index());
+		}
+	}
+
+	public void initializeLocal(LocalIdx local) {
+		initLocals.add(local);
 	}
 
 	public void requireLabel(LabelIdx labelIdx) throws ValidationException {

@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.engine;
 
+import dev.argon.jawawasm.engine.validator.SubtypingBase;
 import dev.argon.jawawasm.format.instructions.Instr;
 import dev.argon.jawawasm.format.modules.*;
 import dev.argon.jawawasm.format.modules.Module;
@@ -18,6 +19,7 @@ public final class InstantiatedModule implements WasmModule {
 		this.engine = engine;
 		this.module = module;
 		this.resolver = resolver;
+		this.typeResolver = new TypeResolver(module);
 
 		new FunctionBuilder().build(functions);
 		new TableBuilder().build(tables);
@@ -98,6 +100,16 @@ public final class InstantiatedModule implements WasmModule {
 	private final Map<String, WasmModule> referencedModules = new HashMap<>();
 	private final Map<String, WasmExport> exports = new HashMap<>();
 
+	private final TypeResolver typeResolver;
+
+	private final SubtypingBase subtyping = new SubtypingBase() {
+		@Override
+		protected FuncType resolveTypeIdx(TypeIdx idx) {
+			return getType(idx);
+		}
+	};
+
+
 	private synchronized WasmModule getReference(String name) throws ModuleResolutionException {
 		WasmModule ref = referencedModules.get(name);
 		if(ref == null) {
@@ -157,21 +169,6 @@ public final class InstantiatedModule implements WasmModule {
 		return values[0];
 	}
 
-
-	private void checkLimits(Limits importSpec, Limits exportedValue) throws ModuleLinkException {
-		if(exportedValue.min() < importSpec.min()) {
-			throw new ModuleLinkException("incompatible import type");
-		}
-
-		if(importSpec.max() == null) {
-			return;
-		}
-
-		if(exportedValue.max() == null || importSpec.max() < exportedValue.max()) {
-			throw new ModuleLinkException("incompatible import type");
-		}
-	}
-
 	private abstract class IndexSpaceBuilder<T, TImportDesc extends ImportDesc, Def> {
 		protected abstract TImportDesc castImportDesc(ImportDesc desc);
 		protected abstract T checkImport(TImportDesc desc, WasmExport export) throws ModuleLinkException;
@@ -190,7 +187,7 @@ public final class InstantiatedModule implements WasmModule {
 
 				var export = mod.getExport(imp.name());
 				if(export == null) {
-					throw new ModuleLinkException("unknown import");
+					throw new ModuleLinkException("unknown import " + imp.name());
 				}
 
 				items.add(checkImport(desc, export));
@@ -242,7 +239,7 @@ public final class InstantiatedModule implements WasmModule {
 			return new WasmFunction() {
 				@Override
 				public FuncType type() {
-					return module.types().get(func.type().index());
+					return typeResolver.resolveFuncType(module.types().get(func.type().index()));
 				}
 
 				@Override
@@ -265,10 +262,7 @@ public final class InstantiatedModule implements WasmModule {
 				throw new ModuleLinkException("incompatible import type");
 			}
 
-			checkLimits(desc.type().limits(), table.type().limits());
-
-			var t = desc.type().elementType();
-			if(!t.equals(table.type().elementType())) {
+			if(!subtyping.isSubtypeTable(table.type(), desc.type())) {
 				throw new ModuleLinkException("incompatible import type");
 			}
 
@@ -282,7 +276,7 @@ public final class InstantiatedModule implements WasmModule {
 
 		@Override
 		protected WasmTable create(Table table) {
-			return new WasmTable(table.type());
+			return new WasmTable(typeResolver.resolveTableType(table.type()));
 		}
 	}
 
@@ -298,7 +292,9 @@ public final class InstantiatedModule implements WasmModule {
 				throw new ModuleLinkException("incompatible import type");
 			}
 
-			checkLimits(desc.type().limits(), mem.type().limits());
+			if(!subtyping.isSubtypeMemory(mem.type(), desc.type())) {
+				throw new ModuleLinkException("incompatible import type");
+			}
 
 			return mem;
 		}
@@ -326,8 +322,9 @@ public final class InstantiatedModule implements WasmModule {
 				throw new ModuleLinkException("incompatible import type");
 			}
 
-			var t = desc.type();
-			if(!t.equals(global.type())) {
+			System.err.println(global.type());
+			System.err.println(desc.type());
+			if(!subtyping.isSubtypeGlobal(global.type(), desc.type())) {
 				throw new ModuleLinkException("incompatible import type");
 			}
 
@@ -342,7 +339,7 @@ public final class InstantiatedModule implements WasmModule {
 		@Override
 		protected WasmGlobal create(Global global) throws ExecutionException {
 			Object value = evaluateInitializer(global.init().body(), global.type().type());
-			return new WasmGlobal(global.type(), value);
+			return new WasmGlobal(typeResolver.resolveGlobalType(global.type()), value);
 		}
 	}
 
@@ -355,6 +352,10 @@ public final class InstantiatedModule implements WasmModule {
 		@Override
 		protected WasmTag checkImport(ImportDesc.Tag desc, WasmExport export) throws ModuleLinkException {
 			if(!(export instanceof WasmTag tag)) {
+				throw new ModuleLinkException("incompatible import type");
+			}
+
+			if(!subtyping.isSubtypeFunc(tag.type(), getType(desc.type().funcType()))) {
 				throw new ModuleLinkException("incompatible import type");
 			}
 
