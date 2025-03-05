@@ -1,6 +1,8 @@
 package dev.argon.jawawasm.format.modules;
 
-import dev.argon.jawawasm.format.types.FuncType;
+import dev.argon.jawawasm.format.types.CompositeType;
+import dev.argon.jawawasm.format.types.DefType;
+import dev.argon.jawawasm.format.types.RecursiveType;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
@@ -19,7 +21,7 @@ import java.util.List;
  * @param exports The exports section.
  */
 public record Module(
-    List<? extends FuncType> types,
+    List<? extends RecursiveType> types,
     List<? extends Func> funcs,
     List<? extends Table> tables,
     List<? extends Mem> mems,

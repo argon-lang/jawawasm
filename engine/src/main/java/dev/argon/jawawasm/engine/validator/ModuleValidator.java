@@ -1,11 +1,10 @@
 package dev.argon.jawawasm.engine.validator;
 
+import dev.argon.jawawasm.engine.TypeResolver;
 import dev.argon.jawawasm.format.instructions.Expr;
 import dev.argon.jawawasm.format.modules.*;
 import dev.argon.jawawasm.format.modules.Module;
-import dev.argon.jawawasm.format.types.FuncType;
-import dev.argon.jawawasm.format.types.NumType;
-import dev.argon.jawawasm.format.types.ResultType;
+import dev.argon.jawawasm.format.types.*;
 
 import java.util.HashSet;
 import java.util.List;
@@ -30,8 +29,25 @@ public class ModuleValidator extends ValidatorBase {
 
 		var refWalker = new ReferenceWalker(c);
 
-		for(FuncType t : module.types()) {
-			c.addType(t);
+		int typeIndex = 0;
+		for(RecursiveType recType : module.types()) {
+			int recTypeStart = typeIndex;
+			var roll = new TypeResolver() {
+				@Override
+				protected HeapType resolveTypeIdx(TypeIdx idx) {
+					if(idx.index() >= recTypeStart) {
+						return new RecTypeIdx(idx.index() - recTypeStart);
+					}
+					else {
+						return idx;
+					}
+				}
+			};
+
+			for(var subType : recType.subtypes()) {
+				c.addType(roll.resolveCompositeType(subType.compositeType()));
+				++typeIndex;
+			}
 		}
 
 		for(Import import_ : module.imports()) {
@@ -142,7 +158,8 @@ public class ModuleValidator extends ValidatorBase {
 	}
 
 	private void validateFunc(Func func) throws ValidationException {
-		var t = context.getType(func.type());
+		context.requireFuncType(func.type());
+		var t = (FuncType)context.getType(func.type());
 		var c = context.copy();
 		c.addLocalsInit(t.args().types());
 		c.addLocals(func.locals());

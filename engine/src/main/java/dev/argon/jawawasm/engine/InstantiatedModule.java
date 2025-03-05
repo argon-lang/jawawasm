@@ -1,6 +1,5 @@
 package dev.argon.jawawasm.engine;
 
-import dev.argon.jawawasm.engine.validator.SubtypingBase;
 import dev.argon.jawawasm.format.instructions.Instr;
 import dev.argon.jawawasm.format.modules.*;
 import dev.argon.jawawasm.format.modules.Module;
@@ -19,7 +18,13 @@ public final class InstantiatedModule implements WasmModule {
 		this.engine = engine;
 		this.module = module;
 		this.resolver = resolver;
-		this.typeResolver = new TypeResolver(module);
+
+		flatTypes = new ArrayList<>();
+		for(var refType : module.types()) {
+			for(var subType : refType.subtypes()) {
+				flatTypes.add(subType.compositeType());
+			}
+		}
 
 		new FunctionBuilder().build(functions);
 		new GlobalBuilder().build(globals);
@@ -88,6 +93,7 @@ public final class InstantiatedModule implements WasmModule {
 	private final Module module;
 	private final ModuleResolver resolver;
 
+	private final List<CompositeType> flatTypes;
 	private final List<WasmFunction> functions = new ArrayList<>();
 	private final List<WasmTable> tables = new ArrayList<>();
 	private final List<WasmMemory> memories = new ArrayList<>();
@@ -100,12 +106,10 @@ public final class InstantiatedModule implements WasmModule {
 	private final Map<String, WasmModule> referencedModules = new HashMap<>();
 	private final Map<String, WasmExport> exports = new HashMap<>();
 
-	private final TypeResolver typeResolver;
-
-	private final SubtypingBase subtyping = new SubtypingBase() {
+	final SubtypingBase subtyping = new SubtypingBase() {
 		@Override
-		protected FuncType resolveTypeIdx(TypeIdx idx) {
-			return getType(idx);
+		protected HeapType resolveTypeIdx(TypeIdx idx) {
+			return resolveCompositeType(flatTypes.get(idx.index()));
 		}
 	};
 
@@ -220,9 +224,9 @@ public final class InstantiatedModule implements WasmModule {
 				throw new ModuleLinkException("incompatible import type");
 			}
 
-			var t = getType(desc.type());
+			var t = getFuncType(desc.type());
 
-			if(!t.equals(func.type())) {
+			if(!subtyping.isSubtypeFunc(func.type(), t)) {
 				throw new ModuleLinkException("incompatible import type");
 			}
 
@@ -239,7 +243,7 @@ public final class InstantiatedModule implements WasmModule {
 			return new WasmFunction() {
 				@Override
 				public FuncType type() {
-					return typeResolver.resolveFuncType(module.types().get(func.type().index()));
+					return subtyping.resolveFuncType(getFuncType(func.type()));
 				}
 
 				@Override
@@ -276,7 +280,7 @@ public final class InstantiatedModule implements WasmModule {
 
 		@Override
 		protected WasmTable create(Table table) throws ExecutionException {
-			var tableType = typeResolver.resolveTableType(table.type());
+			var tableType = subtyping.resolveTableType(table.type());
 			var initialValue = evaluateInitializer(table.init().body(), tableType.elementType());
 
 			return new WasmTable(tableType, initialValue);
@@ -340,7 +344,7 @@ public final class InstantiatedModule implements WasmModule {
 		@Override
 		protected WasmGlobal create(Global global) throws ExecutionException {
 			Object value = evaluateInitializer(global.init().body(), global.type().type());
-			return new WasmGlobal(typeResolver.resolveGlobalType(global.type()), value);
+			return new WasmGlobal(subtyping.resolveGlobalType(global.type()), value);
 		}
 	}
 
@@ -356,7 +360,7 @@ public final class InstantiatedModule implements WasmModule {
 				throw new ModuleLinkException("incompatible import type");
 			}
 
-			if(!subtyping.isSubtypeFunc(tag.type(), getType(desc.type().funcType()))) {
+			if(!subtyping.isSubtypeFunc(tag.type(), getFuncType(desc.type().funcType()))) {
 				throw new ModuleLinkException("incompatible import type");
 			}
 
@@ -370,15 +374,15 @@ public final class InstantiatedModule implements WasmModule {
 
 		@Override
 		protected WasmTag create(Tag tag) throws ExecutionException {
-			var func = getType(tag.type().funcType());
+			var func = getFuncType(tag.type().funcType());
 			return new WasmTag(func);
 		}
 	}
 
 
 
-	FuncType getType(TypeIdx index) {
-		return module.types().get(index.index());
+	FuncType getFuncType(TypeIdx index) {
+		return (FuncType)flatTypes.get(index.index());
 	}
 
 	WasmFunction getFunction(FuncIdx index) {

@@ -44,6 +44,15 @@ public class ModuleReader {
 	private int peekByteValue = -1;
 
 	private byte readByte() throws IOException, ModuleFormatException {
+		int b = tryReadByte();
+		if(b < 0) {
+			throw new ModuleFormatException("unexpected end of section or function");
+		}
+
+		return (byte)b;
+	}
+
+	private int tryReadByte() throws IOException {
 		int b;
 		if(peekByteValue >= 0) {
 			b = peekByteValue;
@@ -52,13 +61,12 @@ public class ModuleReader {
 		else {
 			b = is.read();
 		}
+
 		if(b >= 0) {
 			++offset;
-			return (byte)b;
 		}
-		else {
-			throw new ModuleFormatException("unexpected end of section or function");
-		}
+
+		return b;
 	}
 
 	private int peekByte() throws IOException {
@@ -70,12 +78,45 @@ public class ModuleReader {
 	}
 
 	private byte[] readAllNBytes(int n) throws IOException, ModuleFormatException {
-		byte[] buff = is.readNBytes(n);
+		byte[] buff = new byte[n];
+		int startIndex = 0;
+		int bytesRead = 0;
+
+		if(peekByteValue >= 0) {
+			buff[startIndex] = (byte)peekByteValue;
+			peekByteValue = -1;
+			startIndex += 1;
+			bytesRead += 1;
+		}
+
+		bytesRead += is.readNBytes(buff, startIndex, buff.length - startIndex);
+
 		offset += buff.length;
-		if(buff.length < n) {
+		if(bytesRead < n) {
 			throw new ModuleFormatException("unexpected end of section or function");
 		}
 		return buff;
+	}
+
+	private void skipBytes(long n) throws IOException, ModuleFormatException {
+		if(n < 1) {
+			return;
+		}
+
+		if(peekByteValue >= 0) {
+			--n;
+			peekByteValue = -1;
+		}
+
+		while(n > 0) {
+			long skipped = is.skip(n);
+			n -= skipped;
+			offset += skipped;
+			if(skipped < 1) {
+				readByte();
+				--n;
+			}
+		}
 	}
 
 	private int readFixedInt() throws IOException, ModuleFormatException {
@@ -288,11 +329,18 @@ public class ModuleReader {
 		return cb.toString();
 	}
 
+	private StorageType readStorageType() throws IOException, ModuleFormatException {
+		return switch(peekByte()) {
+			case 0x78 -> PackedType.I8;
+			case 0x77 -> PackedType.I16;
+			default -> readValType();
+		};
+	}
 
 	private ValType readValTypeRest(long i) throws IOException, ModuleFormatException {
 		ValType result = null;
 		if(i < 0) {
-			result = switch((int) i) {
+			result = switch((int)i) {
 				// numtype
 				case -1 -> NumType.I32;
 				case -2 -> NumType.I64;
@@ -344,12 +392,63 @@ public class ModuleReader {
 		return new ResultType(types);
 	}
 
-	private FuncType readFuncType() throws IOException, ModuleFormatException {
-		int i = readS7();
-		if(i != -32) {
-			throw new ModuleFormatException("invalid function type");
+	private RecursiveType readRecursiveType() throws IOException, ModuleFormatException {
+		if(peekByte() == 0x4E) {
+			var types = readVector(this::readSubType);
+			return new RecursiveType(types);
 		}
+		else {
+			var subtype = this.readSubType();
+			return new RecursiveType(List.of(subtype));
+		}
+	}
 
+	private SubType readSubType() throws IOException, ModuleFormatException {
+		switch(peekByte()) {
+			case 0x50 -> {
+				var superTypes = readVector(this::readTypeIdx);
+				var composite = readCompositeType();
+				return new SubType(false, superTypes, composite);
+			}
+			case 0x4F -> {
+				var superTypes = readVector(this::readTypeIdx);
+				var composite = readCompositeType();
+				return new SubType(true, superTypes, composite);
+			}
+
+			default -> {
+				var composite = readCompositeType();
+				return new SubType(true, List.of(), composite);
+			}
+		}
+	}
+
+	private CompositeType readCompositeType() throws IOException, ModuleFormatException {
+		return switch(readS7()) {
+			case -34 -> readArrayType();
+			case -33 -> readStructType();
+			case -32 -> readFuncType();
+			default -> throw new ModuleFormatException("Unknown composite type");
+		};
+	}
+
+	private ArrayType readArrayType() throws IOException, ModuleFormatException {
+		var fieldType = readFieldType();
+		return new ArrayType(fieldType);
+	}
+
+	private StructType readStructType() throws IOException, ModuleFormatException {
+		var fieldTypes = readVector(this::readFieldType);
+		return new StructType(fieldTypes);
+	}
+
+	private FieldType readFieldType() throws IOException, ModuleFormatException {
+		var t = readStorageType();
+		var mut = readMut();
+		return new FieldType(t, mut);
+	}
+
+	private FuncType readFuncType() throws IOException, ModuleFormatException {
 		var from = readResultType();
 		var to = readResultType();
 
@@ -433,13 +532,17 @@ public class ModuleReader {
 
 	private GlobalType readGlobalType() throws IOException, ModuleFormatException {
 		var t = readValType();
-		var mut = switch(readByte()) {
+		var mut = readMut();
+
+		return new GlobalType(mut, t);
+	}
+
+	private Mut readMut() throws IOException, ModuleFormatException {
+		return switch(readByte()) {
 			case 0x00 -> Mut.Const;
 			case 0x01 -> Mut.Var;
 			default -> throw new ModuleFormatException("malformed mutability");
 		};
-
-		return new GlobalType(mut, t);
 	}
 
 	private TagType readTagType() throws IOException, ModuleFormatException {
@@ -1615,8 +1718,8 @@ public class ModuleReader {
 		return new MemIdx(readU32());
 	}
 
-	private List<? extends FuncType> readTypeSectionContent() throws IOException, ModuleFormatException {
-		return readVector(this::readFuncType);
+	private List<? extends RecursiveType> readTypeSectionContent() throws IOException, ModuleFormatException {
+		return readVector(this::readRecursiveType);
 	}
 
 	private List<? extends Import> readImportSectionContent() throws IOException, ModuleFormatException {
@@ -1909,7 +2012,7 @@ public class ModuleReader {
 	 * @throws ModuleFormatException if the WebAssembly module is invalid.
 	 */
 	public dev.argon.jawawasm.format.modules.Module readModule() throws IOException, ModuleFormatException {
-		List<? extends FuncType> types = new ArrayList<>();
+		List<? extends RecursiveType> types = new ArrayList<>();
 		List<? extends TypeIdx> funcTypes = new ArrayList<>();
 		List<? extends Table> tables = new ArrayList<>();
 		List<? extends Mem> mems = new ArrayList<>();
@@ -1937,7 +2040,7 @@ public class ModuleReader {
 			int lastSection = 0;
 
 			while(true) {
-				int section = is.read();
+				int section = tryReadByte();
 				if(section < 0) {
 					break;
 				}
@@ -1957,15 +2060,7 @@ public class ModuleReader {
 							long beforeName = offset;
 							String name = readName();
 							long remaining = size - (offset - beforeName);
-							while(remaining > 0) {
-								long skipped = is.skip(remaining);
-								remaining -= skipped;
-								offset += skipped;
-								if(skipped < 1) {
-									readByte();
-									--remaining;
-								}
-							}
+							skipBytes(remaining);
 							return name;
 						});
 					}
@@ -2030,17 +2125,17 @@ public class ModuleReader {
 			}
 
 			return new Module(
-					types,
-					funcs,
-					tables,
-					mems,
-					tags,
-					globals,
-					elems,
-					datas,
-					start,
-					imports,
-					exports
+				types,
+				funcs,
+				tables,
+				mems,
+				tags,
+				globals,
+				elems,
+				datas,
+				start,
+				imports,
+				exports
 			);
 		}
 		catch(EOFException ex) {

@@ -8,7 +8,7 @@ import java.util.*;
 
 class Context {
 
-	private final List<FuncType> types = new ArrayList<>();
+	private final List<CompositeType> types = new ArrayList<>();
 	private final List<TypeIdx> funcs = new ArrayList<>();
 	private final List<TableType> tables = new ArrayList<>();
 	private final List<MemType> mems = new ArrayList<>();
@@ -46,11 +46,17 @@ class Context {
 			throw new ValidationException("unknown type", "unknown type " + idx.index());
 		}
 	}
-	public FuncType getType(TypeIdx idx) {
+	public void requireFuncType(TypeIdx idx) throws ValidationException {
+		requireType(idx);
+		if(!(getType(idx) instanceof FuncType)) {
+			throw new ValidationException("Function type expected");
+		}
+	}
+	public CompositeType getType(TypeIdx idx) {
 		return types.get(idx.index());
 	}
 
-	public void addType(FuncType t) {
+	public void addType(CompositeType t) {
 		types.add(t);
 	}
 
@@ -64,7 +70,7 @@ class Context {
 		return funcs.get(idx.index());
 	}
 	public FuncType getFuncType(FuncIdx idx) {
-		return types.get(funcs.get(idx.index()).index());
+		return (FuncType)getType(getFunc(idx));
 	}
 
 	public void addFunc(TypeIdx t) {

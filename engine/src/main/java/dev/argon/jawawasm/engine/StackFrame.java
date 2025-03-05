@@ -15,7 +15,7 @@ class StackFrame {
 	public StackFrame(InstantiatedModule module, Func func, Object[] args) {
 		this.module = module;
 		block = func.body().body();
-		topBlockType = module.getType(func.type());
+		topBlockType = module.getFuncType(func.type());
 		blockType = topBlockType;
 
 		if(args.length != topBlockType.args().types().size()) {
@@ -2438,10 +2438,10 @@ class StackFrame {
 				var table = module.getTable(tableIdx);
 				long index = popIndex(table);
 
-				var funcType = module.getType(funcTypeIdx);
+				var funcType = module.getFuncType(funcTypeIdx);
 				var func = (WasmFunction)table.get(index);
 
-				if(!func.type().equals(funcType)) {
+				if(!module.subtyping.isSubtypeFunc(func.type(), funcType)) {
 					throw new IndirectCallTypeMismatchException();
 				}
 
@@ -2468,10 +2468,10 @@ class StackFrame {
 				var table = module.getTable(tableIdx);
 				long index = popIndex(table);
 
-				var funcType = module.getType(funcTypeIdx);
+				var funcType = module.getFuncType(funcTypeIdx);
 				var func = (WasmFunction)table.get(index);
 
-				if(!func.type().equals(funcType)) {
+				if(!module.subtyping.isSubtypeFunc(func.type(), funcType)) {
 					throw new IndirectCallTypeMismatchException();
 				}
 
@@ -2532,7 +2532,7 @@ class StackFrame {
 	private FuncType expandBlockType(ControlInstr.BlockType blockType) {
 		return switch(blockType) {
 			case ControlInstr.BlockType.Empty() -> new FuncType(new ResultType(List.of()), new ResultType(List.of()));
-			case ControlInstr.BlockType.OfIndex(var index) -> module.getType(index);
+			case ControlInstr.BlockType.OfIndex(var index) -> module.getFuncType(index);
 			case ControlInstr.BlockType.OfValType(var valType) -> new FuncType(new ResultType(List.of()), new ResultType(List.of(valType)));
 		};
 	}

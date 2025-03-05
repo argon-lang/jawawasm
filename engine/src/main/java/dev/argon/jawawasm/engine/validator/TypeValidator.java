@@ -23,7 +23,7 @@ final class TypeValidator extends ValidatorBase {
 		switch(blockType) {
 			case ControlInstr.BlockType.Empty() -> {}
 			case ControlInstr.BlockType.OfIndex(var typeIdx) ->
-				context.requireType(typeIdx);
+				context.requireFuncType(typeIdx);
 			case ControlInstr.BlockType.OfValType(var t) -> {
 				validateValType(t);
 			}
@@ -73,15 +73,32 @@ final class TypeValidator extends ValidatorBase {
 
 	public void validateHeapType(HeapType heapType) throws ValidationException {
 		switch(heapType) {
-			case HeapType.AbstractHeapType _, BotType() -> {}
+			case HeapType.AbstractHeapType _, BotType(), RecTypeIdx _ -> {}
 			case TypeIdx index -> context.requireType(index);
 			case FuncType funcType -> validateFuncType(funcType);
+			case StructType structType -> {
+				for(var fieldType : structType.fields()) {
+					validateFieldType(fieldType);
+				}
+			}
+			case ArrayType(var fieldType) -> validateFieldType(fieldType);
 		}
 	}
 
+	private void validateStorageType(StorageType storageType) throws ValidationException {
+		switch(storageType) {
+			case PackedType _ -> {}
+			case ValType valType -> validateValType(valType);
+		}
+	}
+
+	private void validateFieldType(FieldType fieldType) throws ValidationException {
+		validateStorageType(fieldType.storageType());
+	}
+
 	public void validateTagType(TagType t) throws ValidationException {
-		context.requireType(t.funcType());
-		var funcType = context.getType(t.funcType());
+		context.requireFuncType(t.funcType());
+		var funcType = (FuncType)context.getType(t.funcType());
 		require(funcType.results().types().isEmpty(), "Tag result type must be empty");
 	}
 }

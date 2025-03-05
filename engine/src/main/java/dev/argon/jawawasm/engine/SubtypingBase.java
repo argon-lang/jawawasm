@@ -1,12 +1,9 @@
-package dev.argon.jawawasm.engine.validator;
+package dev.argon.jawawasm.engine;
 
-import dev.argon.jawawasm.format.modules.Table;
 import dev.argon.jawawasm.format.modules.TypeIdx;
 import dev.argon.jawawasm.format.types.*;
 
-public abstract class SubtypingBase {
-
-	protected abstract FuncType resolveTypeIdx(TypeIdx idx);
+public abstract class SubtypingBase extends TypeResolver {
 
 	public boolean isSubtypeNum(NumType a, NumType b) {
 		return a.equals(b);
@@ -26,8 +23,10 @@ public abstract class SubtypingBase {
 					a == HeapType.AbstractHeapType.ARRAY
 				) && b == HeapType.AbstractHeapType.EQ
 			) ||
+			(a instanceof StructType && b == HeapType.AbstractHeapType.STRUCT) ||
+			(a instanceof ArrayType && b == HeapType.AbstractHeapType.ARRAY) ||
 			(a instanceof FuncType && b == HeapType.AbstractHeapType.FUNC) ||
-			(a instanceof FuncType af && b instanceof FuncType bf && isSubtypeFunc(af, bf)) ||
+			(a instanceof CompositeType ad && b instanceof CompositeType bd && isSubtypeComposite(ad, bd)) ||
 			(a instanceof TypeIdx at && isSubtypeHeap(resolveTypeIdx(at), b)) ||
 			(b instanceof TypeIdx bt && isSubtypeHeap(a, resolveTypeIdx(bt))) ||
 			(a == HeapType.AbstractHeapType.NONE && isSubtypeHeap(b, HeapType.AbstractHeapType.ANY)) ||
@@ -48,6 +47,13 @@ public abstract class SubtypingBase {
 			a instanceof BotType;
 	}
 
+	public boolean isSubtypeStorage(StorageType a, StorageType b) {
+		return switch(a) {
+			case ValType av -> b instanceof ValType bv && isSubtypeVal(av, bv);
+			case PackedType ap -> ap == b;
+		};
+	}
+
 	public boolean isSubtypeResult(ResultType a, ResultType b) {
 		if(a.types().size() != b.types().size()) {
 			return false;
@@ -60,6 +66,55 @@ public abstract class SubtypingBase {
 		}
 
 		return true;
+	}
+
+	public boolean isSubtypeComposite(CompositeType a, CompositeType b) {
+		return switch(a) {
+			case FuncType af -> b instanceof FuncType bf && isSubtypeFunc(af, bf);
+			case StructType aStruct -> {
+				if(!(b instanceof StructType bStruct)) {
+					yield false;
+				}
+
+				if(aStruct.fields().size() < bStruct.fields().size()) {
+					yield false;
+				}
+
+				for(int i = 0; i < bStruct.fields().size(); ++i) {
+					if(!isSubtypeField(aStruct.fields().get(i), bStruct.fields().get(i))) {
+						yield false;
+					}
+				}
+
+				yield true;
+			}
+
+			case ArrayType aArray -> {
+				if(!(b instanceof ArrayType bArray)) {
+					yield false;
+				}
+
+				yield isSubtypeField(aArray.fieldType(), bArray.fieldType());
+			}
+		};
+	}
+
+	public boolean isSubtypeField(FieldType a, FieldType b) {
+		if(!isSubtypeStorage(a.storageType(), b.storageType())) {
+			return false;
+		}
+
+		return switch(a.mut()) {
+			case Const -> b.mut() != Mut.Const;
+
+			case Var -> {
+				if(b.mut() != Mut.Var) {
+					yield false;
+				}
+
+				yield isSubtypeStorage(b.storageType(), a.storageType());
+			}
+		};
 	}
 
 	public boolean isSubtypeFunc(FuncType a, FuncType b) {

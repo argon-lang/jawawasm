@@ -3,7 +3,7 @@ package dev.argon.jawawasm.format.types;
 import dev.argon.jawawasm.format.modules.TypeIdx;
 
 public sealed interface HeapType
-	permits TypeIdx, BotType, FuncType, HeapType.AbstractHeapType
+	permits TypeIdx, BotType, CompositeType, HeapType.AbstractHeapType, RecTypeIdx
 {
 
 	enum AbstractHeapType implements HeapType {

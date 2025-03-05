@@ -1002,8 +1002,8 @@ class InstrValidator extends ValidatorBase {
 					context.requireTag(tag);
 					var tagType = context.getTag(tag);
 
-					context.requireType(tagType.funcType());
-					var funcType = context.getType(tagType.funcType());
+					context.requireFuncType(tagType.funcType());
+					var funcType = (FuncType)context.getType(tagType.funcType());
 
 					pop(funcType.args());
 					stack.clear();
@@ -1111,8 +1111,8 @@ class InstrValidator extends ValidatorBase {
 				}
 
 				case ControlInstr.Call_Ref(var funcTypeIdx) -> {
-					context.requireType(funcTypeIdx);
-					var funcType = context.getType(funcTypeIdx);
+					context.requireFuncType(funcTypeIdx);
+					var funcType = (FuncType)context.getType(funcTypeIdx);
 					pop(new RefType(true, funcType));
 					pop(funcType.args());
 					push(funcType.results());
@@ -1123,8 +1123,8 @@ class InstrValidator extends ValidatorBase {
 
 					requireFuncType(context.getTable(table).elementType().heapType());
 
-					context.requireType(funcType);
-					var t = context.getType(funcType);
+					context.requireFuncType(funcType);
+					var t = (FuncType)context.getType(funcType);
 
 					popIndex(table);
 					pop(t.args());
@@ -1143,8 +1143,8 @@ class InstrValidator extends ValidatorBase {
 				}
 
 				case ControlInstr.Return_Call_Ref(var funcTypeIdx) -> {
-					context.requireType(funcTypeIdx);
-					var funcType = context.getType(funcTypeIdx);
+					context.requireFuncType(funcTypeIdx);
+					var funcType = (FuncType)context.getType(funcTypeIdx);
 					pop(new RefType(true, funcType));
 					pop(funcType.args());
 
@@ -1158,8 +1158,8 @@ class InstrValidator extends ValidatorBase {
 
 					requireFuncType(context.getTable(table).elementType().heapType());
 
-					context.requireType(funcType);
-					var t = context.getType(funcType);
+					context.requireFuncType(funcType);
+					var t = (FuncType)context.getType(funcType);
 
 					popIndex(table);
 					pop(t.args());
@@ -1194,8 +1194,8 @@ class InstrValidator extends ValidatorBase {
 					context.requireTag(tagIdx);
 					var tag = context.getTag(tagIdx);
 
-					context.requireType(tag.funcType());
-					var t = context.getType(tag.funcType());
+					context.requireFuncType(tag.funcType());
+					var t = (FuncType)context.getType(tag.funcType());
 
 					require(t.results().types().isEmpty(), "Tag type must have empty result");
 
@@ -1208,8 +1208,8 @@ class InstrValidator extends ValidatorBase {
 					context.requireTag(tagIdx);
 					var tag = context.getTag(tagIdx);
 
-					context.requireType(tag.funcType());
-					var t = context.getType(tag.funcType());
+					context.requireFuncType(tag.funcType());
+					var t = (FuncType)context.getType(tag.funcType());
 
 					require(t.results().types().isEmpty(), "Tag type must have empty result");
 
@@ -1245,7 +1245,7 @@ class InstrValidator extends ValidatorBase {
 		private FuncType expandBlockType(ControlInstr.BlockType blockType) {
 			return switch(blockType) {
 				case ControlInstr.BlockType.Empty() -> new FuncType(new ResultType(List.of()), new ResultType(List.of()));
-				case ControlInstr.BlockType.OfIndex(var index) -> context.getType(index);
+				case ControlInstr.BlockType.OfIndex(var index) -> (FuncType)context.getType(index);
 				case ControlInstr.BlockType.OfValType(var valType) -> new FuncType(new ResultType(List.of()), new ResultType(List.of(valType)));
 			};
 		}
