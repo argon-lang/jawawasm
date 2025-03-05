@@ -17,11 +17,11 @@ public final class WasmTable implements WasmExport {
 	 * Create a table.
 	 * @param type The table type.
 	 */
-	public WasmTable(TableType type) {
+	public WasmTable(TableType type, Object initialValue) {
 		this.tableType = type;
 		values = new ArrayList<>((int)type.limits().min());
 		for(int i = 0; i < type.limits().min(); ++i) {
-			values.add(null);
+			values.add(initialValue);
 		}
 	}
 

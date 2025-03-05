@@ -22,9 +22,9 @@ public final class InstantiatedModule implements WasmModule {
 		this.typeResolver = new TypeResolver(module);
 
 		new FunctionBuilder().build(functions);
+		new GlobalBuilder().build(globals);
 		new TableBuilder().build(tables);
 		new MemoryBuilder().build(memories);
-		new GlobalBuilder().build(globals);
 		new TagBuilder().build(tags);
 
 
@@ -275,8 +275,11 @@ public final class InstantiatedModule implements WasmModule {
 		}
 
 		@Override
-		protected WasmTable create(Table table) {
-			return new WasmTable(typeResolver.resolveTableType(table.type()));
+		protected WasmTable create(Table table) throws ExecutionException {
+			var tableType = typeResolver.resolveTableType(table.type());
+			var initialValue = evaluateInitializer(table.init().body(), tableType.elementType());
+
+			return new WasmTable(tableType, initialValue);
 		}
 	}
 
@@ -322,8 +325,6 @@ public final class InstantiatedModule implements WasmModule {
 				throw new ModuleLinkException("incompatible import type");
 			}
 
-			System.err.println(global.type());
-			System.err.println(desc.type());
 			if(!subtyping.isSubtypeGlobal(global.type(), desc.type())) {
 				throw new ModuleLinkException("incompatible import type");
 			}

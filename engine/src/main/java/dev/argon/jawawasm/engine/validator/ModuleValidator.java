@@ -66,6 +66,7 @@ public class ModuleValidator extends ValidatorBase {
 
 		for(Table table : module.tables()) {
 			c.addTable(table.type());
+			refWalker.walkTable(table);
 		}
 
 		for(Mem mem : module.mems()) {
@@ -147,7 +148,6 @@ public class ModuleValidator extends ValidatorBase {
 		c.addLocals(func.locals());
 		c.addLabel(t.results());
 		c.setReturn(t.results());
-		System.err.println(func.body());
 		new InstrValidator(c).validateExpr(func.body(), t.results());
 	}
 
@@ -182,6 +182,7 @@ public class ModuleValidator extends ValidatorBase {
 
 	private void validateTable(Table table) throws ValidationException {
 		new TypeValidator(context).validateTableType(table.type());
+		new InstrValidator(context).validateExpr(table.init(), new ResultType(List.of(table.type().elementType())));
 	}
 
 	private void validateMem(Mem mem) throws ValidationException {

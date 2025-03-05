@@ -18,10 +18,22 @@ public abstract class SubtypingBase {
 
 	public boolean isSubtypeHeap(HeapType a, HeapType b) {
 		return a.equals(b) ||
+			(a == HeapType.AbstractHeapType.EQ && b == HeapType.AbstractHeapType.ANY) ||
+			(
+				(
+					a == HeapType.AbstractHeapType.I32 ||
+					a == HeapType.AbstractHeapType.STRUCT ||
+					a == HeapType.AbstractHeapType.ARRAY
+				) && b == HeapType.AbstractHeapType.EQ
+			) ||
 			(a instanceof FuncType && b == HeapType.AbstractHeapType.FUNC) ||
 			(a instanceof FuncType af && b instanceof FuncType bf && isSubtypeFunc(af, bf)) ||
 			(a instanceof TypeIdx at && isSubtypeHeap(resolveTypeIdx(at), b)) ||
 			(b instanceof TypeIdx bt && isSubtypeHeap(a, resolveTypeIdx(bt))) ||
+			(a == HeapType.AbstractHeapType.NONE && isSubtypeHeap(b, HeapType.AbstractHeapType.ANY)) ||
+			(a == HeapType.AbstractHeapType.NOFUNC && isSubtypeHeap(b, HeapType.AbstractHeapType.FUNC)) ||
+			(a == HeapType.AbstractHeapType.NOEXN && isSubtypeHeap(b, HeapType.AbstractHeapType.EXN)) ||
+			(a == HeapType.AbstractHeapType.NOEXTERN && isSubtypeHeap(b, HeapType.AbstractHeapType.EXTERN)) ||
 			a instanceof BotType;
 	}
 

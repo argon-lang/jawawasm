@@ -64,7 +64,7 @@ class ScriptTests {
 			}
 		}
 
-//		if(!path.toString().equals("relaxed-simd/relaxed_dot_product.wast")) {
+//		if(!path.toString().equals("local_init.wast")) {
 //			return true;
 //		}
 

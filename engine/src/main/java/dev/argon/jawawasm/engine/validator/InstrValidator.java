@@ -634,7 +634,7 @@ class InstrValidator extends ValidatorBase {
 					var t1 = context.getTable(dest);
 					context.requireTable(src);
 					var t2 = context.getTable(src);
-					require(t1.elementType().equals(t2.elementType()), "type mismatch");
+					require(new Subtyping(context).isSubtypeRef(t2.elementType(), t1.elementType()), "type mismatch");
 
 					popIndex(dest, src);
 					popIndex(src);
@@ -987,7 +987,7 @@ class InstrValidator extends ValidatorBase {
 					var c2 = context.copy();
 					c2.addLabel(t.results());
 
-					var iv2 = new InstrValidator(c2);
+					var iv2 = new InstrValidator(c2.copy());
 					iv2.validateInstructions(thenBody, t.args(), t.results());
 
 					iv2 = new InstrValidator(c2);

@@ -41,8 +41,17 @@ public class ModuleReader {
 	private long sectionStart = -1;
 	private long sectionSize;
 
+	private int peekByteValue = -1;
+
 	private byte readByte() throws IOException, ModuleFormatException {
-		int b = is.read();
+		int b;
+		if(peekByteValue >= 0) {
+			b = peekByteValue;
+			peekByteValue = -1;
+		}
+		else {
+			b = is.read();
+		}
 		if(b >= 0) {
 			++offset;
 			return (byte)b;
@@ -50,6 +59,14 @@ public class ModuleReader {
 		else {
 			throw new ModuleFormatException("unexpected end of section or function");
 		}
+	}
+
+	private int peekByte() throws IOException {
+		if(peekByteValue < 0) {
+			peekByteValue = is.read();
+		}
+
+		return peekByteValue;
 	}
 
 	private byte[] readAllNBytes(int n) throws IOException, ModuleFormatException {
@@ -1646,8 +1663,21 @@ public class ModuleReader {
 
 	private List<? extends Table> readTableSectionContent() throws IOException, ModuleFormatException {
 		return readVector(() -> {
-			var type = readTableType();
-			return new Table(type);
+			if(peekByte() == 0x40) {
+				readByte();
+				byte b = readByte();
+				if(b != 0) {
+					throw new ModuleFormatException("Table reserved byte must be zero");
+				}
+				var type = readTableType();
+				var init = readExpr();
+				return new Table(type, init);
+			}
+			else {
+				var type = readTableType();
+				var init = new Expr(List.of(new ReferenceInstr.Ref_Null(type.elementType().heapType())));
+				return new Table(type, init);
+			}
 		});
 	}
 

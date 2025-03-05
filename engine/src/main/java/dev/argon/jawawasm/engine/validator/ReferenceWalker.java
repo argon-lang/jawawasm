@@ -65,4 +65,8 @@ class ReferenceWalker {
 			default -> {}
 		}
 	}
+
+	public void walkTable(Table table) {
+		walkExpr(table.init());
+	}
 }
