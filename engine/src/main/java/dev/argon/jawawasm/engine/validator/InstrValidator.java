@@ -337,27 +337,41 @@ class InstrValidator extends ValidatorBase {
 			switch(instr) {
 				case VectorInstr.V128_Const(var v) -> push(VecType.V128);
 
-				case VectorInstr.VVUnOp vvUnOp -> {
+				case VectorInstr.VVUnOp _ -> {
 					pop(VecType.V128);
 					push(VecType.V128);
 				}
 
-				case VectorInstr.VVBinOp vvBinOp -> {
-					pop(VecType.V128);
-					pop(VecType.V128);
-					push(VecType.V128);
-				}
-
-				case VectorInstr.VVTernOp vvTernOp -> {
-					pop(VecType.V128);
+				case VectorInstr.VVBinOp _ -> {
 					pop(VecType.V128);
 					pop(VecType.V128);
 					push(VecType.V128);
 				}
 
-				case VectorInstr.VVTestOp vvTestOp -> {
+				case VectorInstr.VVTernOp _ -> {
+					pop(VecType.V128);
+					pop(VecType.V128);
+					pop(VecType.V128);
+					push(VecType.V128);
+				}
+
+				case VectorInstr.VVTestOp _ -> {
 					pop(VecType.V128);
 					push(NumType.I32);
+				}
+
+
+				case VectorInstr.I16x8_Relaxed_Dot_I8x16_I7x16_S _ -> {
+					pop(VecType.V128);
+					pop(VecType.V128);
+					push(VecType.V128);
+				}
+
+				case VectorInstr.I32x4_Relaxed_Dot_I8x16_I7x16_Add_S _ -> {
+					pop(VecType.V128);
+					pop(VecType.V128);
+					pop(VecType.V128);
+					push(VecType.V128);
 				}
 
 				case VectorInstr.I8x16_Op_Instr(var op) -> validateVectorInstrOp(op, NumType.I32, 16);
@@ -366,6 +380,8 @@ class InstrValidator extends ValidatorBase {
 				case VectorInstr.I64x2_Op_Instr(var op) -> validateVectorInstrOp(op, NumType.I64, 2);
 				case VectorInstr.F32x4_Op_Instr(var op) -> validateVectorInstrOp(op, NumType.F32, 4);
 				case VectorInstr.F64x2_Op_Instr(var op) -> validateVectorInstrOp(op, NumType.F64, 2);
+				case VectorInstr.F32x4_Ternary_Op_Instr(var op) -> validateVectorInstrOp(op, NumType.F32, 4);
+				case VectorInstr.F64x2_Ternary_Op_Instr(var op) -> validateVectorInstrOp(op, NumType.F64, 2);
 			}
 		}
 
@@ -416,24 +432,24 @@ class InstrValidator extends ValidatorBase {
 					push(VecType.V128);
 				}
 
-				case VectorInstr.VNUnOp vnUnOp -> {
+				case VectorInstr.VNUnOp _ -> {
 					pop(VecType.V128);
 					push(VecType.V128);
 				}
 
-				case VectorInstr.VNBinOp vnBinOp -> {
-					pop(VecType.V128);
-					pop(VecType.V128);
-					push(VecType.V128);
-				}
-
-				case VectorInstr.VNRelOp vnRelOp -> {
+				case VectorInstr.VNBinOp _ -> {
 					pop(VecType.V128);
 					pop(VecType.V128);
 					push(VecType.V128);
 				}
 
-				case VectorInstr.VIShiftOp viShiftOp -> {
+				case VectorInstr.VNRelOp _ -> {
+					pop(VecType.V128);
+					pop(VecType.V128);
+					push(VecType.V128);
+				}
+
+				case VectorInstr.VIShiftOp _ -> {
 					pop(NumType.I32);
 					pop(VecType.V128);
 					push(VecType.V128);
@@ -444,12 +460,12 @@ class InstrValidator extends ValidatorBase {
 					push(NumType.I32);
 				}
 
-				case VectorInstr.VCVTop_HalfQ_Shape_ZQ vcvTopHalfQShapeZq -> {
+				case VectorInstr.VCVTop_HalfQ_Shape_ZQ _ -> {
 					pop(VecType.V128);
 					push(VecType.V128);
 				}
 
-				case VectorInstr.Narrow_Shape vcvTopHalfQShapeZq -> {
+				case VectorInstr.Narrow_Shape _ -> {
 					pop(VecType.V128);
 					pop(VecType.V128);
 					push(VecType.V128);
@@ -466,43 +482,50 @@ class InstrValidator extends ValidatorBase {
 					push(VecType.V128);
 				}
 
-				case VectorInstr.ExtMul extMul -> {
+				case VectorInstr.ExtMul _ -> {
 					pop(VecType.V128);
 					pop(VecType.V128);
 					push(VecType.V128);
 				}
 
-				case VectorInstr.ExtAdd extAdd -> {
+				case VectorInstr.ExtAdd _ -> {
 					pop(VecType.V128);
 					push(VecType.V128);
 				}
 
-				case VectorInstr.Q15mulr_Sat_S q15mulrSatS -> {
+				case VectorInstr.Q15mulr_Sat_S() -> {
 					pop(VecType.V128);
 					pop(VecType.V128);
 					push(VecType.V128);
 				}
-				case VectorInstr.VIAverageOps viAverageOps -> {
+				case VectorInstr.VIAverageOps _ -> {
 					pop(VecType.V128);
 					pop(VecType.V128);
 					push(VecType.V128);
 				}
-				case VectorInstr.VIMinMaxOp viMinMaxOp -> {
+				case VectorInstr.VIMinMaxOp _ -> {
 					pop(VecType.V128);
 					pop(VecType.V128);
 					push(VecType.V128);
 				}
-				case VectorInstr.VIMulOp viMulOp -> {
+				case VectorInstr.VIMulOp _ -> {
 					pop(VecType.V128);
 					pop(VecType.V128);
 					push(VecType.V128);
 				}
-				case VectorInstr.VISatBinOp viSatBinOp -> {
+				case VectorInstr.VISatBinOp _ -> {
 					pop(VecType.V128);
 					pop(VecType.V128);
 					push(VecType.V128);
 				}
-				case VectorInstr.Popcnt popcnt -> {
+				case VectorInstr.Popcnt() -> {
+					pop(VecType.V128);
+					push(VecType.V128);
+				}
+
+				case VectorInstr.F32x4_Ternary_Op _, VectorInstr.F64x2_Ternary_Op _ -> {
+					pop(VecType.V128);
+					pop(VecType.V128);
 					pop(VecType.V128);
 					push(VecType.V128);
 				}

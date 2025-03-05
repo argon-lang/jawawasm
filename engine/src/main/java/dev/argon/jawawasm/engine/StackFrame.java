@@ -1304,7 +1304,7 @@ class StackFrame {
 						V128 result = V128.build32(i -> i < 2 ? Util.truncSatF64U32(a.extractLaneF64(i)) : 0);
 						push(result);
 					}
-					case VectorInstr.I32x4_Trunc_Sat_F64x4_S_Zero() -> {
+					case VectorInstr.I32x4_Trunc_Sat_F64x2_S_Zero() -> {
 						V128 a = (V128)pop();
 						V128 result = V128.build32(i -> i < 2 ? (int)a.extractLaneF64(i) : 0);
 						push(result);
@@ -1559,6 +1559,24 @@ class StackFrame {
 				}
 			}
 
+			case VectorInstr.F32x4_Ternary_Op_Instr(var op) -> {
+				switch(op) {
+					case VectorInstr.Relaxed_F32x4_MAdd() -> {
+						V128 c = (V128)pop();
+						V128 b = (V128)pop();
+						V128 a = (V128)pop();
+						push(a.ternaryF32(b, c, (ai, bi, ci) -> ai * bi + ci));
+					}
+
+					case VectorInstr.Relaxed_F32x4_NMAdd() -> {
+						V128 c = (V128)pop();
+						V128 b = (V128)pop();
+						V128 a = (V128)pop();
+						push(a.ternaryF32(b, c, (ai, bi, ci) -> -(ai * bi) + ci));
+					}
+				}
+			}
+
 			case VectorInstr.F64x2_Op_Instr(var op) -> {
 				switch(op) {
 					case VectorInstr.Splat() -> {
@@ -1647,6 +1665,52 @@ class StackFrame {
 						push(result);
 					}
 				}
+			}
+
+			case VectorInstr.F64x2_Ternary_Op_Instr(var op) -> {
+				switch(op) {
+					case VectorInstr.Relaxed_F64x2_MAdd() -> {
+						V128 c = (V128)pop();
+						V128 b = (V128)pop();
+						V128 a = (V128)pop();
+						push(a.ternaryF64(b, c, (ai, bi, ci) -> ai * bi + ci));
+					}
+
+					case VectorInstr.Relaxed_F64x2_NMAdd() -> {
+						V128 c = (V128)pop();
+						V128 b = (V128)pop();
+						V128 a = (V128)pop();
+						push(a.ternaryF64(b, c, (ai, bi, ci) -> -(ai * bi) + ci));
+					}
+				}
+			}
+
+			case VectorInstr.I16x8_Relaxed_Dot_I8x16_I7x16_S() -> {
+				short[] intermediate = new short[16];
+				V128 b = (V128)pop();
+				V128 a = (V128)pop();
+
+				for(int i = 0; i < intermediate.length; ++i) {
+					intermediate[i] = (short)(a.extractLane8(i) * b.extractLane8(i));
+				}
+				push(V128.build16(i -> Util.addSatS16(intermediate[2 * i], intermediate[2 * i + 1])));
+			}
+
+			case VectorInstr.I32x4_Relaxed_Dot_I8x16_I7x16_Add_S() -> {
+				int[] intermediate = new int[16];
+				V128 c = (V128)pop();
+				V128 b = (V128)pop();
+				V128 a = (V128)pop();
+				for(int i = 0; i < intermediate.length; ++i) {
+					intermediate[i] = a.extractLane8(i) * b.extractLane8(i);
+				}
+
+				int[] tmp = new int[8];
+				for(int i = 0; i < tmp.length; ++i) {
+					tmp[i] = intermediate[2 * i] + intermediate[2 * i + 1];
+				}
+
+				push(V128.build32(i -> tmp[2 * i] + tmp[2 * i + 1] + c.extractLane32(i)));
 			}
 		}
 	}

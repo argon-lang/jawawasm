@@ -62,6 +62,8 @@ public final class ScriptInterpreter implements AutoCloseable {
 	private static record F32x4Result(Object f0, Object f1, Object f2, Object f3) {}
 	private static record F64x2Result(Object f0, Object f1) {}
 
+	private static record EitherValue(List<Object> values) {}
+
 	private WasmModule getModuleByName(@Nullable String name) throws ScriptExecutionException {
 		WasmModule module;
 		if(name != null) {
@@ -327,6 +329,15 @@ public final class ScriptInterpreter implements AutoCloseable {
 		else if(expected instanceof AnyFuncRef && actual instanceof WasmFunction) {
 			return true;
 		}
+		else if(expected instanceof EitherValue(var values)) {
+			for(var expectedSub : values) {
+				if(valueEqual(expectedSub, actual)) {
+					return true;
+				}
+			}
+
+			return false;
+		}
 		else {
 			return expected == actual;
 		}
@@ -544,6 +555,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 			case "ref.extern" -> getExternRef(((SExpr.NumberValue)exprs.get(1)).intValue());
 			case "ref.null" -> null;
 			case "ref.func" -> new AnyFuncRef();
+			case "either" -> new EitherValue(List.of(getConstantValues(exprs.subList(1, exprs.size()))));
 			default -> throw new ModuleFormatException("Unexpected constant expression: " + expr);
 		};
 	}

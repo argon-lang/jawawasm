@@ -7,8 +7,17 @@ public sealed interface HeapType
 {
 
 	enum AbstractHeapType implements HeapType {
+		NOEXN,
+		NOFUNC,
+		NOEXTERN,
+		NONE,
 		FUNC,
 		EXTERN,
+		ANY,
+		EQ,
+		I32,
+		STRUCT,
+		ARRAY,
 		EXN,
 	}
 }

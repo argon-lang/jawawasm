@@ -688,6 +688,46 @@ public record V128(
 	}
 
 
+
+	/**
+	 * A binary function for 32-bit float values.
+	 */
+	@FunctionalInterface
+	public static interface TernaryF32Function {
+		/**
+		 * Apply this function.
+		 * @param a The first operand.
+		 * @param b The second operand.
+		 * @param c The third operand.
+		 * @return The value.
+		 */
+		float apply(float a, float b, float c);
+	}
+
+	public V128 ternaryF32(V128 second, V128 third, TernaryF32Function f) {
+		return buildF32(i -> f.apply(extractLaneF32(i), second.extractLaneF32(i), third.extractLaneF32(i)));
+	}
+
+	/**
+	 * A binary function for 64-bit float values.
+	 */
+	@FunctionalInterface
+	public static interface TernaryF64Function {
+		/**
+		 * Apply this function.
+		 * @param a The first operand.
+		 * @param b The second operand.
+		 * @param c The third operand.
+		 * @return The value.
+		 */
+		double apply(double a, double b, double c);
+	}
+
+	public V128 ternaryF64(V128 second, V128 third, TernaryF64Function f) {
+		return buildF64(i -> f.apply(extractLaneF64(i), second.extractLaneF64(i), third.extractLaneF64(i)));
+	}
+
+
 	/**
 	 * Check for true values.
 	 * @return true iff any of the bits are set

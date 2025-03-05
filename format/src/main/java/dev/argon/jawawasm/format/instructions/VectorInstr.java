@@ -40,9 +40,17 @@ public sealed interface VectorInstr extends Instr {
 	 */
 	public static sealed interface F32x4_Op extends AnyOp {}
 	/**
+	 * Base type for f32x4 ternary operations.
+	 */
+	public static sealed interface F32x4_Ternary_Op extends AnyOp {}
+	/**
 	 * Base type for f64x2 operations.
 	 */
 	public static sealed interface F64x2_Op extends AnyOp {}
+	/**
+	 * Base type for f64x2 ternary operations.
+	 */
+	public static sealed interface F64x2_Ternary_Op extends AnyOp {}
 	/**
 	 * Base type for vector float operations.
 	 */
@@ -141,10 +149,22 @@ public sealed interface VectorInstr extends Instr {
 	public static record F32x4_Op_Instr(F32x4_Op op) implements VectorInstr {}
 
 	/**
+	 * WebAssembly `v128.f32x4_op` ternary instruction
+	 * @param op The operation.
+	 */
+	public static record F32x4_Ternary_Op_Instr(F32x4_Ternary_Op op) implements VectorInstr {}
+
+	/**
 	 * WebAssembly `v128.f64x2_op` instruction
 	 * @param op The operation.
 	 */
 	public static record F64x2_Op_Instr(F64x2_Op op) implements VectorInstr {}
+
+	/**
+	 * WebAssembly `v128.f64x2_op` ternary instruction
+	 * @param op The operation.
+	 */
+	public static record F64x2_Ternary_Op_Instr(F64x2_Ternary_Op op) implements VectorInstr {}
 
 
 	/**
@@ -654,9 +674,9 @@ public sealed interface VectorInstr extends Instr {
 	 */
 	public static record I32x4_Trunc_Sat_F64x4_U_Zero() implements I32x4_Op, VCVTop_HalfQ_Shape_ZQ {}
 	/**
-	 * WebAssembly `v128.i32x4_trunc_sat_f64x4_s_zero` instruction
+	 * WebAssembly `v128.i32x4_trunc_sat_f64x2_s_zero` instruction
 	 */
-	public static record I32x4_Trunc_Sat_F64x4_S_Zero() implements I32x4_Op, VCVTop_HalfQ_Shape_ZQ {}
+	public static record I32x4_Trunc_Sat_F64x2_S_Zero() implements I32x4_Op, VCVTop_HalfQ_Shape_ZQ {}
 
 	/**
 	 * WebAssembly `v128.f32x4_convert_i32x4_u` instruction
@@ -683,4 +703,30 @@ public sealed interface VectorInstr extends Instr {
 	 */
 	public static record F64x2_Promote_Low_F32x4() implements F64x2_Op, VCVTop_HalfQ_Shape_ZQ {}
 
+
+	/**
+	 * WebAssembly `v128.relaxed f32x4.madd` instruction
+	 */
+	public static record Relaxed_F32x4_MAdd() implements F32x4_Ternary_Op {}
+	/**
+	 * WebAssembly `v128.relaxed f32x4.nmadd` instruction
+	 */
+	public static record Relaxed_F32x4_NMAdd() implements F32x4_Ternary_Op {}
+	/**
+	 * WebAssembly `v128.relaxed f64x2.madd` instruction
+	 */
+	public static record Relaxed_F64x2_MAdd() implements F64x2_Ternary_Op {}
+	/**
+	 * WebAssembly `v128.relaxed f64x2.nmadd` instruction
+	 */
+	public static record Relaxed_F64x2_NMAdd() implements F64x2_Ternary_Op {}
+
+	/**
+	 * WebAssembly `i16x8.dot_i8x16_i7x16_s` instruction
+	 */
+	public static record I16x8_Relaxed_Dot_I8x16_I7x16_S() implements VectorInstr {}
+	/**
+	 * WebAssembly `i32x4.dot_i8x16_i7x16_add_s` instruction
+	 */
+	public static record I32x4_Relaxed_Dot_I8x16_I7x16_Add_S() implements VectorInstr {}
 }

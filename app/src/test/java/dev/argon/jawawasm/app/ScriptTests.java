@@ -40,7 +40,6 @@ class ScriptTests {
 
 
 		"gc/",
-		"relaxed-simd/",
 	});
 
 	private static final String testDir = "../webassembly-spec/test/core";
@@ -65,7 +64,7 @@ class ScriptTests {
 			}
 		}
 
-//		if(!path.toString().equals("unreached-valid.wast")) {
+//		if(!path.toString().equals("relaxed-simd/relaxed_dot_product.wast")) {
 //			return true;
 //		}
 

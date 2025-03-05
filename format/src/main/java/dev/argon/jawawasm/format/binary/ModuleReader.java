@@ -355,8 +355,17 @@ public class ModuleReader {
 
 	private HeapType tryReadAbsHeapTypeRest(int value) {
 		return switch(value) {
+			case -12 -> HeapType.AbstractHeapType.NOEXN;
+			case -13 -> HeapType.AbstractHeapType.NOFUNC;
+			case -14 -> HeapType.AbstractHeapType.NOEXTERN;
+			case -15 -> HeapType.AbstractHeapType.NONE;
 			case -16 -> HeapType.AbstractHeapType.FUNC;
 			case -17 -> HeapType.AbstractHeapType.EXTERN;
+			case -18 -> HeapType.AbstractHeapType.ANY;
+			case -19 -> HeapType.AbstractHeapType.EQ;
+			case -20 -> HeapType.AbstractHeapType.I32;
+			case -21 -> HeapType.AbstractHeapType.STRUCT;
+			case -22 -> HeapType.AbstractHeapType.ARRAY;
 			case -23 -> HeapType.AbstractHeapType.EXN;
 			default -> null;
 		};
@@ -1271,7 +1280,7 @@ public class ModuleReader {
 						yield new VectorInstr.F64x2_Op_Instr(new VectorInstr.ReplaceLane(laneIndex));
 					}
 
-					case 14 -> new VectorInstr.I8x16_Op_Instr(new VectorInstr.Swizzle());
+					case 14, 256 -> new VectorInstr.I8x16_Op_Instr(new VectorInstr.Swizzle());
 					case 15 -> new VectorInstr.I8x16_Op_Instr(new VectorInstr.Splat());
 					case 16 -> new VectorInstr.I16x8_Op_Instr(new VectorInstr.Splat());
 					case 17 -> new VectorInstr.I32x4_Op_Instr(new VectorInstr.Splat());
@@ -1339,7 +1348,7 @@ public class ModuleReader {
 					case 79 -> VectorInstr.VVBinOp.ANDNOT;
 					case 80 -> VectorInstr.VVBinOp.OR;
 					case 81 -> VectorInstr.VVBinOp.XOR;
-					case 82 -> VectorInstr.VVTernOp.BITSELECT;
+					case 82, 265, 266, 267, 268 -> VectorInstr.VVTernOp.BITSELECT;
 					case 83 -> VectorInstr.VVTestOp.ANY_TRUE;
 
 					case 96 -> new VectorInstr.I8x16_Op_Instr(VectorInstr.VIUnOp.ABS);
@@ -1368,7 +1377,7 @@ public class ModuleReader {
 					case 125 -> new VectorInstr.I16x8_Op_Instr(new VectorInstr.I16x8_ExtAdd_Pairwise_I8x16_U());
 					case 128 -> new VectorInstr.I16x8_Op_Instr(VectorInstr.VIUnOp.ABS);
 					case 129 -> new VectorInstr.I16x8_Op_Instr(VectorInstr.VIUnOp.NEG);
-					case 130 -> new VectorInstr.I16x8_Op_Instr(new VectorInstr.Q15mulr_Sat_S());
+					case 130, 273 -> new VectorInstr.I16x8_Op_Instr(new VectorInstr.Q15mulr_Sat_S());
 					case 131 -> new VectorInstr.I16x8_Op_Instr(new VectorInstr.All_True());
 					case 132 -> new VectorInstr.I16x8_Op_Instr(new VectorInstr.BitMask());
 					case 133 -> new VectorInstr.I16x8_Op_Instr(new VectorInstr.I16x8_Narrow_I32x4_S());
@@ -1453,8 +1462,8 @@ public class ModuleReader {
 					case 229 -> new VectorInstr.F32x4_Op_Instr(VectorInstr.VFBinOp.SUB);
 					case 230 -> new VectorInstr.F32x4_Op_Instr(VectorInstr.VFBinOp.MUL);
 					case 231 -> new VectorInstr.F32x4_Op_Instr(VectorInstr.VFBinOp.DIV);
-					case 232 -> new VectorInstr.F32x4_Op_Instr(VectorInstr.VFBinOp.MIN);
-					case 233 -> new VectorInstr.F32x4_Op_Instr(VectorInstr.VFBinOp.MAX);
+					case 232, 269 -> new VectorInstr.F32x4_Op_Instr(VectorInstr.VFBinOp.MIN);
+					case 233, 270 -> new VectorInstr.F32x4_Op_Instr(VectorInstr.VFBinOp.MAX);
 					case 234 -> new VectorInstr.F32x4_Op_Instr(VectorInstr.VFBinOp.PMIN);
 					case 235 -> new VectorInstr.F32x4_Op_Instr(VectorInstr.VFBinOp.PMAX);
 
@@ -1469,21 +1478,29 @@ public class ModuleReader {
 					case 241 -> new VectorInstr.F64x2_Op_Instr(VectorInstr.VFBinOp.SUB);
 					case 242 -> new VectorInstr.F64x2_Op_Instr(VectorInstr.VFBinOp.MUL);
 					case 243 -> new VectorInstr.F64x2_Op_Instr(VectorInstr.VFBinOp.DIV);
-					case 244 -> new VectorInstr.F64x2_Op_Instr(VectorInstr.VFBinOp.MIN);
-					case 245 -> new VectorInstr.F64x2_Op_Instr(VectorInstr.VFBinOp.MAX);
+					case 244, 271 -> new VectorInstr.F64x2_Op_Instr(VectorInstr.VFBinOp.MIN);
+					case 245, 272 -> new VectorInstr.F64x2_Op_Instr(VectorInstr.VFBinOp.MAX);
 					case 246 -> new VectorInstr.F64x2_Op_Instr(VectorInstr.VFBinOp.PMIN);
 					case 247 -> new VectorInstr.F64x2_Op_Instr(VectorInstr.VFBinOp.PMAX);
 
-					case 248 -> new VectorInstr.I32x4_Op_Instr(new VectorInstr.I32x4_Trunc_Sat_F32x4_S());
-					case 249 -> new VectorInstr.I32x4_Op_Instr(new VectorInstr.I32x4_Trunc_Sat_F32x4_U());
+					case 248, 257 -> new VectorInstr.I32x4_Op_Instr(new VectorInstr.I32x4_Trunc_Sat_F32x4_S());
+					case 249, 258 -> new VectorInstr.I32x4_Op_Instr(new VectorInstr.I32x4_Trunc_Sat_F32x4_U());
 					case 250 -> new VectorInstr.F32x4_Op_Instr(new VectorInstr.F32x4_Convert_I32x4_S());
 					case 251 -> new VectorInstr.F32x4_Op_Instr(new VectorInstr.F32x4_Convert_I32x4_U());
-					case 252 -> new VectorInstr.I32x4_Op_Instr(new VectorInstr.I32x4_Trunc_Sat_F64x4_S_Zero());
-					case 253 -> new VectorInstr.I32x4_Op_Instr(new VectorInstr.I32x4_Trunc_Sat_F64x4_U_Zero());
+					case 252, 259 -> new VectorInstr.I32x4_Op_Instr(new VectorInstr.I32x4_Trunc_Sat_F64x2_S_Zero());
+					case 253, 260 -> new VectorInstr.I32x4_Op_Instr(new VectorInstr.I32x4_Trunc_Sat_F64x4_U_Zero());
 					case 254 -> new VectorInstr.F64x2_Op_Instr(new VectorInstr.F64x2_Convert_Low_I32x4_S());
 					case 255 -> new VectorInstr.F64x2_Op_Instr(new VectorInstr.F64x2_Convert_Low_I32x4_U());
 					case 94 -> new VectorInstr.F32x4_Op_Instr(new VectorInstr.F32x4_Demote_F64x2_Zero());
 					case 95 -> new VectorInstr.F64x2_Op_Instr(new VectorInstr.F64x2_Promote_Low_F32x4());
+
+					case 261 -> new VectorInstr.F32x4_Ternary_Op_Instr(new VectorInstr.Relaxed_F32x4_MAdd());
+					case 262 -> new VectorInstr.F32x4_Ternary_Op_Instr(new VectorInstr.Relaxed_F32x4_NMAdd());
+					case 263 -> new VectorInstr.F64x2_Ternary_Op_Instr(new VectorInstr.Relaxed_F64x2_MAdd());
+					case 264 -> new VectorInstr.F64x2_Ternary_Op_Instr(new VectorInstr.Relaxed_F64x2_NMAdd());
+
+					case 274 -> new VectorInstr.I16x8_Relaxed_Dot_I8x16_I7x16_S();
+					case 275 -> new VectorInstr.I32x4_Relaxed_Dot_I8x16_I7x16_Add_S();
 
 					default -> throw new ModuleFormatException("Unsupported Vector opcode: " + Integer.toUnsignedString(vecOp));
 				};
