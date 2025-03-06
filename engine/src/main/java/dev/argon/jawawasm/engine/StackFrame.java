@@ -2363,7 +2363,7 @@ class StackFrame {
 			}
 			case ControlInstr.Throw(var tag) -> {
 				var wasmTag = module.getTag(tag);
-				var values = getTopValues(wasmTag.type().args().types().size());
+				var values = getTopValues(wasmTag.funcType().args().types().size());
 				throw new WebAssemblyException(wasmTag, values);
 			}
 			case ControlInstr.Throw_Ref() -> {
@@ -2418,7 +2418,7 @@ class StackFrame {
 			}
 			case ControlInstr.Call(var funcIdx) -> {
 				var func = module.getFunction(funcIdx);
-				var args = getTopValues(func.type().args().types().size());
+				var args = getTopValues(func.functionType().args().types().size());
 				Object[] results = func.invokeNow(args);
 				pushAll(results);
 				yield null;
@@ -2429,7 +2429,7 @@ class StackFrame {
 					throw new NullPointerException();
 				}
 
-				var args = getTopValues(func.type().args().types().size());
+				var args = getTopValues(func.functionType().args().types().size());
 				Object[] results = func.invokeNow(args);
 				pushAll(results);
 				yield null;
@@ -2438,21 +2438,22 @@ class StackFrame {
 				var table = module.getTable(tableIdx);
 				long index = popIndex(table);
 
+				var defType = module.getDefType(funcTypeIdx);
 				var funcType = module.getFuncType(funcTypeIdx);
 				var func = (WasmFunction)table.get(index);
 
-				if(!module.subtyping.isSubtypeFunc(func.type(), funcType)) {
+				if(!module.subtyping.isSubtypeDefType(func.type(), defType)) {
 					throw new IndirectCallTypeMismatchException("Expected: " + funcType + ", Actual: " + func.type());
 				}
 
-				var args = getTopValues(func.type().args().types().size());
+				var args = getTopValues(func.functionType().args().types().size());
 				Object[] results = func.invokeNow(args);
 				pushAll(results);
 				yield null;
 			}
 			case ControlInstr.Return_Call(var funcIdx) -> {
 				var func = module.getFunction(funcIdx);
-				var args = getTopValues(func.type().args().types().size());
+				var args = getTopValues(func.functionType().args().types().size());
 				yield (FunctionResult.Delay)() -> func.invoke(args);
 			}
 			case ControlInstr.Return_Call_Ref _ -> {
@@ -2461,21 +2462,21 @@ class StackFrame {
 					throw new NullPointerException();
 				}
 
-				var args = getTopValues(func.type().args().types().size());
+				var args = getTopValues(func.functionType().args().types().size());
 				yield (FunctionResult.Delay)() -> func.invoke(args);
 			}
 			case ControlInstr.Return_Call_Indirect(var tableIdx, var funcTypeIdx) -> {
 				var table = module.getTable(tableIdx);
 				long index = popIndex(table);
 
-				var funcType = module.getFuncType(funcTypeIdx);
+				var defType = module.getDefType(funcTypeIdx);
 				var func = (WasmFunction)table.get(index);
 
-				if(!module.subtyping.isSubtypeFunc(func.type(), funcType)) {
+				if(!module.subtyping.isSubtypeDefType(func.type(), defType)) {
 					throw new IndirectCallTypeMismatchException();
 				}
 
-				var args = getTopValues(func.type().args().types().size());
+				var args = getTopValues(func.functionType().args().types().size());
 				yield (FunctionResult.Delay)() -> func.invoke(args);
 			}
 			case ControlInstr.Try_Table(var blockType, var catchClauses, var innerBlock) -> {

@@ -1,4 +1,4 @@
 package dev.argon.jawawasm.format.types;
 
-public record DefType(RecursiveType recursiveType, int index) implements HeapType {
+public record DefType(RecursiveType recursiveType, int index) implements HeapType, ExternalType {
 }

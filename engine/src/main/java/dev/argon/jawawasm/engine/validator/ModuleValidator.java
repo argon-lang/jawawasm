@@ -153,6 +153,12 @@ public class ModuleValidator extends ValidatorBase {
 		var t = (FuncType)context.getCompositeType(func.type());
 		var c = context.copy();
 		c.addLocalsInit(t.args().types());
+
+		var tv = new TypeValidator(context);
+		for(var local : func.locals()) {
+			tv.validateValType(local);
+		}
+
 		c.addLocals(func.locals());
 		c.addLabel(t.results());
 		c.setReturn(t.results());
@@ -214,11 +220,14 @@ public class ModuleValidator extends ValidatorBase {
 			iv.validateExpr(expr, new ResultType(List.of(elem.type())));
 		}
 
+		new TypeValidator(context).validateReferenceType(elem.type());
+
 		switch(elem.mode()) {
 			case ElemMode.Active active -> {
 				context.requireTable(active.table());
 				var table = context.getTable(active.table());
 				var tableElementType = table.elementType();
+				new TypeValidator(context).validateReferenceType(tableElementType);
 
 				require(new Subtyping(context).isSubtypeRef(elem.type(), tableElementType), "type mismatch", "type mismatch " + elem.type() + ", " + tableElementType);
 				iv.requireConstantExpr(active.offset());

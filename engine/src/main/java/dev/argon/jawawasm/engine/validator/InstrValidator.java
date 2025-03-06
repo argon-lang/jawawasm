@@ -326,7 +326,10 @@ class InstrValidator extends ValidatorBase {
 
 		private void validateReferenceInstr(ReferenceInstr instr) throws ValidationException {
 			switch(instr) {
-				case ReferenceInstr.Ref_Null(var t) -> push(new RefType(true, t));
+				case ReferenceInstr.Ref_Null(var t) -> {
+					new TypeValidator(context).validateHeapType(t);
+					push(new RefType(true, t));
+				}
 				case ReferenceInstr.Ref_IsNull() -> {
 					requireRefType(pop());
 					push(NumType.I32);
@@ -563,6 +566,12 @@ class InstrValidator extends ValidatorBase {
 					}
 					else {
 						require(types.size() == 1, "invalid result arity");
+
+						var tv = new TypeValidator(context);
+						for(var t : types) {
+							tv.validateValType(t);
+						}
+
 						pop(NumType.I32);
 						pop(new ResultType(types));
 						pop(new ResultType(types));

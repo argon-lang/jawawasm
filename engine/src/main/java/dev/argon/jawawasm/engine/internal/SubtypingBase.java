@@ -45,9 +45,17 @@ public abstract class SubtypingBase {
 			(b instanceof DefType bd && isSubtypeDefType(a, aSubType, bd));
 	}
 
+	public boolean isSubtypeDefType(DefType a, DefType b) {
+		return isSubtypeDefType(a, null, b);
+	}
+
 	private boolean isSubtypeDefType(DefType a, SubType aSubType, DefType b) {
 		if(close(a).equals(close(b))) {
 			return true;
+		}
+
+		if(aSubType == null) {
+			aSubType = TypeUnroll.unroll(a);
 		}
 
 		for(var superType : aSubType.superTypes()) {

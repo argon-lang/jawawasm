@@ -235,10 +235,11 @@ public final class InstantiatedModule implements WasmModule {
 				throw new ModuleLinkException("incompatible import type");
 			}
 
-			var t = getFuncType(desc.type());
+			var importDefType = func.type();
+			var defType = getDefType(desc.type());
 
-			if(!subtyping.isSubtypeFunc(func.type(), t)) {
-				throw new ModuleLinkException("incompatible import type");
+			if(!subtyping.isSubtypeDefType(importDefType, defType)) {
+				throw new ModuleLinkException("incompatible import type: Expected " + defType + ", Actual " + importDefType);
 			}
 
 			return func;
@@ -253,8 +254,13 @@ public final class InstantiatedModule implements WasmModule {
 		protected WasmFunction create(Func func) {
 			return new WasmFunction() {
 				@Override
-				public FuncType type() {
-					return closure.resolveFuncType(getFuncType(func.type()));
+				public DefType type() {
+					return closure.resolveDefType(getDefType(func.type()));
+				}
+
+				@Override
+				public FuncType functionType() {
+					return getFuncType(func.type());
 				}
 
 				@Override
@@ -371,8 +377,11 @@ public final class InstantiatedModule implements WasmModule {
 				throw new ModuleLinkException("incompatible import type");
 			}
 
-			if(!subtyping.isSubtypeFunc(tag.type(), getFuncType(desc.type().funcType()))) {
-				throw new ModuleLinkException("incompatible import type");
+			var importDefType = tag.type();
+			var defType = getDefType(desc.type().funcType());
+
+			if(!subtyping.isSubtypeDefType(importDefType, defType)) {
+				throw new ModuleLinkException("incompatible import type: Expected " + defType + ", Actual " + importDefType);
 			}
 
 			return tag;
@@ -385,15 +394,18 @@ public final class InstantiatedModule implements WasmModule {
 
 		@Override
 		protected WasmTag create(Tag tag) throws ExecutionException {
-			var func = getFuncType(tag.type().funcType());
-			return new WasmTag(func);
+			var defType = getDefType(tag.type().funcType());
+			var funcType = getFuncType(tag.type().funcType());
+			return new WasmTag(defType, funcType);
 		}
 	}
 
-
+	DefType getDefType(TypeIdx index) {
+		return closure.resolveDefType(flatTypes.get(index.index()));
+	}
 
 	FuncType getFuncType(TypeIdx index) {
-		var defType = flatTypes.get(index.index());
+		var defType = getDefType(index);
 		var subType = defType.recursiveType().subtypes().get(defType.index());
 		var funcType = (FuncType)subType.compositeType();
 		return closure.resolveFuncType(funcType);

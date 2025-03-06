@@ -54,7 +54,7 @@ class ScriptTests {
 			}
 		}
 
-//		if(!path.toString().equals("type-equivalence.wast")) {
+//		if(!path.toString().equals("ref.wast")) {
 //			return true;
 //		}
 
