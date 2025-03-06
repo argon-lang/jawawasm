@@ -330,9 +330,16 @@ public class ModuleReader {
 	}
 
 	private StorageType readStorageType() throws IOException, ModuleFormatException {
+
 		return switch(peekByte()) {
-			case 0x78 -> PackedType.I8;
-			case 0x77 -> PackedType.I16;
+			case 0x78 -> {
+				readByte();
+				yield PackedType.I8;
+			}
+			case 0x77 -> {
+				readByte();
+				yield PackedType.I16;
+			}
 			default -> readValType();
 		};
 	}
@@ -394,6 +401,7 @@ public class ModuleReader {
 
 	private RecursiveType readRecursiveType() throws IOException, ModuleFormatException {
 		if(peekByte() == 0x4E) {
+			readByte();
 			var types = readVector(this::readSubType);
 			return new RecursiveType(types);
 		}
@@ -406,11 +414,13 @@ public class ModuleReader {
 	private SubType readSubType() throws IOException, ModuleFormatException {
 		switch(peekByte()) {
 			case 0x50 -> {
+				readByte();
 				var superTypes = readVector(this::readTypeIdx);
 				var composite = readCompositeType();
 				return new SubType(false, superTypes, composite);
 			}
 			case 0x4F -> {
+				readByte();
 				var superTypes = readVector(this::readTypeIdx);
 				var composite = readCompositeType();
 				return new SubType(true, superTypes, composite);
@@ -424,11 +434,12 @@ public class ModuleReader {
 	}
 
 	private CompositeType readCompositeType() throws IOException, ModuleFormatException {
-		return switch(readS7()) {
+		var compositeType = readS7();
+		return switch(compositeType) {
 			case -34 -> readArrayType();
 			case -33 -> readStructType();
 			case -32 -> readFuncType();
-			default -> throw new ModuleFormatException("Unknown composite type");
+			default -> throw new ModuleFormatException("Unknown composite type: " + compositeType);
 		};
 	}
 
@@ -1852,86 +1863,113 @@ public class ModuleReader {
 		return readVector(() -> {
 			var elemSpec = readU32();
 
-			ElemMode mode;
-			if((elemSpec & 0x01) == 0x01) {
-				if((elemSpec & 0x02) == 0x02) {
-					mode = new ElemMode.Declarative();
-				}
-				else {
-					mode = new ElemMode.Passive();
-				}
-			}
-			else {
-				TableIdx table;
-				if((elemSpec & 0x02) == 0x02) {
-					table = readTableIdx();
-				}
-				else {
-					table = new TableIdx(0);
-				}
-
-				var offset = readExpr();
-
-				mode = new ElemMode.Active(table, offset);
-			}
-
-			RefType type;
-			List<? extends Expr> init;
-			if((elemSpec & 0x04) == 0x04) {
-
-				if((elemSpec & 0x03) != 0x00) {
-					type = readRefType();
-				}
-				else {
-					type = new RefType(true, HeapType.AbstractHeapType.FUNC);
-				}
-
-				init = readVector(this::readExpr);
-			}
-			else {
-				ElemKind elemKind;
-				if((elemSpec & 0x03) != 0x00) {
-					elemKind = readElemKind();
-				}
-				else {
-					elemKind = ElemKind.FUNC_REF;
-				}
-
-				type = elemKind.getRefType();
-
-				init = switch(elemKind) {
-					case FUNC_REF -> readVector(() -> {
+			return switch(elemSpec) {
+				case 0 -> {
+					var type = new RefType(false, HeapType.AbstractHeapType.FUNC);
+					var offset = readExpr();
+					var init = readVector(() -> {
 						var funcIdx = readFuncIdx();
 						return new Expr(List.of(new ReferenceInstr.Ref_Func(funcIdx)));
 					});
-				};
-			}
+					var mode = new ElemMode.Active(new TableIdx(0), offset);
 
-			return new Elem(type, init, mode);
+					yield new Elem(type, init, mode);
+				}
+
+				case 1 -> {
+					var elemKind = readByte();
+					if(elemKind != 0) {
+						throw new ModuleFormatException("Elem kind must be zero");
+					}
+
+					var type = new RefType(false, HeapType.AbstractHeapType.FUNC);
+					var init = readVector(() -> {
+						var funcIdx = readFuncIdx();
+						return new Expr(List.of(new ReferenceInstr.Ref_Func(funcIdx)));
+					});
+					var mode = new ElemMode.Passive();
+
+					yield new Elem(type, init, mode);
+				}
+
+				case 2 -> {
+					var tableIndex = readTableIdx();
+					var offset = readExpr();
+
+					var elemKind = readByte();
+					if(elemKind != 0) {
+						throw new ModuleFormatException("Elem kind must be zero");
+					}
+					var type = new RefType(false, HeapType.AbstractHeapType.FUNC);
+
+					var init = readVector(() -> {
+						var funcIdx = readFuncIdx();
+						return new Expr(List.of(new ReferenceInstr.Ref_Func(funcIdx)));
+					});
+
+					var mode = new ElemMode.Active(tableIndex, offset);
+
+					yield new Elem(type, init, mode);
+				}
+
+				case 3 -> {
+					var elemKind = readByte();
+					if(elemKind != 0) {
+						throw new ModuleFormatException("Elem kind must be zero");
+					}
+
+					var type = new RefType(false, HeapType.AbstractHeapType.FUNC);
+
+					var init = readVector(() -> {
+						var funcIdx = readFuncIdx();
+						return new Expr(List.of(new ReferenceInstr.Ref_Func(funcIdx)));
+					});
+					var mode = new ElemMode.Declarative();
+
+					yield new Elem(type, init, mode);
+				}
+
+				case 4 -> {
+					var type = new RefType(true, HeapType.AbstractHeapType.FUNC);
+					var offset = readExpr();
+					var init = readVector(this::readExpr);
+					var mode = new ElemMode.Active(new TableIdx(0), offset);
+
+					yield new Elem(type, init, mode);
+				}
+
+				case 5 -> {
+					var type = readRefType();
+					var init = readVector(this::readExpr);
+					var mode = new ElemMode.Passive();
+
+					yield new Elem(type, init, mode);
+				}
+
+				case 6 -> {
+					var tableIndex = readTableIdx();
+					var offset = readExpr();
+
+					var type = readRefType();
+
+					var init = readVector(this::readExpr);
+
+					var mode = new ElemMode.Active(tableIndex, offset);
+
+					yield new Elem(type, init, mode);
+				}
+
+				case 7 -> {
+					var type = readRefType();
+					var init = readVector(this::readExpr);
+					var mode = new ElemMode.Declarative();
+
+					yield new Elem(type, init, mode);
+				}
+
+				default -> throw new ModuleFormatException("Unknown elem type");
+			};
 		});
-	}
-
-	private enum ElemKind {
-		FUNC_REF(new RefType(true, HeapType.AbstractHeapType.FUNC)),
-		;
-
-		ElemKind(RefType refType) {
-			this.refType = refType;
-		}
-
-		private final RefType refType;
-
-		public RefType getRefType() {
-			return refType;
-		}
-	}
-	private ElemKind readElemKind() throws IOException, ModuleFormatException {
-		var b = readByte();
-		if(b != 0) {
-			throw new ModuleFormatException("Invalid element type");
-		}
-
-		return ElemKind.FUNC_REF;
 	}
 
 	private record LocalDeclaration(int n, ValType t) {}

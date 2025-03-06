@@ -1,10 +1,13 @@
-package dev.argon.jawawasm.engine;
+package dev.argon.jawawasm.engine.internal;
 
 import dev.argon.jawawasm.format.modules.TypeIdx;
 import dev.argon.jawawasm.format.types.*;
 
-public abstract class SubtypingBase extends TypeResolver {
+public abstract class SubtypingBase {
 
+	public abstract HeapType resolveTypeIdx(TypeIdx idx);
+	
+	
 	public boolean isSubtypeNum(NumType a, NumType b) {
 		return a.equals(b);
 	}
@@ -23,17 +26,37 @@ public abstract class SubtypingBase extends TypeResolver {
 					a == HeapType.AbstractHeapType.ARRAY
 				) && b == HeapType.AbstractHeapType.EQ
 			) ||
-			(a instanceof StructType && b == HeapType.AbstractHeapType.STRUCT) ||
-			(a instanceof ArrayType && b == HeapType.AbstractHeapType.ARRAY) ||
-			(a instanceof FuncType && b == HeapType.AbstractHeapType.FUNC) ||
-			(a instanceof CompositeType ad && b instanceof CompositeType bd && isSubtypeComposite(ad, bd)) ||
 			(a instanceof TypeIdx at && isSubtypeHeap(resolveTypeIdx(at), b)) ||
 			(b instanceof TypeIdx bt && isSubtypeHeap(a, resolveTypeIdx(bt))) ||
+			(a instanceof DefType ad && isSubtypeDefTypeWith(ad, b)) ||
 			(a == HeapType.AbstractHeapType.NONE && isSubtypeHeap(b, HeapType.AbstractHeapType.ANY)) ||
 			(a == HeapType.AbstractHeapType.NOFUNC && isSubtypeHeap(b, HeapType.AbstractHeapType.FUNC)) ||
 			(a == HeapType.AbstractHeapType.NOEXN && isSubtypeHeap(b, HeapType.AbstractHeapType.EXN)) ||
 			(a == HeapType.AbstractHeapType.NOEXTERN && isSubtypeHeap(b, HeapType.AbstractHeapType.EXTERN)) ||
 			a instanceof BotType;
+	}
+
+	private boolean isSubtypeDefTypeWith(DefType a, HeapType b) {
+		var aSubType = TypeUnroll.unroll(a);
+		var aExpand = aSubType.compositeType();
+		return (aExpand instanceof StructType && b == HeapType.AbstractHeapType.STRUCT) ||
+			(aExpand instanceof ArrayType && b == HeapType.AbstractHeapType.ARRAY) ||
+			(aExpand instanceof FuncType && b == HeapType.AbstractHeapType.FUNC) ||
+			(b instanceof DefType bd && isSubtypeDefType(a, aSubType, bd));
+	}
+
+	private boolean isSubtypeDefType(DefType a, SubType aSubType, DefType b) {
+		if(close(a).equals(close(b))) {
+			return true;
+		}
+
+		for(var superType : aSubType.superTypes()) {
+			if(!isSubtypeHeap(superType, b)) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	public boolean isSubtypeRef(RefType a, RefType b) {
@@ -118,10 +141,8 @@ public abstract class SubtypingBase extends TypeResolver {
 	}
 
 	public boolean isSubtypeFunc(FuncType a, FuncType b) {
-		return isSubtypeResult(a.results(), b.results()) &&
-			isSubtypeResult(b.results(), a.results()) &&
-			isSubtypeResult(a.args(), b.args()) &&
-			isSubtypeResult(b.args(), a.args());
+		return isSubtypeResult(b.results(), a.results()) &&
+			isSubtypeResult(a.args(), b.args());
 	}
 
 	public boolean isSubtypeLimits(Limits a, Limits b) {
@@ -146,5 +167,16 @@ public abstract class SubtypingBase extends TypeResolver {
 			case Const -> b.mutability() == Mut.Const && isSubtypeVal(a.type(), b.type());
 			case Var -> b.mutability() == Mut.Var && isSubtypeVal(a.type(), b.type()) && isSubtypeVal(b.type(), a.type());
 		};
+	}
+
+	private DefType close(DefType t) {
+		var close = new TypeClosure() {
+			@Override
+			public HeapType resolveTypeIdx(TypeIdx idx) {
+				return resolveHeapType(SubtypingBase.this.resolveTypeIdx(idx));
+			}
+		};
+
+		return close.resolveDefType(t);
 	}
 }

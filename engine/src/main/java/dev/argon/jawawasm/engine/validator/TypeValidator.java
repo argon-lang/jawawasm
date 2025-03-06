@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.engine.validator;
 
+import dev.argon.jawawasm.engine.internal.TypeUnroll;
 import dev.argon.jawawasm.format.instructions.ControlInstr;
 import dev.argon.jawawasm.format.modules.TypeIdx;
 import dev.argon.jawawasm.format.types.*;
@@ -73,8 +74,13 @@ final class TypeValidator extends ValidatorBase {
 
 	public void validateHeapType(HeapType heapType) throws ValidationException {
 		switch(heapType) {
-			case HeapType.AbstractHeapType _, BotType(), RecTypeIdx _ -> {}
+			case HeapType.AbstractHeapType _, BotType(), RecTypeIdx _, DefType _ -> {}
 			case TypeIdx index -> context.requireType(index);
+		}
+	}
+
+	public void validateCompositeType(CompositeType compositeType) throws ValidationException {
+		switch(compositeType) {
 			case FuncType funcType -> validateFuncType(funcType);
 			case StructType structType -> {
 				for(var fieldType : structType.fields()) {
@@ -98,7 +104,36 @@ final class TypeValidator extends ValidatorBase {
 
 	public void validateTagType(TagType t) throws ValidationException {
 		context.requireFuncType(t.funcType());
-		var funcType = (FuncType)context.getType(t.funcType());
-		require(funcType.results().types().isEmpty(), "Tag result type must be empty");
+		var funcType = (FuncType)context.getCompositeType(t.funcType());
+		require(funcType.results().types().isEmpty(), "non-empty tag result type");
+	}
+
+	public void validateRecursiveType(RecursiveType recType, int recTypeStart) throws ValidationException {
+		int typeIndex = recTypeStart;
+		for(var subType : recType.subtypes()) {
+			validateSubType(subType, recTypeStart, typeIndex);
+
+			++typeIndex;
+		}
+	}
+
+	private void validateSubType(SubType subType, int recTypeStart, int typeIndex) throws ValidationException {
+		validateCompositeType(subType.compositeType());
+
+		if(subType.superTypes().size() > 1) {
+			throw new ValidationException("More than one supertype");
+		}
+
+		for(var superTypeHeap : subType.superTypes()) {
+			var superTypeIndex = (TypeIdx)superTypeHeap;
+
+			require(superTypeIndex.index() < typeIndex, "supertype must have smaller index");
+			context.requireType(superTypeIndex);
+			var superType = TypeUnroll.unroll(context.getType(superTypeIndex));
+
+			require(!superType.isFinal(), "supertype must not be final");
+
+			require(new Subtyping(context).isSubtypeComposite(subType.compositeType(), superType.compositeType()), "must be subtype of supertype");
+		}
 	}
 }

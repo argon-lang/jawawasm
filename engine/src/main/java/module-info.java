@@ -7,4 +7,5 @@ module dev.argon.jawawasm.engine {
 
 	exports dev.argon.jawawasm.engine;
 	exports dev.argon.jawawasm.engine.validator;
+	exports dev.argon.jawawasm.engine.internal;
 }

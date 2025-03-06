@@ -1,11 +1,12 @@
 package dev.argon.jawawasm.engine.validator;
 
-import dev.argon.jawawasm.engine.TypeResolver;
+import dev.argon.jawawasm.engine.internal.TypeRoll;
 import dev.argon.jawawasm.format.instructions.Expr;
 import dev.argon.jawawasm.format.modules.*;
 import dev.argon.jawawasm.format.modules.Module;
 import dev.argon.jawawasm.format.types.*;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,23 +32,13 @@ public class ModuleValidator extends ValidatorBase {
 
 		int typeIndex = 0;
 		for(RecursiveType recType : module.types()) {
-			int recTypeStart = typeIndex;
-			var roll = new TypeResolver() {
-				@Override
-				protected HeapType resolveTypeIdx(TypeIdx idx) {
-					if(idx.index() >= recTypeStart) {
-						return new RecTypeIdx(idx.index() - recTypeStart);
-					}
-					else {
-						return idx;
-					}
-				}
-			};
-
-			for(var subType : recType.subtypes()) {
-				c.addType(roll.resolveCompositeType(subType.compositeType()));
-				++typeIndex;
+			var rolledRecType = TypeRoll.roll(recType, typeIndex);
+			for(int i = 0; i < rolledRecType.subtypes().size(); ++i) {
+				c.addType(new DefType(rolledRecType, i));
 			}
+
+			new TypeValidator(c).validateRecursiveType(recType, typeIndex);
+			typeIndex += recType.subtypes().size();
 		}
 
 		for(Import import_ : module.imports()) {
@@ -159,7 +150,7 @@ public class ModuleValidator extends ValidatorBase {
 
 	private void validateFunc(Func func) throws ValidationException {
 		context.requireFuncType(func.type());
-		var t = (FuncType)context.getType(func.type());
+		var t = (FuncType)context.getCompositeType(func.type());
 		var c = context.copy();
 		c.addLocalsInit(t.args().types());
 		c.addLocals(func.locals());

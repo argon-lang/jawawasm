@@ -1,4 +1,4 @@
 package dev.argon.jawawasm.format.types;
 
-public sealed interface CompositeType extends HeapType permits FuncType, AggregateType {
+public sealed interface CompositeType permits FuncType, AggregateType {
 }

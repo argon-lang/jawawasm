@@ -9,6 +9,7 @@ import dev.argon.jawawasm.format.text.ScriptReader;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
@@ -27,17 +28,6 @@ class ScriptTests {
 		"id.wast",
 		"annotations.wast",
 		"inline-module.wast",
-
-
-		// ref types and ref type functions
-		"tag.wast",
-		"ref.wast",
-		"elem.wast",
-		"type-equivalence.wast",
-		"type-rec.wast",
-		"type-canon.wast",
-		"type-sub.wast",
-
 
 		"gc/",
 	});
@@ -59,12 +49,12 @@ class ScriptTests {
 
 		var parent = path.getParent();
 		if(parent != null) {
-			if(excludedTests.contains(parent.toString().replace('\\', '/') + "/")) {
+			if(excludedTests.contains(parent.toString().replace(File.pathSeparator, "/") + "/")) {
 				return true;
 			}
 		}
 
-//		if(!path.toString().equals("local_init.wast")) {
+//		if(!path.toString().equals("type-equivalence.wast")) {
 //			return true;
 //		}
 

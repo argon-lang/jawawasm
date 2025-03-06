@@ -2442,7 +2442,7 @@ class StackFrame {
 				var func = (WasmFunction)table.get(index);
 
 				if(!module.subtyping.isSubtypeFunc(func.type(), funcType)) {
-					throw new IndirectCallTypeMismatchException();
+					throw new IndirectCallTypeMismatchException("Expected: " + funcType + ", Actual: " + func.type());
 				}
 
 				var args = getTopValues(func.type().args().types().size());

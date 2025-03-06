@@ -72,11 +72,22 @@ class InstrValidator extends ValidatorBase {
 
 	public void requireFuncType(HeapType heapType) throws ValidationException {
 		if(heapType instanceof TypeIdx funcType) {
-			context.requireType(funcType);
+			context.requireFuncType(funcType);
+			return;
 		}
-		else if(!(heapType instanceof BotType || heapType instanceof FuncType || heapType == HeapType.AbstractHeapType.FUNC)) {
-			throw new ValidationException("type mismatch");
+
+		if(heapType instanceof BotType || heapType == HeapType.AbstractHeapType.FUNC) {
+			return;
 		}
+
+		if(heapType instanceof DefType defType) {
+			var subType = defType.recursiveType().subtypes().get(defType.index());
+			if(subType.compositeType() instanceof FuncType) {
+				return;
+			}
+		}
+
+		throw new ValidationException("type mismatch");
 	}
 
 	private final class StackValidator {
@@ -646,7 +657,7 @@ class InstrValidator extends ValidatorBase {
 					var t1 = context.getTable(tableIdx);
 					context.requireElem(elemIdx);
 					var t2 = context.getElem(elemIdx);
-					require(t1.elementType().equals(t2), "type mismatch");
+					require(new Subtyping(context).isSubtypeRef(t2, t1.elementType()), "type mismatch");
 
 					pop(NumType.I32);
 					pop(NumType.I32);
@@ -1003,7 +1014,7 @@ class InstrValidator extends ValidatorBase {
 					var tagType = context.getTag(tag);
 
 					context.requireFuncType(tagType.funcType());
-					var funcType = (FuncType)context.getType(tagType.funcType());
+					var funcType = (FuncType)context.getCompositeType(tagType.funcType());
 
 					pop(funcType.args());
 					stack.clear();
@@ -1112,8 +1123,9 @@ class InstrValidator extends ValidatorBase {
 
 				case ControlInstr.Call_Ref(var funcTypeIdx) -> {
 					context.requireFuncType(funcTypeIdx);
-					var funcType = (FuncType)context.getType(funcTypeIdx);
-					pop(new RefType(true, funcType));
+					var funcDefType = context.getType(funcTypeIdx);
+					var funcType = (FuncType)context.getCompositeType(funcTypeIdx);
+					pop(new RefType(true, funcDefType));
 					pop(funcType.args());
 					push(funcType.results());
 				}
@@ -1124,7 +1136,7 @@ class InstrValidator extends ValidatorBase {
 					requireFuncType(context.getTable(table).elementType().heapType());
 
 					context.requireFuncType(funcType);
-					var t = (FuncType)context.getType(funcType);
+					var t = (FuncType)context.getCompositeType(funcType);
 
 					popIndex(table);
 					pop(t.args());
@@ -1144,8 +1156,9 @@ class InstrValidator extends ValidatorBase {
 
 				case ControlInstr.Return_Call_Ref(var funcTypeIdx) -> {
 					context.requireFuncType(funcTypeIdx);
-					var funcType = (FuncType)context.getType(funcTypeIdx);
-					pop(new RefType(true, funcType));
+					var funcDefType = context.getType(funcTypeIdx);
+					var funcType = (FuncType)context.getCompositeType(funcTypeIdx);
+					pop(new RefType(true, funcDefType));
 					pop(funcType.args());
 
 					require(new Subtyping(context).isSubtypeResult(funcType.results(), context.getReturn()), "type mismatch");
@@ -1159,7 +1172,7 @@ class InstrValidator extends ValidatorBase {
 					requireFuncType(context.getTable(table).elementType().heapType());
 
 					context.requireFuncType(funcType);
-					var t = (FuncType)context.getType(funcType);
+					var t = (FuncType)context.getCompositeType(funcType);
 
 					popIndex(table);
 					pop(t.args());
@@ -1195,7 +1208,7 @@ class InstrValidator extends ValidatorBase {
 					var tag = context.getTag(tagIdx);
 
 					context.requireFuncType(tag.funcType());
-					var t = (FuncType)context.getType(tag.funcType());
+					var t = (FuncType)context.getCompositeType(tag.funcType());
 
 					require(t.results().types().isEmpty(), "Tag type must have empty result");
 
@@ -1209,7 +1222,7 @@ class InstrValidator extends ValidatorBase {
 					var tag = context.getTag(tagIdx);
 
 					context.requireFuncType(tag.funcType());
-					var t = (FuncType)context.getType(tag.funcType());
+					var t = (FuncType)context.getCompositeType(tag.funcType());
 
 					require(t.results().types().isEmpty(), "Tag type must have empty result");
 
@@ -1245,7 +1258,7 @@ class InstrValidator extends ValidatorBase {
 		private FuncType expandBlockType(ControlInstr.BlockType blockType) {
 			return switch(blockType) {
 				case ControlInstr.BlockType.Empty() -> new FuncType(new ResultType(List.of()), new ResultType(List.of()));
-				case ControlInstr.BlockType.OfIndex(var index) -> (FuncType)context.getType(index);
+				case ControlInstr.BlockType.OfIndex(var index) -> (FuncType)context.getCompositeType(index);
 				case ControlInstr.BlockType.OfValType(var valType) -> new FuncType(new ResultType(List.of()), new ResultType(List.of(valType)));
 			};
 		}

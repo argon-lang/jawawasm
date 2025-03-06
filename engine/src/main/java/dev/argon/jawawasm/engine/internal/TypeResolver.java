@@ -1,11 +1,15 @@
-package dev.argon.jawawasm.engine;
+package dev.argon.jawawasm.engine.internal;
 
 import dev.argon.jawawasm.format.modules.TypeIdx;
 import dev.argon.jawawasm.format.types.*;
 
-public abstract class TypeResolver {
+import java.util.ArrayList;
 
-	protected abstract HeapType resolveTypeIdx(TypeIdx idx);
+public sealed abstract class TypeResolver permits TypeClosure, TypeRoll, TypeUnroll {
+	TypeResolver() {}
+
+	public abstract HeapType resolveTypeIdx(TypeIdx idx);
+	public abstract HeapType resolveRecTypeIdx(RecTypeIdx idx);
 
 	public ValType resolveValType(ValType t) {
 		return switch(t) {
@@ -21,9 +25,10 @@ public abstract class TypeResolver {
 
 	public HeapType resolveHeapType(HeapType t) {
 		return switch(t) {
-			case HeapType.AbstractHeapType _, BotType(), RecTypeIdx _ -> t;
+			case HeapType.AbstractHeapType _, BotType() -> t;
 			case TypeIdx idx -> resolveTypeIdx(idx);
-			case CompositeType compositeType -> resolveCompositeType(compositeType);
+			case RecTypeIdx idx -> resolveRecTypeIdx(idx);
+			case DefType defType -> resolveDefType(defType);
 		};
 	}
 
@@ -34,7 +39,7 @@ public abstract class TypeResolver {
 		};
 	}
 
-	private StorageType resolveStorageType(StorageType t) {
+	public StorageType resolveStorageType(StorageType t) {
 		return switch(t) {
 			case PackedType _ -> t;
 			case ValType valType -> resolveValType(valType);
@@ -45,7 +50,7 @@ public abstract class TypeResolver {
 		return new FuncType(resolveResultType(t.args()), resolveResultType(t.results()));
 	}
 
-	private AggregateType resolveAggregateType(AggregateType t) {
+	public AggregateType resolveAggregateType(AggregateType t) {
 		return switch(t) {
 			case StructType structType ->
 				new StructType(structType.fields().stream().map(this::resolveFieldType).toList());
@@ -53,6 +58,31 @@ public abstract class TypeResolver {
 			case ArrayType arrayType ->
 				new ArrayType(resolveFieldType(arrayType.fieldType()));
 		};
+	}
+
+
+	public DefType resolveDefType(DefType t) {
+		return new DefType(resolveRecursiveType(t.recursiveType()), t.index());
+	}
+
+	public RecursiveType resolveRecursiveType(RecursiveType t) {
+		var resolvedSubTypes = new ArrayList<SubType>(t.subtypes().size());
+
+		for(var subType : t.subtypes()) {
+			resolvedSubTypes.add(resolveSubType(subType));
+		}
+
+		return new RecursiveType(resolvedSubTypes);
+	}
+
+	public SubType resolveSubType(SubType subType) {
+		var resolvedSuperTypes = new ArrayList<HeapType>();
+		for(var superType : subType.superTypes()) {
+			resolvedSuperTypes.add(resolveHeapType(superType));
+		}
+
+		var resolvedType = resolveCompositeType(subType.compositeType());
+		return new SubType(subType.isFinal(), resolvedSuperTypes, resolvedType);
 	}
 
 	public FieldType resolveFieldType(FieldType t) {

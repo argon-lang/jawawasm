@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.engine.validator;
 
+import dev.argon.jawawasm.engine.internal.TypeUnroll;
 import dev.argon.jawawasm.format.modules.*;
 import dev.argon.jawawasm.format.types.*;
 import org.jspecify.annotations.Nullable;
@@ -8,7 +9,7 @@ import java.util.*;
 
 class Context {
 
-	private final List<CompositeType> types = new ArrayList<>();
+	private final List<DefType> types = new ArrayList<>();
 	private final List<TypeIdx> funcs = new ArrayList<>();
 	private final List<TableType> tables = new ArrayList<>();
 	private final List<MemType> mems = new ArrayList<>();
@@ -48,16 +49,23 @@ class Context {
 	}
 	public void requireFuncType(TypeIdx idx) throws ValidationException {
 		requireType(idx);
-		if(!(getType(idx) instanceof FuncType)) {
+		if(!(TypeUnroll.expand(getType(idx)) instanceof FuncType)) {
 			throw new ValidationException("Function type expected");
 		}
 	}
-	public CompositeType getType(TypeIdx idx) {
+	public DefType getType(TypeIdx idx) {
 		return types.get(idx.index());
 	}
+	public CompositeType getCompositeType(TypeIdx idx) {
+		return TypeUnroll.expand(getType(idx));
+	}
 
-	public void addType(CompositeType t) {
+	public void addType(DefType t) {
 		types.add(t);
+	}
+
+	public int numTypes() {
+		return types.size();
 	}
 
 
@@ -70,7 +78,7 @@ class Context {
 		return funcs.get(idx.index());
 	}
 	public FuncType getFuncType(FuncIdx idx) {
-		return (FuncType)getType(getFunc(idx));
+		return (FuncType)getCompositeType(getFunc(idx));
 	}
 
 	public void addFunc(TypeIdx t) {

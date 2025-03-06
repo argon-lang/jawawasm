@@ -1,6 +1,6 @@
 package dev.argon.jawawasm.engine.validator;
 
-import dev.argon.jawawasm.engine.SubtypingBase;
+import dev.argon.jawawasm.engine.internal.SubtypingBase;
 import dev.argon.jawawasm.format.modules.TypeIdx;
 import dev.argon.jawawasm.format.types.*;
 
@@ -13,7 +13,7 @@ class Subtyping extends SubtypingBase {
 	private final Context context;
 
 	@Override
-	protected CompositeType resolveTypeIdx(TypeIdx idx) {
-		return resolveCompositeType(context.getType(idx));
+	public HeapType resolveTypeIdx(TypeIdx idx) {
+		return context.getType(idx);
 	}
 }
