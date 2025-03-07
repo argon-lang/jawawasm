@@ -38,8 +38,7 @@ public class ModuleReader {
 	private final InputStream is;
 	private long offset = 0;
 	private boolean hasDataCount = false;
-	private long sectionStart = -1;
-	private long sectionSize;
+	private int lastSection = 0;
 
 	private int peekByteValue = -1;
 
@@ -162,6 +161,31 @@ public class ModuleReader {
 		}
 
 		return b;
+	}
+
+	private int readU8() throws IOException, ModuleFormatException {
+		byte b;
+		byte value = 0;
+		int shift = 0;
+
+
+		do {
+			b = readByte();
+
+			if(shift == 7) {
+				if((b & 0x80) == 0x80) {
+					throw new ModuleFormatException("integer representation too long");
+				}
+				else if((b & 0x70) != 0) {
+					throw new ModuleFormatException("integer too large");
+				}
+			}
+
+			value |= (byte)((b & 0x7F) << shift);
+			shift += 7;
+
+		} while((b & 0x80) == 0x80);
+		return value;
 	}
 
 	private int readU32() throws IOException, ModuleFormatException {
@@ -490,7 +514,7 @@ public class ModuleReader {
 			case -17 -> HeapType.AbstractHeapType.EXTERN;
 			case -18 -> HeapType.AbstractHeapType.ANY;
 			case -19 -> HeapType.AbstractHeapType.EQ;
-			case -20 -> HeapType.AbstractHeapType.I32;
+			case -20 -> HeapType.AbstractHeapType.I31;
 			case -21 -> HeapType.AbstractHeapType.STRUCT;
 			case -22 -> HeapType.AbstractHeapType.ARRAY;
 			case -23 -> HeapType.AbstractHeapType.EXN;
@@ -718,7 +742,7 @@ public class ModuleReader {
 				var f = readFuncIdx();
 				yield new ReferenceInstr.Ref_Func(f);
 			}
-
+			case 0xD3 -> new ReferenceInstr.Ref_Eq();
 			case 0xD4 -> new ReferenceInstr.Ref_AsNonNull();
 			case 0xD5 -> {
 				var idx = readLabelIdx();
@@ -1100,6 +1124,144 @@ public class ModuleReader {
 
 
 			// Extended Opcodes
+			case 0xFB -> switch(readU32()) {
+				case 0 -> {
+					var type = readTypeIdx();
+					yield new ReferenceInstr.Struct_New(type);
+				}
+				case 1 -> {
+					var type = readTypeIdx();
+					yield new ReferenceInstr.Struct_New_Default(type);
+				}
+				case 2 -> {
+					var type = readTypeIdx();
+					var field = readFieldIdx();
+					yield new ReferenceInstr.Struct_Get(type, field);
+				}
+				case 3 -> {
+					var type = readTypeIdx();
+					var field = readFieldIdx();
+					yield new ReferenceInstr.Struct_Get_S(type, field);
+				}
+				case 4 -> {
+					var type = readTypeIdx();
+					var field = readFieldIdx();
+					yield new ReferenceInstr.Struct_Get_U(type, field);
+				}
+				case 5 -> {
+					var type = readTypeIdx();
+					var field = readFieldIdx();
+					yield new ReferenceInstr.Struct_Set(type, field);
+				}
+				case 6 -> {
+					var type = readTypeIdx();
+					yield new ReferenceInstr.Array_New(type);
+				}
+				case 7 -> {
+					var type = readTypeIdx();
+					yield new ReferenceInstr.Array_New_Default(type);
+				}
+				case 8 -> {
+					var type = readTypeIdx();
+					int n = readU32();
+					yield new ReferenceInstr.Array_New_Fixed(type, n);
+				}
+				case 9 -> {
+					var type = readTypeIdx();
+					var data = readDataIdx();
+					yield new ReferenceInstr.Array_New_Data(type, data);
+				}
+				case 10 -> {
+					var type = readTypeIdx();
+					var elem = readElemIdx();
+					yield new ReferenceInstr.Array_New_Elem(type, elem);
+				}
+				case 11 -> {
+					var type = readTypeIdx();
+					yield new ReferenceInstr.Array_Get(type);
+				}
+				case 12 -> {
+					var type = readTypeIdx();
+					yield new ReferenceInstr.Array_Get_S(type);
+				}
+				case 13 -> {
+					var type = readTypeIdx();
+					yield new ReferenceInstr.Array_Get_U(type);
+				}
+				case 14 -> {
+					var type = readTypeIdx();
+					yield new ReferenceInstr.Array_Set(type);
+				}
+				case 15 -> new ReferenceInstr.Array_Len();
+				case 16 -> {
+					var type = readTypeIdx();
+					yield new ReferenceInstr.Array_Fill(type);
+				}
+				case 17 -> {
+					var d = readTypeIdx();
+					var s = readTypeIdx();
+					yield new ReferenceInstr.Array_Copy(d, s);
+				}
+				case 18 -> {
+					var type = readTypeIdx();
+					var data = readDataIdx();
+					yield new ReferenceInstr.Array_Init_Data(type, data);
+				}
+				case 19 -> {
+					var type = readTypeIdx();
+					var elem = readElemIdx();
+					yield new ReferenceInstr.Array_Init_Elem(type, elem);
+				}
+				case 20 -> {
+					var t = readHeapType();
+					yield new ReferenceInstr.Ref_Test(new RefType(false, t));
+				}
+				case 21 -> {
+					var t = readHeapType();
+					yield new ReferenceInstr.Ref_Test(new RefType(true, t));
+				}
+				case 22 -> {
+					var t = readHeapType();
+					yield new ReferenceInstr.Ref_Cast(new RefType(false, t));
+				}
+				case 23 -> {
+					var t = readHeapType();
+					yield new ReferenceInstr.Ref_Cast(new RefType(true, t));
+				}
+				case 24 -> {
+					int castFlags = readU8();
+
+					boolean t1Nullable = (castFlags & 0x01) != 0;
+					boolean t2Nullable = (castFlags & 0x02) != 0;
+
+					var label = readLabelIdx();
+					var ht1 = readHeapType();
+					var ht2 = readHeapType();
+
+					yield new ControlInstr.Br_OnCast(label, new RefType(t1Nullable, ht1), new RefType(t2Nullable, ht2));
+				}
+				case 25 -> {
+					int castFlags = readU8();
+
+					boolean t1Nullable = (castFlags & 0x01) != 0;
+					boolean t2Nullable = (castFlags & 0x02) != 0;
+
+					var label = readLabelIdx();
+					var ht1 = readHeapType();
+					var ht2 = readHeapType();
+
+					yield new ControlInstr.Br_OnCastFail(label, new RefType(t1Nullable, ht1), new RefType(t2Nullable, ht2));
+				}
+				case 26 -> new ReferenceInstr.Any_Convert_Extern();
+				case 27 -> new ReferenceInstr.Extern_Convert_Any();
+				case 28 -> new ReferenceInstr.Ref_I31();
+				case 29 -> new ReferenceInstr.I31_Get_S();
+				case 30 -> new ReferenceInstr.I31_Get_U();
+
+
+				default -> throw new ModuleFormatException("illegal opcode");
+			};
+
 			case 0xFC -> switch(readU32()) {
 				// Numeric
 				case 0 -> new NumericInstr.Inn_Trunc_Sat_Fmm_S(NumericInstr.NumSize._32, NumericInstr.NumSize._32);
@@ -1719,7 +1881,7 @@ public class ModuleReader {
 		return new ElemIdx(readU32());
 	}
 	private DataIdx readDataIdx() throws IOException, ModuleFormatException {
-		if(!hasDataCount) {
+		if(!hasDataCount && lastSection == 10) { // Only give error in the code section
 			throw new ModuleFormatException("data count section required");
 		}
 
@@ -1727,6 +1889,9 @@ public class ModuleReader {
 	}
 	private MemIdx readMemIdx() throws IOException, ModuleFormatException {
 		return new MemIdx(readU32());
+	}
+	private FieldIdx readFieldIdx() throws IOException, ModuleFormatException {
+		return new FieldIdx(readU32());
 	}
 
 	private List<? extends RecursiveType> readTypeSectionContent() throws IOException, ModuleFormatException {
@@ -2075,8 +2240,6 @@ public class ModuleReader {
 				throw new ModuleFormatException("unknown binary version");
 			}
 
-			int lastSection = 0;
-
 			while(true) {
 				int section = tryReadByte();
 				if(section < 0) {
@@ -2091,6 +2254,8 @@ public class ModuleReader {
 				if(section != 0 && sectionIndex >= 0 && sectionIndex <= getSectionIndex(lastSection)) {
 					throw new ModuleFormatException("unexpected content after last section");
 				}
+
+				lastSection = section;
 
 				switch(section) {
 					case 0 -> {
@@ -2144,8 +2309,6 @@ public class ModuleReader {
 					}
 					default -> throw new ModuleFormatException("malformed section id");
 				}
-
-				lastSection = section;
 			}
 
 			if(funcTypes.size() != codeSec.size()) {
@@ -2182,15 +2345,14 @@ public class ModuleReader {
 	}
 
 	private <T> T readSection(int expectedSize, ValueReader<T> f) throws IOException, ModuleFormatException {
-		sectionStart = offset;
-		sectionSize = Integer.toUnsignedLong(expectedSize);
+		long sectionStart = offset;
+		long sectionSize = Integer.toUnsignedLong(expectedSize);
 		T res = f.read();
 		long actualSize = offset - sectionStart;
 		if(actualSize != sectionSize) {
 			throw new ModuleFormatException("section size mismatch");
 		}
 
-		sectionStart = 0;
 		return res;
 	}
 	

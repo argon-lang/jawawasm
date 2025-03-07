@@ -8,6 +8,8 @@ import dev.argon.jawawasm.format.text.ScriptCommandInfo;
 import dev.argon.jawawasm.format.text.ScriptReader;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,6 +23,7 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@Execution(ExecutionMode.CONCURRENT)
 class ScriptTests {
 
 	private final List<String> excludedTests = List.of(new String[] {
@@ -29,7 +32,6 @@ class ScriptTests {
 		"annotations.wast",
 		"inline-module.wast",
 
-		"gc/",
 	});
 
 	private static final String testDir = "../webassembly-spec/test/core";
@@ -54,7 +56,7 @@ class ScriptTests {
 			}
 		}
 
-//		if(!path.toString().equals("ref.wast")) {
+//		if(!path.toString().equals("type-subtyping.wast")) {
 //			return true;
 //		}
 

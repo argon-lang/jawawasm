@@ -24,4 +24,14 @@ final class Defaults {
 			case BotType() -> throw new IllegalArgumentException();
 		};
 	}
+
+	public static Object defaultValuePacked(StorageType t) {
+		return switch(t) {
+			case PackedType packedType -> switch(packedType) {
+				case I8 -> (byte)0;
+				case I16 -> (short)0;
+			};
+			case ValType valType -> defaultValue(valType);
+		};
+	}
 }

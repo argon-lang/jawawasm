@@ -13,8 +13,13 @@ import java.util.List;
 class InstrValidator extends ValidatorBase {
 	public InstrValidator(Context context) {
 		super(context);
+		tv = new TypeValidator(context);
+		subtyping = new Subtyping(context);
 	}
 
+	private final TypeValidator tv;
+	private final Subtyping subtyping;
+	
 	public void validateExpr(Expr expr, ResultType resultType) throws ValidationException {
 		validateInstructions(expr.body(), new ResultType(List.of()), resultType);
 	}
@@ -49,7 +54,11 @@ class InstrValidator extends ValidatorBase {
 					|| op == NumericInstr.IBinOp.MUL -> {}
 			case VectorInstr.V128_Const(_) -> {}
 			case ReferenceInstr.Ref_Null(_) -> {}
+			case ReferenceInstr.Ref_I31() -> {}
 			case ReferenceInstr.Ref_Func(_) -> {}
+			case ReferenceInstr.Struct_New(_), ReferenceInstr.Struct_New_Default(_) -> {}
+			case ReferenceInstr.Array_New(_), ReferenceInstr.Array_New_Default(_), ReferenceInstr.Array_New_Fixed _ -> {}
+			case ReferenceInstr.Any_Convert_Extern(), ReferenceInstr.Extern_Convert_Any() -> {}
 			case VariableInstr.Global_Get(var global) -> {
 				context.requireGlobal(global);
 				require(context.getGlobal(global).mutability() == Mut.Const, "constant expression required");
@@ -132,7 +141,7 @@ class InstrValidator extends ValidatorBase {
 
 		private void pop(ValType t) throws ValidationException {
 			var t2 = pop();
-			if(t2 != null && !new Subtyping(context).isSubtypeVal(t2, t)) {
+			if(t2 != null && !subtyping.isSubtypeVal(t2, t)) {
 				throw new ValidationException("type mismatch", "type mismatch expected: " + t + ", actual: " + t2);
 			}
 		}
@@ -327,7 +336,7 @@ class InstrValidator extends ValidatorBase {
 		private void validateReferenceInstr(ReferenceInstr instr) throws ValidationException {
 			switch(instr) {
 				case ReferenceInstr.Ref_Null(var t) -> {
-					new TypeValidator(context).validateHeapType(t);
+					tv.validateHeapType(t);
 					push(new RefType(true, t));
 				}
 				case ReferenceInstr.Ref_IsNull() -> {
@@ -340,11 +349,375 @@ class InstrValidator extends ValidatorBase {
 
 					push(new RefType(false, context.getFunc(funcIdx)));
 				}
+				case ReferenceInstr.Ref_Eq() -> {
+					pop(new RefType(true, HeapType.AbstractHeapType.EQ));
+					pop(new RefType(true, HeapType.AbstractHeapType.EQ));
+					push(NumType.I32);
+				}
 				case ReferenceInstr.Ref_AsNonNull() -> {
 					var refType = requireRefType(pop());
 					push(new RefType(false, refType.heapType()));
 				}
+
+				case ReferenceInstr.Ref_Test(var rt) -> {
+					tv.validateReferenceType(rt);
+					var t2 = requireRefType(pop());
+					var t2b = new RefType(t2.isNullable(), toTopType(t2.heapType()));
+					require(subtyping.isSubtypeVal(rt, t2b), "invalid test type: Expected " + t2b + ", Actual " + rt);
+					push(NumType.I32);
+				}
+
+				case ReferenceInstr.Ref_Cast(var rt) -> {
+					tv.validateReferenceType(rt);
+					var t2 = pop();
+					require(subtyping.isSubtypeVal(rt, t2), "invalid test type");
+					push(rt);
+				}
+
+				case ReferenceInstr.Ref_I31() -> {
+					pop(NumType.I32);
+					push(new RefType(false, HeapType.AbstractHeapType.I31));
+				}
+
+				case ReferenceInstr.I31_Get_S(), ReferenceInstr.I31_Get_U() -> {
+					pop(new RefType(true, HeapType.AbstractHeapType.I31));
+					push(NumType.I32);
+				}
+
+				case ReferenceInstr.Struct_New(var typeIdx) -> {
+					context.requireStructType(typeIdx);
+					var struct = (StructType)context.getCompositeType(typeIdx);
+
+					for(var field : struct.fields().reversed()) {
+						pop(unpack(field.storageType()));
+					}
+
+					push(new RefType(false, context.getType(typeIdx)));
+				}
+
+				case ReferenceInstr.Struct_New_Default(var typeIdx) -> {
+					context.requireStructType(typeIdx);
+					var struct = (StructType)context.getCompositeType(typeIdx);
+
+					for(var field : struct.fields().reversed()) {
+						require(context.isDefaultable(field.storageType()), "field must be defaultable");
+					}
+
+					push(new RefType(false, context.getType(typeIdx)));
+				}
+
+				case ReferenceInstr.Struct_Get(var typeIdx, var fieldIdx) -> {
+					context.requireStructType(typeIdx);
+					var struct = (StructType)context.getCompositeType(typeIdx);
+					var fieldType = struct.fields().get(fieldIdx.index());
+
+					var t = switch(fieldType.storageType()) {
+						case PackedType _ -> throw new ValidationException("Unexpected packed type");
+						case ValType valType -> valType;
+					};
+
+					var refType = new RefType(true, context.getType(typeIdx));
+
+					pop(refType);
+					push(t);
+				}
+
+				case ReferenceInstr.Struct_Get_S(var typeIdx, var fieldIdx) -> {
+					context.requireStructType(typeIdx);
+					var struct = (StructType)context.getCompositeType(typeIdx);
+					var fieldType = struct.fields().get(fieldIdx.index());
+
+					if(!(fieldType.storageType() instanceof PackedType)) {
+						throw new ValidationException("Unexpected val type");
+					}
+
+					var refType = new RefType(true, context.getType(typeIdx));
+
+					pop(refType);
+					push(NumType.I32);
+				}
+
+				case ReferenceInstr.Struct_Get_U(var typeIdx, var fieldIdx) -> {
+					context.requireStructType(typeIdx);
+					var struct = (StructType)context.getCompositeType(typeIdx);
+					var fieldType = struct.fields().get(fieldIdx.index());
+
+					if(!(fieldType.storageType() instanceof PackedType)) {
+						throw new ValidationException("Unexpected val type");
+					}
+
+					var refType = new RefType(true, context.getType(typeIdx));
+
+					pop(refType);
+					push(NumType.I32);
+				}
+
+				case ReferenceInstr.Struct_Set(var typeIdx, var fieldIdx) -> {
+					context.requireStructType(typeIdx);
+					var struct = (StructType)context.getCompositeType(typeIdx);
+					var fieldType = struct.fields().get(fieldIdx.index());
+
+					require(fieldType.mut() == Mut.Var, "field is immutable");
+
+					var refType = new RefType(true, context.getType(typeIdx));
+
+					pop(unpack(fieldType.storageType()));
+					pop(refType);
+				}
+
+				case ReferenceInstr.Array_New(var typeIdx) -> {
+					context.requireArrayType(typeIdx);
+					var array = (ArrayType)context.getCompositeType(typeIdx);
+
+					pop(NumType.I32);
+					pop(unpack(array.fieldType().storageType()));
+					push(new RefType(false, context.getType(typeIdx)));
+				}
+
+				case ReferenceInstr.Array_New_Default(var typeIdx) -> {
+					context.requireArrayType(typeIdx);
+					var array = (ArrayType)context.getCompositeType(typeIdx);
+					require(context.isDefaultable(array.fieldType().storageType()), "array field must be defaultable");
+
+					pop(NumType.I32);
+					push(new RefType(false, context.getType(typeIdx)));
+				}
+
+				case ReferenceInstr.Array_New_Fixed(var typeIdx, int n) -> {
+					context.requireArrayType(typeIdx);
+					var array = (ArrayType)context.getCompositeType(typeIdx);
+
+					for(int i = 0; i < n; ++i) {
+						pop(unpack(array.fieldType().storageType()));
+					}
+
+					push(new RefType(false, context.getType(typeIdx)));
+				}
+
+				case ReferenceInstr.Array_New_Data(var typeIdx, var dataIdx) -> {
+					context.requireArrayType(typeIdx);
+					var array = (ArrayType)context.getCompositeType(typeIdx);
+
+					if(array.fieldType().storageType() instanceof RefType) {
+						throw new ValidationException("type mismatch");
+					}
+
+					context.requireData(dataIdx);
+
+					pop(NumType.I32);
+					pop(NumType.I32);
+					push(new RefType(false, context.getType(typeIdx)));
+				}
+
+				case ReferenceInstr.Array_New_Elem(var typeIdx, var elemIdx) -> {
+					context.requireArrayType(typeIdx);
+					var array = (ArrayType)context.getCompositeType(typeIdx);
+
+					if(!(array.fieldType().storageType() instanceof RefType arrayElemType)) {
+						throw new ValidationException("type mismatch");
+					}
+
+					context.requireElem(elemIdx);
+					var elemType = context.getElem(elemIdx);
+
+					require(subtyping.isSubtypeRef(elemType, arrayElemType), "type mismatch");
+
+					pop(NumType.I32);
+					pop(NumType.I32);
+					push(new RefType(false, context.getType(typeIdx)));
+				}
+
+				case ReferenceInstr.Array_Get(var typeIdx) -> {
+					context.requireArrayType(typeIdx);
+					var array = (ArrayType)context.getCompositeType(typeIdx);
+
+					var t = switch(array.fieldType().storageType()) {
+						case PackedType _ -> throw new ValidationException("Unexpected packed type");
+						case ValType valType -> valType;
+					};
+
+					var refType = new RefType(true, context.getType(typeIdx));
+
+					pop(NumType.I32);
+					pop(refType);
+					push(t);
+				}
+
+				case ReferenceInstr.Array_Get_S(var typeIdx) -> {
+					context.requireArrayType(typeIdx);
+					var array = (ArrayType)context.getCompositeType(typeIdx);
+
+					if(!(array.fieldType().storageType() instanceof PackedType)) {
+						throw new ValidationException("Unexpected val type");
+					}
+
+					var refType = new RefType(true, context.getType(typeIdx));
+
+					pop(NumType.I32);
+					pop(refType);
+					push(NumType.I32);
+				}
+
+				case ReferenceInstr.Array_Get_U(var typeIdx) -> {
+					context.requireArrayType(typeIdx);
+					var array = (ArrayType)context.getCompositeType(typeIdx);
+
+					if(!(array.fieldType().storageType() instanceof PackedType)) {
+						throw new ValidationException("Unexpected val type");
+					}
+
+					var refType = new RefType(true, context.getType(typeIdx));
+
+					pop(NumType.I32);
+					pop(refType);
+					push(NumType.I32);
+				}
+
+				case ReferenceInstr.Array_Set(var typeIdx) -> {
+					context.requireArrayType(typeIdx);
+					var array = (ArrayType)context.getCompositeType(typeIdx);
+
+					require(array.fieldType().mut() == Mut.Var, "array is immutable");
+
+					var refType = new RefType(true, context.getType(typeIdx));
+
+					pop(unpack(array.fieldType().storageType()));
+					pop(NumType.I32);
+					pop(refType);
+				}
+
+				case ReferenceInstr.Array_Len() -> {
+					pop(new RefType(true, HeapType.AbstractHeapType.ARRAY));
+					push(NumType.I32);
+				}
+
+				case ReferenceInstr.Array_Fill(var typeIdx) -> {
+					context.requireArrayType(typeIdx);
+					var array = (ArrayType)context.getCompositeType(typeIdx);
+
+					require(array.fieldType().mut() == Mut.Var, "array is immutable");
+
+					pop(NumType.I32);
+					pop(unpack(array.fieldType().storageType()));
+					pop(NumType.I32);
+					pop(new RefType(true, context.getType(typeIdx)));
+				}
+
+				case ReferenceInstr.Array_Copy(var destType, var srcType) -> {
+					context.requireArrayType(destType);
+					context.requireArrayType(srcType);
+					var dest = (ArrayType)context.getCompositeType(destType);
+					var src = (ArrayType)context.getCompositeType(srcType);
+
+					require(dest.fieldType().mut() == Mut.Var, "array is immutable");
+
+					require(subtyping.isSubtypeStorage(src.fieldType().storageType(), dest.fieldType().storageType()), "array types do not match");
+
+					pop(NumType.I32);
+					pop(NumType.I32);
+					pop(new RefType(true, context.getType(srcType)));
+					pop(NumType.I32);
+					pop(new RefType(true, context.getType(destType)));
+				}
+
+				case ReferenceInstr.Array_Init_Data(var typeIdx, var dataIdx) -> {
+					context.requireArrayType(typeIdx);
+					var array = (ArrayType)context.getCompositeType(typeIdx);
+
+					require(array.fieldType().mut() == Mut.Var, "array is immutable");
+
+					if(array.fieldType().storageType() instanceof RefType) {
+						throw new ValidationException("array type is not numeric or vector");
+					}
+
+					context.requireData(dataIdx);
+
+					pop(NumType.I32);
+					pop(NumType.I32);
+					pop(NumType.I32);
+					pop(new RefType(true, context.getType(typeIdx)));
+				}
+
+				case ReferenceInstr.Array_Init_Elem(var typeIdx, var elemIdx) -> {
+					context.requireArrayType(typeIdx);
+					var array = (ArrayType)context.getCompositeType(typeIdx);
+
+					require(array.fieldType().mut() == Mut.Var, "array is immutable");
+
+					if(!(array.fieldType().storageType() instanceof RefType arrayElemType)) {
+						throw new ValidationException("type mismatch");
+					}
+
+					context.requireElem(elemIdx);
+					var elemType = context.getElem(elemIdx);
+
+					require(subtyping.isSubtypeRef(elemType, arrayElemType), "type mismatch");
+
+					pop(NumType.I32);
+					pop(NumType.I32);
+					pop(NumType.I32);
+					pop(new RefType(true, context.getType(typeIdx)));
+				}
+
+				case ReferenceInstr.Any_Convert_Extern() -> {
+					var t = pop();
+
+					boolean isNull = switch(t) {
+						case RefType(boolean isNullable, HeapType heapType) -> {
+							require(subtyping.isSubtypeHeap(heapType, HeapType.AbstractHeapType.EXTERN), "type mismatch");
+							yield isNullable;
+						}
+						case BotType() -> false;
+						default -> throw new ValidationException("type mismatch");
+					};
+
+					push(new RefType(isNull, HeapType.AbstractHeapType.ANY));
+				}
+
+				case ReferenceInstr.Extern_Convert_Any() -> {
+					var t = pop();
+
+					boolean isNull = switch(t) {
+						case RefType(boolean isNullable, HeapType heapType) -> {
+							require(subtyping.isSubtypeHeap(heapType, HeapType.AbstractHeapType.ANY), "type mismatch");
+							yield isNullable;
+						}
+						case BotType() -> false;
+						default -> throw new ValidationException("type mismatch");
+					};
+
+					push(new RefType(isNull, HeapType.AbstractHeapType.EXTERN));
+				}
+
+				default -> throw new RuntimeException("Not implemented: " + instr);
 			}
+		}
+
+		private ValType unpack(StorageType t) {
+			return switch(t) {
+				case PackedType _ -> NumType.I32;
+				case ValType valType -> valType;
+			};
+		}
+
+		private HeapType toTopType(HeapType t) {
+			return switch(t) {
+				case TypeIdx typeIdx -> toTopType(context.getType(typeIdx));
+				case BotType _ -> t;
+				case DefType defType -> switch(defType.recursiveType().subtypes().get(defType.index()).compositeType()) {
+					case FuncType _ -> HeapType.AbstractHeapType.FUNC;
+					case StructType _ -> HeapType.AbstractHeapType.STRUCT;
+					case ArrayType _ -> HeapType.AbstractHeapType.ARRAY;
+				};
+				case HeapType.AbstractHeapType at -> switch(at) {
+					case NONE -> HeapType.AbstractHeapType.ANY;
+					case NOEXN -> HeapType.AbstractHeapType.EXN;
+					case NOFUNC -> HeapType.AbstractHeapType.FUNC;
+					case NOEXTERN -> HeapType.AbstractHeapType.EXTERN;
+					default -> t;
+				};
+				case RecTypeIdx _ -> t;
+			};
 		}
 
 		private void validateVectorInstr(VectorInstr instr) throws ValidationException {
@@ -567,7 +940,6 @@ class InstrValidator extends ValidatorBase {
 					else {
 						require(types.size() == 1, "invalid result arity");
 
-						var tv = new TypeValidator(context);
 						for(var t : types) {
 							tv.validateValType(t);
 						}
@@ -654,7 +1026,7 @@ class InstrValidator extends ValidatorBase {
 					var t1 = context.getTable(dest);
 					context.requireTable(src);
 					var t2 = context.getTable(src);
-					require(new Subtyping(context).isSubtypeRef(t2.elementType(), t1.elementType()), "type mismatch");
+					require(subtyping.isSubtypeRef(t2.elementType(), t1.elementType()), "type mismatch");
 
 					popIndex(dest, src);
 					popIndex(src);
@@ -666,7 +1038,7 @@ class InstrValidator extends ValidatorBase {
 					var t1 = context.getTable(tableIdx);
 					context.requireElem(elemIdx);
 					var t2 = context.getElem(elemIdx);
-					require(new Subtyping(context).isSubtypeRef(t2, t1.elementType()), "type mismatch");
+					require(subtyping.isSubtypeRef(t2, t1.elementType()), "type mismatch");
 
 					pop(NumType.I32);
 					pop(NumType.I32);
@@ -978,7 +1350,7 @@ class InstrValidator extends ValidatorBase {
 					unreachable = true;
 				}
 				case ControlInstr.Block(var blockType, var body) -> {
-					new TypeValidator(context).validateBlockType(blockType);
+					tv.validateBlockType(blockType);
 					var t = expandBlockType(blockType);
 					var c2 = context.copy();
 					c2.addLabel(t.results());
@@ -990,7 +1362,7 @@ class InstrValidator extends ValidatorBase {
 				}
 
 				case ControlInstr.Loop(var blockType, var body) -> {
-					new TypeValidator(context).validateBlockType(blockType);
+					tv.validateBlockType(blockType);
 					var t = expandBlockType(blockType);
 					var c2 = context.copy();
 					c2.addLabel(t.args());
@@ -1002,7 +1374,7 @@ class InstrValidator extends ValidatorBase {
 				}
 
 				case ControlInstr.If(var blockType, var thenBody, var elseBody) -> {
-					new TypeValidator(context).validateBlockType(blockType);
+					tv.validateBlockType(blockType);
 					var t = expandBlockType(blockType);
 					var c2 = context.copy();
 					c2.addLabel(t.results());
@@ -1067,8 +1439,6 @@ class InstrValidator extends ValidatorBase {
 
 					var resultType = new ResultType(List.of(results));
 
-					var subtyping = new Subtyping(context);
-
 					require(subtyping.isSubtypeResult(resultType, context.getLabel(fallback)), "type mismatch");
 
 					for(LabelIdx label : labels) {
@@ -1111,6 +1481,60 @@ class InstrValidator extends ValidatorBase {
 					pop(new RefType(true, lastRefType.heapType()));
 					pop(labelType2);
 					push(labelType2);
+				}
+
+				case ControlInstr.Br_OnCast(var label, var t1, var t2) -> {
+					context.requireLabel(label);
+					
+					var labelType = context.getLabel(label);
+					if(labelType.types().isEmpty()) {
+						throw new ValidationException("br_on_cast target must contain at least one type");
+					}
+
+					var labelType2Types = new ArrayList<>(labelType.types());
+					var lastType = labelType2Types.removeLast();
+					var labelType2 = new ResultType(labelType2Types);
+
+					var lastRefType = requireRefType(lastType);
+					tv.validateReferenceType(t1);
+					tv.validateReferenceType(t2);
+
+					require(subtyping.isSubtypeVal(t2, t1), "type mismatch");
+					require(subtyping.isSubtypeVal(t2, lastRefType), "type mismatch");
+
+					var t1b = new RefType(t1.isNullable() && !t2.isNullable(), t1.heapType());
+					pop(t1);
+					pop(labelType2);
+					push(labelType2);
+					push(t1b);
+				}
+
+				case ControlInstr.Br_OnCastFail(var label, var t1, var t2) -> {
+					context.requireLabel(label);
+
+					var labelType = context.getLabel(label);
+					if(labelType.types().isEmpty()) {
+						throw new ValidationException("br_on_cast_fail target must contain at least one type");
+					}
+
+					var labelType2Types = new ArrayList<>(labelType.types());
+					var lastType = labelType2Types.removeLast();
+					var labelType2 = new ResultType(labelType2Types);
+
+					var lastRefType = requireRefType(lastType);
+					tv.validateReferenceType(t1);
+					tv.validateReferenceType(t2);
+
+
+					var t1b = new RefType(t1.isNullable() && !t2.isNullable(), t1.heapType());
+
+					require(subtyping.isSubtypeVal(t2, t1), "type mismatch");
+					require(subtyping.isSubtypeVal(t1b, lastRefType), "type mismatch");
+
+					pop(t1);
+					pop(labelType2);
+					push(labelType2);
+					push(t2);
 				}
 
 				case ControlInstr.Return() -> {
@@ -1158,7 +1582,7 @@ class InstrValidator extends ValidatorBase {
 
 					pop(t.args());
 
-					require(new Subtyping(context).isSubtypeResult(t.results(), context.getReturn()), "type mismatch");
+					require(subtyping.isSubtypeResult(t.results(), context.getReturn()), "type mismatch");
 					stack.clear();
 					unreachable = true;
 				}
@@ -1170,7 +1594,7 @@ class InstrValidator extends ValidatorBase {
 					pop(new RefType(true, funcDefType));
 					pop(funcType.args());
 
-					require(new Subtyping(context).isSubtypeResult(funcType.results(), context.getReturn()), "type mismatch");
+					require(subtyping.isSubtypeResult(funcType.results(), context.getReturn()), "type mismatch");
 					stack.clear();
 					unreachable = true;
 				}
@@ -1186,13 +1610,13 @@ class InstrValidator extends ValidatorBase {
 					popIndex(table);
 					pop(t.args());
 
-					require(new Subtyping(context).isSubtypeResult(t.results(), context.getReturn()), "type mismatch");
+					require(subtyping.isSubtypeResult(t.results(), context.getReturn()), "type mismatch");
 					stack.clear();
 					unreachable = true;
 				}
 
 				case ControlInstr.Try_Table(var blockType, var catchClauses, var body) -> {
-					new TypeValidator(context).validateBlockType(blockType);
+					tv.validateBlockType(blockType);
 					var t = expandBlockType(blockType);
 
 					for(var catchClause : catchClauses) {
@@ -1223,7 +1647,7 @@ class InstrValidator extends ValidatorBase {
 
 					context.requireLabel(labelIdx);
 					var label = context.getLabel(labelIdx);
-					require(new Subtyping(context).isSubtypeResult(t.args(), label), "type mismatch", "catch clause must match target block type " + t.args() + ", " + label);
+					require(subtyping.isSubtypeResult(t.args(), label), "type mismatch", "catch clause must match target block type " + t.args() + ", " + label);
 				}
 
 				case ControlInstr.CatchTagRef(var tagIdx, var labelIdx) -> {
@@ -1241,7 +1665,7 @@ class InstrValidator extends ValidatorBase {
 
 					context.requireLabel(labelIdx);
 					var label = context.getLabel(labelIdx);
-					require(new Subtyping(context).isSubtypeResult(new ResultType(resType), label), "type mismatch", "catch_ref clause must match target block type" + resType + ", " + label);
+					require(subtyping.isSubtypeResult(new ResultType(resType), label), "type mismatch", "catch_ref clause must match target block type" + resType + ", " + label);
 				}
 
 				case ControlInstr.CatchAll(var labelIdx) -> {
@@ -1258,7 +1682,7 @@ class InstrValidator extends ValidatorBase {
 					var resType = new ArrayList<ValType>();
 					resType.add(new RefType(false, HeapType.AbstractHeapType.EXN));
 
-					require(new Subtyping(context).isSubtypeResult(new ResultType(resType), label), "type mismatch", "catch_all_ref clause must be ref exn");
+					require(subtyping.isSubtypeResult(new ResultType(resType), label), "type mismatch", "catch_all_ref clause must be ref exn");
 				}
 			}
 

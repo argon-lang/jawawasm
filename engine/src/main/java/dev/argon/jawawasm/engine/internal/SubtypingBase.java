@@ -17,31 +17,65 @@ public abstract class SubtypingBase {
 	}
 
 	public boolean isSubtypeHeap(HeapType a, HeapType b) {
-		return a.equals(b) ||
-			(a == HeapType.AbstractHeapType.EQ && b == HeapType.AbstractHeapType.ANY) ||
+		if(a.equals(b)) {
+			return true;
+		}
+
+		if(a == HeapType.AbstractHeapType.EQ && b == HeapType.AbstractHeapType.ANY) {
+			return true;
+		}
+
+		if(
 			(
-				(
-					a == HeapType.AbstractHeapType.I32 ||
+				a == HeapType.AbstractHeapType.I31 ||
 					a == HeapType.AbstractHeapType.STRUCT ||
 					a == HeapType.AbstractHeapType.ARRAY
-				) && b == HeapType.AbstractHeapType.EQ
-			) ||
-			(a instanceof TypeIdx at && isSubtypeHeap(resolveTypeIdx(at), b)) ||
-			(b instanceof TypeIdx bt && isSubtypeHeap(a, resolveTypeIdx(bt))) ||
-			(a instanceof DefType ad && isSubtypeDefTypeWith(ad, b)) ||
-			(a == HeapType.AbstractHeapType.NONE && isSubtypeHeap(b, HeapType.AbstractHeapType.ANY)) ||
-			(a == HeapType.AbstractHeapType.NOFUNC && isSubtypeHeap(b, HeapType.AbstractHeapType.FUNC)) ||
-			(a == HeapType.AbstractHeapType.NOEXN && isSubtypeHeap(b, HeapType.AbstractHeapType.EXN)) ||
-			(a == HeapType.AbstractHeapType.NOEXTERN && isSubtypeHeap(b, HeapType.AbstractHeapType.EXTERN)) ||
-			a instanceof BotType;
+			) && isSubtypeHeap(HeapType.AbstractHeapType.EQ, b)
+		) {
+			return true;
+		}
+
+		if(a instanceof TypeIdx at) {
+			return isSubtypeHeap(resolveTypeIdx(at), b);
+		}
+
+		if(b instanceof TypeIdx bt) {
+			return isSubtypeHeap(a, resolveTypeIdx(bt));
+		}
+
+		if(a == HeapType.AbstractHeapType.NONE) {
+			return isSubtypeHeap(b, HeapType.AbstractHeapType.ANY);
+		}
+
+		if(a == HeapType.AbstractHeapType.NOFUNC) {
+			return isSubtypeHeap(b, HeapType.AbstractHeapType.FUNC);
+		}
+
+		if(a == HeapType.AbstractHeapType.NOEXN) {
+			return isSubtypeHeap(b, HeapType.AbstractHeapType.EXN);
+		}
+
+		if(a == HeapType.AbstractHeapType.NOEXTERN) {
+			return isSubtypeHeap(b, HeapType.AbstractHeapType.EXTERN);
+		}
+
+		if(a instanceof DefType ad) {
+			return isSubtypeDefTypeWith(ad, b);
+		}
+
+		if(a instanceof BotType) {
+			return true;
+		}
+
+		return false;
 	}
 
 	private boolean isSubtypeDefTypeWith(DefType a, HeapType b) {
 		var aSubType = TypeUnroll.unroll(a);
 		var aExpand = aSubType.compositeType();
-		return (aExpand instanceof StructType && b == HeapType.AbstractHeapType.STRUCT) ||
-			(aExpand instanceof ArrayType && b == HeapType.AbstractHeapType.ARRAY) ||
-			(aExpand instanceof FuncType && b == HeapType.AbstractHeapType.FUNC) ||
+		return (aExpand instanceof StructType && isSubtypeHeap(HeapType.AbstractHeapType.STRUCT, b)) ||
+			(aExpand instanceof ArrayType && isSubtypeHeap(HeapType.AbstractHeapType.ARRAY, b)) ||
+			(aExpand instanceof FuncType && isSubtypeHeap(HeapType.AbstractHeapType.FUNC, b)) ||
 			(b instanceof DefType bd && isSubtypeDefType(a, aSubType, bd));
 	}
 
@@ -59,7 +93,7 @@ public abstract class SubtypingBase {
 		}
 
 		for(var superType : aSubType.superTypes()) {
-			if(!isSubtypeHeap(superType, b)) {
+			if(isSubtypeHeap(superType, b)) {
 				return true;
 			}
 		}
@@ -136,7 +170,7 @@ public abstract class SubtypingBase {
 		}
 
 		return switch(a.mut()) {
-			case Const -> b.mut() != Mut.Const;
+			case Const -> b.mut() == Mut.Const;
 
 			case Var -> {
 				if(b.mut() != Mut.Var) {
@@ -149,8 +183,7 @@ public abstract class SubtypingBase {
 	}
 
 	public boolean isSubtypeFunc(FuncType a, FuncType b) {
-		return isSubtypeResult(b.results(), a.results()) &&
-			isSubtypeResult(a.args(), b.args());
+		return isSubtypeResult(b.args(), a.args()) && isSubtypeResult(a.results(), b.results());
 	}
 
 	public boolean isSubtypeLimits(Limits a, Limits b) {

@@ -411,6 +411,20 @@ public final class InstantiatedModule implements WasmModule {
 		return closure.resolveFuncType(funcType);
 	}
 
+	StructType getStructType(TypeIdx index) {
+		var defType = getDefType(index);
+		var subType = defType.recursiveType().subtypes().get(defType.index());
+		var compositeType = closure.resolveCompositeType(subType.compositeType());
+		return (StructType)compositeType;
+	}
+
+	ArrayType getArrayType(TypeIdx index) {
+		var defType = getDefType(index);
+		var subType = defType.recursiveType().subtypes().get(defType.index());
+		var compositeType = closure.resolveCompositeType(subType.compositeType());
+		return (ArrayType)compositeType;
+	}
+
 	WasmFunction getFunction(FuncIdx index) {
 		return functions.get(index.index());
 	}

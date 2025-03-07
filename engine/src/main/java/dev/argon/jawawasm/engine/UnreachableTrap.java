@@ -3,9 +3,9 @@ package dev.argon.jawawasm.engine;
 /**
  * An `unreachable` instruction was reached.
  */
-public class UnreachableException extends Exception {
+public class UnreachableTrap extends RuntimeException {
 	/**
 	 * Create an UnreachableException.
 	 */
-	public UnreachableException() {}
+	public UnreachableTrap() {}
 }

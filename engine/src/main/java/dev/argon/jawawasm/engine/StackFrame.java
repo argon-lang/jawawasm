@@ -4,8 +4,7 @@ import dev.argon.jawawasm.format.data.V128;
 import dev.argon.jawawasm.format.instructions.*;
 import dev.argon.jawawasm.format.modules.Func;
 import dev.argon.jawawasm.format.modules.LabelIdx;
-import dev.argon.jawawasm.format.types.FuncType;
-import dev.argon.jawawasm.format.types.ResultType;
+import dev.argon.jawawasm.format.types.*;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -1731,6 +1730,18 @@ class StackFrame {
 				push(null);
 			}
 
+			case ReferenceInstr.Ref_Eq() -> {
+				var a = pop();
+				var b = pop();
+
+				if(a instanceof I31 ia && b instanceof I31 ib) {
+					push(ia.signedValue() == ib.signedValue() ? 1 : 0);
+					return;
+				}
+
+				push(a == b ? 1 : 0);
+			}
+
 			case ReferenceInstr.Ref_AsNonNull() -> {
 				Object o = pop();
 				if(o == null) {
@@ -1738,6 +1749,485 @@ class StackFrame {
 				}
 				push(o);
 			}
+
+			case ReferenceInstr.Ref_Test(var typeIdx) -> {
+				var t = module.closure.resolveRefType(typeIdx);
+				var o = pop();
+				push(refIsInstance(t, o) ? 1 : 0);
+			}
+
+			case ReferenceInstr.Ref_Cast(var typeIdx) -> {
+				var t = module.closure.resolveRefType(typeIdx);
+				var o = pop();
+
+				if(!refIsInstance(t, o)) {
+					throw new WebAssemblyCastTrap();
+				}
+
+				push(o);
+			}
+
+			case ReferenceInstr.Ref_I31() -> {
+				var a = (int)pop();
+				push(new I31(a));
+			}
+
+			case ReferenceInstr.I31_Get_S() -> {
+				var a = (I31)pop();
+				push(a.signedValue());
+			}
+
+			case ReferenceInstr.I31_Get_U() -> {
+				var a = (I31)pop();
+				push(a.unsignedValue());
+			}
+
+			case ReferenceInstr.Struct_New(var typeIdx) -> {
+				var structType = module.getStructType(typeIdx);
+				var fieldTypes = structType.fields();
+
+				var values = new Object[fieldTypes.size()];
+				for(int i = fieldTypes.size() - 1; i >= 0; --i) {
+					values[i] = packValue(pop(), fieldTypes.get(i).storageType());
+				}
+
+				push(new WasmStruct(module.getDefType(typeIdx), values));
+			}
+
+			case ReferenceInstr.Struct_New_Default(var typeIdx) -> {
+				var structType = module.getStructType(typeIdx);
+				var fieldTypes = structType.fields();
+
+				var values = new Object[fieldTypes.size()];
+				for(int i = fieldTypes.size() - 1; i >= 0; --i) {
+					values[i] = Defaults.defaultValuePacked(fieldTypes.get(i).storageType());
+				}
+
+				push(new WasmStruct(module.getDefType(typeIdx), values));
+			}
+
+			case ReferenceInstr.Struct_Get(var typeIdx, var fieldIdx) -> {
+				var structType = module.getStructType(typeIdx);
+				var fieldType = structType.fields().get(fieldIdx.index());
+
+				var o = (WasmStruct)pop();
+
+				switch(fieldType.storageType()) {
+					case PackedType _ -> throw new RuntimeException("Expected a val type");
+					case ValType _ -> push(o.getField(fieldIdx.index()));
+				}
+			}
+
+			case ReferenceInstr.Struct_Get_S(var typeIdx, var fieldIdx) -> {
+				var structType = module.getStructType(typeIdx);
+				var fieldType = structType.fields().get(fieldIdx.index());
+
+				var o = (WasmStruct)pop();
+
+				push(unpackValueS(o.getField(fieldIdx.index()), fieldType.storageType()));
+			}
+
+			case ReferenceInstr.Struct_Get_U(var typeIdx, var fieldIdx) -> {
+				var structType = module.getStructType(typeIdx);
+				var fieldType = structType.fields().get(fieldIdx.index());
+
+				var o = (WasmStruct)pop();
+
+				push(unpackValueU(o.getField(fieldIdx.index()), fieldType.storageType()));
+			}
+
+			case ReferenceInstr.Struct_Set(var typeIdx, var fieldIdx) -> {
+				var structType = module.getStructType(typeIdx);
+				var fieldType = structType.fields().get(fieldIdx.index());
+
+				var value = pop();
+				var o = (WasmStruct)pop();
+
+				o.setField(fieldIdx.index(), packValue(value, fieldType.storageType()));
+			}
+
+			case ReferenceInstr.Array_New(var typeIdx) -> {
+				var arrayType = module.getArrayType(typeIdx);
+
+				int n = (int)pop();
+				var val = packValue(pop(), arrayType.fieldType().storageType());
+
+				var arr = WasmArray.create(module.getDefType(typeIdx), n);
+				for(int i = 0; i < n; ++i) {
+					arr.set(i, val);
+				}
+
+				push(arr);
+			}
+
+			case ReferenceInstr.Array_New_Default(var typeIdx) -> {
+				var arrayType = module.getArrayType(typeIdx);
+
+				int n = (int)pop();
+				var val = Defaults.defaultValuePacked(arrayType.fieldType().storageType());
+
+				var arr = WasmArray.create(module.getDefType(typeIdx), n);
+				for(int i = 0; i < n; ++i) {
+					arr.set(i, val);
+				}
+
+				push(arr);
+			}
+
+			case ReferenceInstr.Array_New_Fixed(var typeIdx, int n) -> {
+				var arrayType = module.getArrayType(typeIdx);
+
+				var arr = WasmArray.create(module.getDefType(typeIdx), n);
+				for(int i = n - 1; i >= 0; --i) {
+					var val = packValue(pop(), arrayType.fieldType().storageType());
+					arr.set(i, val);
+				}
+
+				push(arr);
+			}
+
+			case ReferenceInstr.Array_New_Data(var typeIdx, var dataIdx) -> {
+				var arrayType = module.getArrayType(typeIdx);
+				var data = module.getData(dataIdx);
+
+				int n = (int)pop();
+				int s = (int)pop();
+				int d = 0;
+				var array = WasmArray.create(module.getDefType(typeIdx), n);
+
+
+				switch(arrayType.fieldType().storageType()) {
+					case PackedType packedType -> {
+						switch(packedType) {
+							case I8 -> copyDataToArrayByte((WasmArray.OfByte)array, data.init(), d, s, n);
+							case I16 -> copyDataToArrayShort((WasmArray.OfShort)array, data.init(), d, s, n);
+						}
+					}
+					case NumType numType -> {
+						switch(numType) {
+							case I32 -> copyDataToArrayInt((WasmArray.OfInt)array, data.init(), d, s, n);
+							case I64 -> copyDataToArrayLong((WasmArray.OfLong)array, data.init(), d, s, n);
+							case F32 -> copyDataToArrayFloat((WasmArray.OfFloat)array, data.init(), d, s, n);
+							case F64 -> copyDataToArrayDouble((WasmArray.OfDouble)array, data.init(), d, s, n);
+						}
+					}
+					case VecType vecType -> {
+						switch(vecType) {
+							case V128 -> copyDataToArrayV128(array, data.init(), d, s, n);
+						}
+					}
+					default -> throw new RuntimeException("Reference type array cannot be created from data");
+				}
+
+				push(array);
+			}
+
+			case ReferenceInstr.Array_New_Elem(var typeIdx, var elemIdx) -> {
+				var arrayType = module.getArrayType(typeIdx);
+				var elem = module.getElement(elemIdx);
+
+				int n = (int)pop();
+				int s = (int)pop();
+				int d = 0;
+				var array = WasmArray.create(module.getDefType(typeIdx), n);
+
+				Objects.checkFromIndexSize(s, n, elem.size());
+				Objects.checkFromIndexSize(d, n, array.length());
+
+				for(int i = 0; i < n; ++i) {
+					array.set(d + i, packValue(elem.get(s + i), arrayType.fieldType().storageType()));
+				}
+
+				push(array);
+			}
+
+			case ReferenceInstr.Array_Get(_) -> {
+				int i = (int)pop();
+				var a = (WasmArray)pop();
+
+				push(a.get(i));
+			}
+
+			case ReferenceInstr.Array_Get_S(var typeIdx) -> {
+				var arrayType = module.getArrayType(typeIdx);
+
+				int i = (int)pop();
+				var a = (WasmArray)pop();
+
+				push(unpackValueS(a.get(i), arrayType.fieldType().storageType()));
+			}
+
+			case ReferenceInstr.Array_Get_U(var typeIdx) -> {
+				var arrayType = module.getArrayType(typeIdx);
+
+				int i = (int)pop();
+				var a = (WasmArray)pop();
+
+				push(unpackValueU(a.get(i), arrayType.fieldType().storageType()));
+			}
+
+			case ReferenceInstr.Array_Set(var typeIdx) -> {
+				var arrayType = module.getArrayType(typeIdx);
+
+				var val = pop();
+				int i = (int)pop();
+				var a = (WasmArray)pop();
+
+				a.set(i, packValue(val, arrayType.fieldType().storageType()));
+			}
+
+			case ReferenceInstr.Array_Len() -> {
+				var a = (WasmArray)pop();
+				push(a.length());
+			}
+
+			case ReferenceInstr.Array_Fill(var typeIdx) -> {
+				var arrayType = module.getArrayType(typeIdx);
+
+				int n = (int)pop();
+				Object val = packValue(pop(), arrayType.fieldType().storageType());
+				int d = (int)pop();
+				var array = (WasmArray)pop();
+
+				if(array == null) {
+					throw new NullPointerException();
+				}
+
+				Objects.checkFromIndexSize(d, n, array.length());
+
+				for(int i = 0; i < n; ++i) {
+					array.set(d + i, val);
+				}
+			}
+
+			case ReferenceInstr.Array_Copy _ -> {
+				int n = (int)pop();
+				int s = (int)pop();
+				var src = (WasmArray)pop();
+				int d = (int)pop();
+				var dest = (WasmArray)pop();
+
+				if(src == null || dest == null) {
+					throw new NullPointerException();
+				}
+
+				Objects.checkFromIndexSize(s, n, src.length());
+				Objects.checkFromIndexSize(d, n, dest.length());
+
+				if(d <= s) {
+					for(int i = 0; i < n; ++i) {
+						dest.set(d + i, src.get(s + i));
+					}
+				}
+				else {
+					for(int i = n - 1; i >= 0; --i) {
+						dest.set(d + i, src.get(s + i));
+					}
+				}
+			}
+
+			case ReferenceInstr.Array_Init_Data(var typeIdx, var dataIdx) -> {
+				var arrayType = module.getArrayType(typeIdx);
+				var data = module.getData(dataIdx);
+
+				int n = (int)pop();
+				int s = (int)pop();
+				int d = (int)pop();
+				var array = (WasmArray)pop();
+
+				if(array == null) {
+					throw new NullPointerException();
+				}
+
+				switch(arrayType.fieldType().storageType()) {
+					case PackedType packedType -> {
+						switch(packedType) {
+							case I8 -> copyDataToArrayByte((WasmArray.OfByte)array, data.init(), d, s, n);
+							case I16 -> copyDataToArrayShort((WasmArray.OfShort)array, data.init(), d, s, n);
+						}
+					}
+					case NumType numType -> {
+						switch(numType) {
+							case I32 -> copyDataToArrayInt((WasmArray.OfInt)array, data.init(), d, s, n);
+							case I64 -> copyDataToArrayLong((WasmArray.OfLong)array, data.init(), d, s, n);
+							case F32 -> copyDataToArrayFloat((WasmArray.OfFloat)array, data.init(), d, s, n);
+							case F64 -> copyDataToArrayDouble((WasmArray.OfDouble)array, data.init(), d, s, n);
+						}
+					}
+					case VecType vecType -> {
+						switch(vecType) {
+							case V128 -> copyDataToArrayV128(array, data.init(), d, s, n);
+						}
+					}
+					default -> throw new RuntimeException("Reference type array cannot be created from data");
+				}
+			}
+
+			case ReferenceInstr.Array_Init_Elem(var typeIdx, var elemIdx) -> {
+				var arrayType = module.getArrayType(typeIdx);
+				var elem = module.getElement(elemIdx);
+
+				int n = (int)pop();
+				int s = (int)pop();
+				int d = (int)pop();
+				var array = (WasmArray)pop();
+
+				if(array == null) {
+					throw new NullPointerException();
+				}
+
+				Objects.checkFromIndexSize(s, n, elem.size());
+				Objects.checkFromIndexSize(d, n, array.length());
+
+				for(int i = 0; i < n; ++i) {
+					array.set(d + i, packValue(elem.get(s + i), arrayType.fieldType().storageType()));
+				}
+			}
+
+			case ReferenceInstr.Any_Convert_Extern(), ReferenceInstr.Extern_Convert_Any() -> {}
+
+			default -> throw new RuntimeException("Not implemented: " + instr);
+		}
+	}
+
+	private Object packValue(Object value, StorageType t) {
+		return switch(t) {
+			case PackedType packedType -> switch(packedType) {
+				case I8 -> (byte)(int)value;
+				case I16 -> (short)(int)value;
+			};
+			case ValType _ -> value;
+		};
+	}
+
+	private Object unpackValueS(Object value, StorageType t) {
+		return switch(t) {
+			case PackedType packedType -> switch(packedType) {
+				case I8 -> (int)(byte)value;
+				case I16 -> (int)(short)value;
+			};
+			case ValType _ -> throw new RuntimeException("Expected a packed type");
+		};
+	}
+
+	private Object unpackValueU(Object value, StorageType t) {
+		return switch(t) {
+			case PackedType packedType -> switch(packedType) {
+				case I8 -> Byte.toUnsignedInt((byte)value);
+				case I16 -> Short.toUnsignedInt((short)value);
+			};
+			case ValType _ -> throw new RuntimeException("Expected a packed type");
+		};
+	}
+
+	private boolean refIsInstance(RefType t, Object o) {
+		if(o == null) {
+			return t.isNullable();
+		}
+
+		HeapType objType;
+		if(module.subtyping.isSubtypeHeap(t.heapType(), HeapType.AbstractHeapType.EXTERN)) {
+			objType = HeapType.AbstractHeapType.EXTERN;
+		}
+		else {
+			if(o instanceof WasmObject wo) {
+				objType = wo.heapType();
+			}
+			else {
+				objType = HeapType.AbstractHeapType.ANY;
+			}
+		}
+
+
+		return module.subtyping.isSubtypeHeap(objType, t.heapType());
+	}
+
+	private void copyDataToArrayByte(WasmArray.OfByte dest, byte[] src, int d, int s, int n) {
+		Objects.checkFromIndexSize(s, n, src.length);
+		Objects.checkFromIndexSize(d, n, dest.length());
+
+		for(int i = 0; i < n; ++i) {
+			dest.setByte(d + i, src[s + i]);
+		}
+	}
+
+	private void copyDataToArrayShort(WasmArray.OfShort dest, byte[] src, int d, int s, int n) {
+		Objects.checkFromIndexSize(s, n, src.length);
+		Objects.checkFromIndexSize(d, n, dest.length());
+
+		for(int i = 0; i < n; ++i) {
+			short value = 0;
+			for(int j = 0; j < 2; ++j) {
+				value |= (short)((src[s + i * 2 + j] & 0xFF) << 8 * j);
+			}
+			dest.setShort(d + i, value);
+		}
+	}
+
+	private void copyDataToArrayInt(WasmArray.OfInt dest, byte[] src, int d, int s, int n) {
+		Objects.checkFromIndexSize(s, (long)n * 4, src.length);
+		Objects.checkFromIndexSize(d, n, dest.length());
+
+		for(int i = 0; i < n; ++i) {
+			int value = 0;
+			for(int j = 0; j < 4; ++j) {
+				value |= (src[s + i * 4 + j] & 0xFF) << 8 * j;
+			}
+
+			dest.setInt(d + i, value);
+		}
+	}
+
+	private void copyDataToArrayLong(WasmArray.OfLong dest, byte[] src, int d, int s, int n) {
+		Objects.checkFromIndexSize(s, (long)n * 8, src.length);
+		Objects.checkFromIndexSize(d, n, dest.length());
+
+		for(int i = 0; i < n; ++i) {
+			long value = 0;
+			for(int j = 0; j < 8; ++j) {
+				value |= (long)(src[s + i * 8 + j] & 0xFF) << 8 * j;
+			}
+
+			dest.setLong(d + i, value);
+		}
+	}
+
+	private void copyDataToArrayFloat(WasmArray.OfFloat dest, byte[] src, int d, int s, int n) {
+		Objects.checkFromIndexSize(s, (long)n * 4, src.length);
+		Objects.checkFromIndexSize(d, n, dest.length());
+
+		for(int i = 0; i < n; ++i) {
+			int value = 0;
+			for(int j = 0; j < 4; ++j) {
+				value |= (src[s + i * 4 + j] & 0xFF) << 8 * j;
+			}
+
+			dest.setFloat(d + i, Float.intBitsToFloat(value));
+		}
+	}
+
+	private void copyDataToArrayDouble(WasmArray.OfDouble dest, byte[] src, int d, int s, int n) {
+		Objects.checkFromIndexSize(s, (long)n * 8, src.length);
+		Objects.checkFromIndexSize(d, n, dest.length());
+
+		for(int i = 0; i < n; ++i) {
+			long value = 0;
+			for(int j = 0; j < 8; ++j) {
+				value |= (long)(src[s + i * 8 + j] & 0xFF) << 8 * j;
+			}
+
+			dest.setDouble(d + i, Double.longBitsToDouble(value));
+		}
+	}
+
+	private void copyDataToArrayV128(WasmArray dest, byte[] src, int d, int s, int n) {
+		Objects.checkFromIndexSize(s, (long)n * 16, src.length);
+		Objects.checkFromIndexSize(d, n, dest.length());
+
+		for(int i = 0; i < n; ++i) {
+			final int i2 = i;
+			V128 value = V128.build8(j -> src[s + i2 * 16 + j]);
+			dest.set(d + i, value);
 		}
 	}
 
@@ -2346,7 +2836,7 @@ class StackFrame {
 	private FunctionResult evaluateControlInstruction(ControlInstr instr) throws Throwable {
 		return switch(instr) {
 			case ControlInstr.Nop() -> null;
-			case ControlInstr.Unreachable() -> throw new UnreachableException();
+			case ControlInstr.Unreachable() -> throw new UnreachableTrap();
 			case ControlInstr.Block(var type, var innerBlock) -> {
 				enterBlock(type, innerBlock, ip + 1, true);
 				yield null;
@@ -2412,6 +2902,20 @@ class StackFrame {
 				}
 				yield null;
 			}
+			case ControlInstr.Br_OnCast(var label, _, var t2) -> {
+				Object o = peek();
+				if(refIsInstance(module.closure.resolveRefType(t2), o)) {
+					branch(label.index());
+				}
+				yield null;
+			}
+			case ControlInstr.Br_OnCastFail(var label, _, var t2) -> {
+				Object o = peek();
+				if(!refIsInstance(module.closure.resolveRefType(t2), o)) {
+					branch(label.index());
+				}
+				yield null;
+			}
 			case ControlInstr.Return() -> {
 				var result = getTopValues(topBlockType.results().types().size());
 				yield new FunctionResult.Values(result);
@@ -2439,11 +2943,11 @@ class StackFrame {
 				long index = popIndex(table);
 
 				var defType = module.getDefType(funcTypeIdx);
-				var funcType = module.getFuncType(funcTypeIdx);
 				var func = (WasmFunction)table.get(index);
+				var funcObjType = func.type();
 
-				if(!module.subtyping.isSubtypeDefType(func.type(), defType)) {
-					throw new IndirectCallTypeMismatchException("Expected: " + funcType + ", Actual: " + func.type());
+				if(!module.subtyping.isSubtypeDefType(funcObjType, defType)) {
+					throw new IndirectCallTypeMismatchTrap("Expected: " + defType + ", Actual: " + funcObjType);
 				}
 
 				var args = getTopValues(func.functionType().args().types().size());
@@ -2473,7 +2977,7 @@ class StackFrame {
 				var func = (WasmFunction)table.get(index);
 
 				if(!module.subtyping.isSubtypeDefType(func.type(), defType)) {
-					throw new IndirectCallTypeMismatchException();
+					throw new IndirectCallTypeMismatchTrap();
 				}
 
 				var args = getTopValues(func.functionType().args().types().size());

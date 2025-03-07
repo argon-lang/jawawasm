@@ -1,6 +1,7 @@
 package dev.argon.jawawasm.format.instructions;
 
 import dev.argon.jawawasm.format.modules.*;
+import dev.argon.jawawasm.format.types.RefType;
 import dev.argon.jawawasm.format.types.ValType;
 
 import java.util.List;
@@ -87,6 +88,9 @@ public sealed interface ControlInstr extends Instr {
 
 	public static record Br_OnNull(LabelIdx label) implements ControlInstr {}
 	public static record Br_OnNonNull(LabelIdx label) implements ControlInstr {}
+
+	public static record Br_OnCast(LabelIdx label, RefType t1, RefType t2) implements ControlInstr {}
+	public static record Br_OnCastFail(LabelIdx label, RefType t1, RefType t2) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `return` instruction

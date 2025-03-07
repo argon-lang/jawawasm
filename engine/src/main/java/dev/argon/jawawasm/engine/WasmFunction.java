@@ -1,16 +1,13 @@
 package dev.argon.jawawasm.engine;
 
-import dev.argon.jawawasm.format.types.DefType;
-import dev.argon.jawawasm.format.types.FuncType;
-import dev.argon.jawawasm.format.types.RecursiveType;
-import dev.argon.jawawasm.format.types.SubType;
+import dev.argon.jawawasm.format.types.*;
 
 import java.util.List;
 
 /**
  * A WebAssembly function.
  */
-public non-sealed interface WasmFunction extends WasmExport {
+public non-sealed interface WasmFunction extends WasmExport, WasmObject {
 	/**
 	 * Gets the defined function type.
 	 * @return The defined function type.
@@ -22,6 +19,11 @@ public non-sealed interface WasmFunction extends WasmExport {
 	 * @return The defined function type.
 	 */
 	FuncType functionType();
+
+	@Override
+	default HeapType heapType() {
+		return type();
+	}
 
 	/**
 	 * Invoke the function.

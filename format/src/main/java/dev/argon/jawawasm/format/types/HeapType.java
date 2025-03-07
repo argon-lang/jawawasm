@@ -15,7 +15,7 @@ public sealed interface HeapType
 		EXTERN,
 		ANY,
 		EQ,
-		I32,
+		I31,
 		STRUCT,
 		ARRAY,
 		EXN,

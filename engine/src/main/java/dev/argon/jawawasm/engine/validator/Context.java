@@ -53,6 +53,18 @@ class Context {
 			throw new ValidationException("Function type expected");
 		}
 	}
+	public void requireStructType(TypeIdx idx) throws ValidationException {
+		requireType(idx);
+		if(!(TypeUnroll.expand(getType(idx)) instanceof StructType)) {
+			throw new ValidationException("Function type expected");
+		}
+	}
+	public void requireArrayType(TypeIdx idx) throws ValidationException {
+		requireType(idx);
+		if(!(TypeUnroll.expand(getType(idx)) instanceof ArrayType)) {
+			throw new ValidationException("Function type expected");
+		}
+	}
 	public DefType getType(TypeIdx idx) {
 		return types.get(idx.index());
 	}
@@ -203,7 +215,7 @@ class Context {
 			return;
 		}
 
-		if(locals.get(local.index()) instanceof RefType rt && !rt.isNullable()) {
+		if(!isDefaultable(locals.get(local.index()))) {
 			throw new ValidationException("uninitialized local " + local.index());
 		}
 	}
@@ -238,4 +250,12 @@ class Context {
 	public void setReturn(ResultType t) {
 		return_ = t;
 	}
+
+
+
+	public boolean isDefaultable(StorageType t) {
+		return !(t instanceof RefType rt) || rt.isNullable();
+	}
+
+
 }

@@ -57,7 +57,12 @@ public final class ScriptInterpreter implements AutoCloseable {
 	private static final class F64NanCanonical {}
 	private static final class F64NanArithmetic {}
 
+	private static final class AnyEqRef {}
+	private static final class AnyExternRef {}
 	private static final class AnyFuncRef {}
+	private static final class AnyStructRef {}
+	private static final class AnyArrayRef {}
+	private static final class AnyI31 {}
 
 	private static record F32x4Result(Object f0, Object f1, Object f2, Object f3) {}
 	private static record F64x2Result(Object f0, Object f1) {}
@@ -326,8 +331,23 @@ public final class ScriptInterpreter implements AutoCloseable {
 			return valueEqual(v1.f0(), v2.extractLaneF64(0)) &&
 					valueEqual(v1.f1(), v2.extractLaneF64(1));
 		}
-		else if(expected instanceof AnyFuncRef && actual instanceof WasmFunction) {
+		else if(expected instanceof AnyExternRef) {
 			return true;
+		}
+		else if(expected instanceof AnyEqRef) {
+			return actual instanceof WasmEq;
+		}
+		else if(expected instanceof AnyFuncRef) {
+			return actual instanceof WasmFunction;
+		}
+		else if(expected instanceof AnyStructRef) {
+			return actual instanceof WasmStruct;
+		}
+		else if(expected instanceof AnyArrayRef) {
+			return actual instanceof WasmArray;
+		}
+		else if(expected instanceof AnyI31) {
+			return actual instanceof I31;
 		}
 		else if(expected instanceof EitherValue(var values)) {
 			for(var expectedSub : values) {
@@ -365,20 +385,20 @@ public final class ScriptInterpreter implements AutoCloseable {
 				}
 			}
 
-			case "out of bounds memory access", "out of bounds table access", "undefined element" -> {
-				if(error instanceof IndexOutOfBoundsException) {
+			case "out of bounds memory access", "out of bounds table access", "undefined element", "out of bounds array access" -> {
+				if(error instanceof IndexOutOfBoundsException || error instanceof NegativeArraySizeException) {
 					gotExpectedError = true;
 				}
 			}
 
-			case "indirect call type mismatch" -> {
-				if(error instanceof IndirectCallTypeMismatchException) {
+			case "indirect call type mismatch", "indirect call" -> {
+				if(error instanceof IndirectCallTypeMismatchTrap) {
 					gotExpectedError = true;
 				}
 			}
 
 			case "unreachable" -> {
-				if(error instanceof UnreachableException) {
+				if(error instanceof UnreachableTrap) {
 					gotExpectedError = true;
 				}
 			}
@@ -386,9 +406,18 @@ public final class ScriptInterpreter implements AutoCloseable {
 			case String m when
 				m.startsWith("uninitialized element") ||
 				m.equals("null function reference") ||
-				m.equals("null reference") ->
+				m.equals("null structure reference") ||
+				m.equals("null array reference") ||
+				m.equals("null reference") ||
+				m.equals("null i31 reference") ->
 			{
 				if(error instanceof NullPointerException) {
+					gotExpectedError = true;
+				}
+			}
+
+			case "cast", "cast failure" -> {
+				if(error instanceof WebAssemblyCastTrap) {
 					gotExpectedError = true;
 				}
 			}
@@ -397,7 +426,12 @@ public final class ScriptInterpreter implements AutoCloseable {
 		}
 
 		if(!gotExpectedError) {
-			throw new ScriptAssertionException("Action completed, expected failure: " + message);
+			if(error == null) {
+				throw new ScriptAssertionException("Action completed, expected failure: " + message);
+			}
+			else {
+				throw new ScriptAssertionException("Action completed, but failed with unexpected error. Expected failure: " + message, error);
+			}
 		}
 	}
 
@@ -552,9 +586,20 @@ public final class ScriptInterpreter implements AutoCloseable {
 					default -> throw new ModuleFormatException("Unexpected vector shape in literal: " + shape);
 				};
 			}
-			case "ref.extern" -> getExternRef(((SExpr.NumberValue)exprs.get(1)).intValue());
+			case "ref.extern", "ref.host" -> {
+				if(exprs.size() < 2) {
+					yield new AnyExternRef();
+				}
+				else {
+					yield getExternRef(((SExpr.NumberValue)exprs.get(1)).intValue());
+				}
+			}
+			case "ref.eq" -> new AnyEqRef();
 			case "ref.null" -> null;
+			case "ref.i31" -> new AnyI31();
 			case "ref.func" -> new AnyFuncRef();
+			case "ref.struct" -> new AnyStructRef();
+			case "ref.array" -> new AnyArrayRef();
 			case "either" -> new EitherValue(List.of(getConstantValues(exprs.subList(1, exprs.size()))));
 			default -> throw new ModuleFormatException("Unexpected constant expression: " + expr);
 		};

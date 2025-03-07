@@ -22,6 +22,11 @@ public final class TypeUnroll extends TypeResolver {
 		return new DefType(recType, idx.index());
 	}
 
+	@Override
+	public DefType resolveDefType(DefType t) {
+		return t;
+	}
+
 	public static RecursiveType unroll(RecursiveType t) {
 		var unroll = new TypeUnroll(t);
 		return unroll.resolveRecursiveType(t);

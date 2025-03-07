@@ -131,9 +131,9 @@ final class TypeValidator extends ValidatorBase {
 			context.requireType(superTypeIndex);
 			var superType = TypeUnroll.unroll(context.getType(superTypeIndex));
 
-			require(!superType.isFinal(), "supertype must not be final");
+			require(!superType.isFinal(), "sub type has final super type");
 
-			require(new Subtyping(context).isSubtypeComposite(subType.compositeType(), superType.compositeType()), "must be subtype of supertype");
+			require(new Subtyping(context).isSubtypeComposite(subType.compositeType(), superType.compositeType()), "sub type " + typeIndex + " does not match super type: this subtype: " + subType.compositeType() + ", super type: " + superType.compositeType());
 		}
 	}
 }
