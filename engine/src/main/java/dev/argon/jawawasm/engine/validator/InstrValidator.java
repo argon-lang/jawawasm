@@ -132,7 +132,7 @@ class InstrValidator extends ValidatorBase {
 					return new BotType();
 				}
 				else {
-					throw new ValidationException("type mismatch", "type mismatch due to empty stack");
+					throw new ValidationException("type mismatch due to empty stack");
 				}
 			}
 
@@ -142,7 +142,7 @@ class InstrValidator extends ValidatorBase {
 		private void pop(ValType t) throws ValidationException {
 			var t2 = pop();
 			if(t2 != null && !subtyping.isSubtypeVal(t2, t)) {
-				throw new ValidationException("type mismatch", "type mismatch expected: " + t + ", actual: " + t2);
+				throw new ValidationException("type mismatch expected: " + t + ", actual: " + t2);
 			}
 		}
 
@@ -1647,7 +1647,7 @@ class InstrValidator extends ValidatorBase {
 
 					context.requireLabel(labelIdx);
 					var label = context.getLabel(labelIdx);
-					require(subtyping.isSubtypeResult(t.args(), label), "type mismatch", "catch clause must match target block type " + t.args() + ", " + label);
+					require(subtyping.isSubtypeResult(t.args(), label), "type mismatch: catch clause must match target block type " + t.args() + ", " + label);
 				}
 
 				case ControlInstr.CatchTagRef(var tagIdx, var labelIdx) -> {
@@ -1665,14 +1665,14 @@ class InstrValidator extends ValidatorBase {
 
 					context.requireLabel(labelIdx);
 					var label = context.getLabel(labelIdx);
-					require(subtyping.isSubtypeResult(new ResultType(resType), label), "type mismatch", "catch_ref clause must match target block type" + resType + ", " + label);
+					require(subtyping.isSubtypeResult(new ResultType(resType), label), "type mismatch: catch_ref clause must match target block type" + resType + ", " + label);
 				}
 
 				case ControlInstr.CatchAll(var labelIdx) -> {
 					context.requireLabel(labelIdx);
 					var label = context.getLabel(labelIdx);
 
-					require(label.types().isEmpty(), "type mismatch", "catch_all label type must be empty");
+					require(label.types().isEmpty(), "type mismatch: catch_all label type must be empty");
 				}
 
 				case ControlInstr.CatchAllRef(var labelIdx) -> {
@@ -1682,7 +1682,7 @@ class InstrValidator extends ValidatorBase {
 					var resType = new ArrayList<ValType>();
 					resType.add(new RefType(false, HeapType.AbstractHeapType.EXN));
 
-					require(subtyping.isSubtypeResult(new ResultType(resType), label), "type mismatch", "catch_all_ref clause must be ref exn");
+					require(subtyping.isSubtypeResult(new ResultType(resType), label), "type mismatch: catch_all_ref clause must be ref exn");
 				}
 			}
 

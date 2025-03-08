@@ -2,7 +2,14 @@ package dev.argon.jawawasm.engine;
 
 import dev.argon.jawawasm.format.types.HeapType;
 
+/**
+ * Represents a 31-bit integer.
+ */
 public final class I31 implements WasmEq {
+	/**
+	 * Create a 31-bit value.
+	 * @param value The value. The top bit is discarded.
+	 */
 	public I31(int value) {
 		this.value = (value << 1) >> 1;
 	}
@@ -10,10 +17,18 @@ public final class I31 implements WasmEq {
 
 	private final int value;
 
+	/**
+	 * Gets the value interpreted as a signed integer.
+	 * @return The value.
+	 */
 	public int signedValue() {
 		return value;
 	}
 
+	/**
+	 * Gets the value interpreted as an unsigned integer.
+	 * @return The value.
+	 */
 	public int unsignedValue() {
 		return value & 0x7FFFFFFF;
 	}

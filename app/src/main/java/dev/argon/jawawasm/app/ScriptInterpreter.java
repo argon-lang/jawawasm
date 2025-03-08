@@ -237,11 +237,11 @@ public final class ScriptInterpreter implements AutoCloseable {
 					ModuleValidator.validateModule(convertedModule);
 				}
 				catch(ValidationException ex) {
-					if(ex.getTestMessage() != null && ex.getTestMessage().startsWith(message)) {
+					if(ex.getMessage() != null && ex.getMessage().startsWith(message)) {
 						foundError = true;
 					}
 					else {
-						throw new ScriptAssertionException("Found invalid module, but got unexpected message.\nExpected: " + message + "\nActual: " + ex.getTestMessage(), ex);
+						throw new ScriptAssertionException("Found invalid module, but got unexpected message.\nExpected: " + message + "\nActual: " + ex.getMessage(), ex);
 					}
 				}
 
@@ -437,6 +437,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 
 	/**
 	 * Execute a script.
+	 * @param scriptName The name of the script.
 	 * @param commands The commands in the script.
 	 * @throws ExecutionException if an error occurred within WebAssembly or an assertion failed.
 	 * @throws ScriptExecutionException if an error occurred while executing the script.

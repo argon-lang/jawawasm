@@ -9,6 +9,7 @@ import dev.argon.jawawasm.format.modules.MemIdx;
 public sealed interface MemoryInstr extends Instr {
 	/**
 	 * WebAssembly memory argument
+	 * @param memIdx The memory index.
 	 * @param offset Fixed address offset to the instruction operand.
 	 * @param align Alignment of the memory.
 	 */
@@ -253,26 +254,32 @@ public sealed interface MemoryInstr extends Instr {
 
 	/**
 	 * WebAssembly `memory.size` instruction
+	 * @param memIdx The memory index.
 	 */
 	public static record Memory_Size(MemIdx memIdx) implements MemoryInstr {}
 
 	/**
 	 * WebAssembly `memory.grow` instruction
+	 * @param memIdx The memory index.
 	 */
 	public static record Memory_Grow(MemIdx memIdx) implements MemoryInstr {}
 
 	/**
 	 * WebAssembly `memory.fill` instruction
+	 * @param memIdx The memory index.
 	 */
 	public static record Memory_Fill(MemIdx memIdx) implements MemoryInstr {}
 
 	/**
 	 * WebAssembly `memory.copy` instruction
+	 * @param dstMemIdx The destination memory index.
+	 * @param srcMemIdx The source memory index.
 	 */
 	public static record Memory_Copy(MemIdx dstMemIdx, MemIdx srcMemIdx) implements MemoryInstr {}
 
 	/**
 	 * WebAssembly `memory.init` instruction
+	 * @param memIdx The memory index.
 	 * @param data The data index.
 	 */
 	public static record Memory_Init(MemIdx memIdx, DataIdx data) implements MemoryInstr {}

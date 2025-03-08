@@ -13,6 +13,7 @@ import java.util.List;
  * @param funcs The func section.
  * @param tables The table section.
  * @param mems The memory section.
+ * @param tags The tags section.
  * @param globals The global section.
  * @param elems The elems section.
  * @param datas The data section.

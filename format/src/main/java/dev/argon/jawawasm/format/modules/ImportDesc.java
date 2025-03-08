@@ -33,5 +33,9 @@ public sealed interface ImportDesc {
 	 */
 	public static record Global(GlobalType type) implements ImportDesc {}
 
+	/**
+	 * A tag import.
+	 * @param type The tag type.
+	 */
 	public static record Tag(TagType type) implements ImportDesc {}
 }

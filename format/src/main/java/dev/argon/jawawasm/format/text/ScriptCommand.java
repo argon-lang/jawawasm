@@ -67,6 +67,10 @@ public sealed interface ScriptCommand {
 		 */
 		public static record AssertReturn(Action action, List<? extends SExpr> results) implements Assertion {}
 
+		/**
+		 * Asserts that an exception is thrown.
+		 * @param action The action.
+		 */
 		public static record AssertException(Action action) implements Assertion {}
 
 		/**

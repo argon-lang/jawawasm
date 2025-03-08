@@ -229,7 +229,7 @@ public class ModuleValidator extends ValidatorBase {
 				var tableElementType = table.elementType();
 				new TypeValidator(context).validateReferenceType(tableElementType);
 
-				require(new Subtyping(context).isSubtypeRef(elem.type(), tableElementType), "type mismatch", "type mismatch " + elem.type() + ", " + tableElementType);
+				require(new Subtyping(context).isSubtypeRef(elem.type(), tableElementType), "type mismatch " + elem.type() + ", " + tableElementType);
 				iv.requireConstantExpr(active.offset());
 				iv.validateExpr(active.offset(), new ResultType(List.of(table.addrType().asNumType())));
 			}

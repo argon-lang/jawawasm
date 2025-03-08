@@ -8,6 +8,10 @@ import dev.argon.jawawasm.format.types.MemType;
  * A non-resizable memory.
  */
 public interface WasmMemoryNoResize {
+	/**
+	 * Gets the address type.
+	 * @return The address type.
+	 */
 	MemType.AddrType addressType();
 
 	/**

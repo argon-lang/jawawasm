@@ -16,6 +16,7 @@ public final class WasmTable implements WasmExport {
 	/**
 	 * Create a table.
 	 * @param type The table type.
+	 * @param initialValue The initial value for elements of the table.
 	 */
 	public WasmTable(TableType type, Object initialValue) {
 		this.tableType = type;

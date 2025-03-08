@@ -43,9 +43,12 @@ public non-sealed interface WasmFunction extends WasmExport, WasmObject {
 		return FunctionResult.resolve(invoke(args));
 	}
 
-	public static abstract class SimpleFunction implements WasmFunction {
+	/**
+	 * A simple function that constructs its deftype from the function type.
+	 */
+	public static interface SimpleFunction extends WasmFunction {
 		@Override
-		public DefType type() {
+		default DefType type() {
 			return new DefType(
 				new RecursiveType(List.of(
 					new SubType(

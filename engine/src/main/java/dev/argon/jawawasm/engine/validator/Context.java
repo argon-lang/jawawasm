@@ -44,7 +44,7 @@ class Context {
 
 	public void requireType(TypeIdx idx) throws ValidationException {
 		if(!(idx.index() >= 0 && idx.index() < types.size())) {
-			throw new ValidationException("unknown type", "unknown type " + idx.index());
+			throw new ValidationException("unknown type " + idx.index());
 		}
 	}
 	public void requireFuncType(TypeIdx idx) throws ValidationException {

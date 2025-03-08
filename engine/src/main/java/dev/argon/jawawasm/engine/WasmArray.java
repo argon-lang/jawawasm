@@ -2,10 +2,30 @@ package dev.argon.jawawasm.engine;
 
 import dev.argon.jawawasm.format.types.*;
 
+/**
+ * A WebAssembly array.
+ */
 public sealed abstract class WasmArray implements WasmEq {
+	private WasmArray() {}
 
+	/**
+	 * Get the length of the array.
+	 * @return The length of the array.
+	 */
 	public abstract int length();
+
+	/**
+	 * Gets the element at index.
+	 * @param index The index.
+	 * @return The element at the index.
+	 */
 	public abstract Object get(int index);
+
+	/**
+	 * Sets the element at index.
+	 * @param index The index.
+	 * @param value The new value.
+	 */
 	public abstract void set(int index, Object value);
 
 	static WasmArray create(DefType type, int length) {
@@ -25,6 +45,9 @@ public sealed abstract class WasmArray implements WasmEq {
 		};
 	}
 
+	/**
+	 * A WebAssembly array backed by objects.
+	 */
 	public static final class OfObject extends WasmArray {
 		private OfObject(DefType type, Object[] values) {
 			this.type = type;
@@ -39,19 +62,25 @@ public sealed abstract class WasmArray implements WasmEq {
 			return type;
 		}
 
+		@Override
 		public int length() {
 			return values.length;
 		}
 
+		@Override
 		public Object get(int index) {
 			return values[index];
 		}
 
+		@Override
 		public void set(int index, Object value) {
 			values[index] = value;
 		}
 	}
 
+	/**
+	 * A WebAssembly array backed by bytes.
+	 */
 	public static final class OfByte extends WasmArray {
 		OfByte(DefType type, byte[] values) {
 			this.type = type;
@@ -66,27 +95,43 @@ public sealed abstract class WasmArray implements WasmEq {
 			return type;
 		}
 
+		@Override
 		public int length() {
 			return values.length;
 		}
 
+		@Override
 		public Object get(int index) {
 			return values[index];
 		}
 
+		@Override
 		public void set(int index, Object value) {
 			values[index] = (byte)value;
 		}
 
+		/**
+		 * Gets a byte.
+		 * @param index The index.
+		 * @return The byte at the index.
+		 */
 		public byte getByte(int index) {
 			return values[index];
 		}
 
+		/**
+		 * Sets a byte.
+		 * @param index The index.
+		 * @param value The new byte value.
+		 */
 		public void setByte(int index, byte value) {
 			values[index] = value;
 		}
 	}
 
+	/**
+	 * A WebAssembly array backed by shorts.
+	 */
 	public static final class OfShort extends WasmArray {
 		private OfShort(DefType type, short[] values) {
 			this.type = type;
@@ -101,27 +146,43 @@ public sealed abstract class WasmArray implements WasmEq {
 			return type;
 		}
 
+		@Override
 		public int length() {
 			return values.length;
 		}
 
+		@Override
 		public Object get(int index) {
 			return values[index];
 		}
 
+		@Override
 		public void set(int index, Object value) {
 			values[index] = (short)value;
 		}
 
+		/**
+		 * Gets a short.
+		 * @param index The index.
+		 * @return The short at the index.
+		 */
 		public short getShort(int index) {
 			return values[index];
 		}
 
+		/**
+		 * Sets a short.
+		 * @param index The index.
+		 * @param value The new short value.
+		 */
 		public void setShort(int index, short value) {
 			values[index] = value;
 		}
 	}
 
+	/**
+	 * A WebAssembly array backed by ints.
+	 */
 	public static final class OfInt extends WasmArray {
 		private OfInt(DefType type, int[] values) {
 			this.type = type;
@@ -136,27 +197,43 @@ public sealed abstract class WasmArray implements WasmEq {
 			return type;
 		}
 
+		@Override
 		public int length() {
 			return values.length;
 		}
 
+		@Override
 		public Object get(int index) {
 			return values[index];
 		}
 
+		@Override
 		public void set(int index, Object value) {
-			values[index] = (short)value;
+			values[index] = (int)value;
 		}
 
+		/**
+		 * Gets an int.
+		 * @param index The index.
+		 * @return The int at the index.
+		 */
 		public int getInt(int index) {
 			return values[index];
 		}
 
+		/**
+		 * Sets an int.
+		 * @param index The index.
+		 * @param value The new int value.
+		 */
 		public void setInt(int index, int value) {
 			values[index] = value;
 		}
 	}
 
+	/**
+	 * A WebAssembly array backed by longs.
+	 */
 	public static final class OfLong extends WasmArray {
 		OfLong(DefType type, long[] values) {
 			this.type = type;
@@ -171,27 +248,43 @@ public sealed abstract class WasmArray implements WasmEq {
 			return type;
 		}
 
+		@Override
 		public int length() {
 			return values.length;
 		}
 
+		@Override
 		public Object get(int index) {
 			return values[index];
 		}
 
+		@Override
 		public void set(int index, Object value) {
-			values[index] = (long) value;
+			values[index] = (long)value;
 		}
 
+		/**
+		 * Gets a long.
+		 * @param index The index.
+		 * @return The long at the index.
+		 */
 		public long getLong(int index) {
 			return values[index];
 		}
 
+		/**
+		 * Sets a long.
+		 * @param index The index.
+		 * @param value The new long value.
+		 */
 		public void setLong(int index, long value) {
 			values[index] = value;
 		}
 	}
 
+	/**
+	 * A WebAssembly array backed by floats.
+	 */
 	public static final class OfFloat extends WasmArray {
 		OfFloat(DefType type, float[] values) {
 			this.type = type;
@@ -206,27 +299,43 @@ public sealed abstract class WasmArray implements WasmEq {
 			return type;
 		}
 
+		@Override
 		public int length() {
 			return values.length;
 		}
 
+		@Override
 		public Object get(int index) {
 			return values[index];
 		}
 
+		@Override
 		public void set(int index, Object value) {
-			values[index] = (float) value;
+			values[index] = (float)value;
 		}
 
+		/**
+		 * Gets a float.
+		 * @param index The index.
+		 * @return The float at the index.
+		 */
 		public float getFloat(int index) {
 			return values[index];
 		}
 
+		/**
+		 * Sets a float.
+		 * @param index The index.
+		 * @param value The new float value.
+		 */
 		public void setFloat(int index, float value) {
 			values[index] = value;
 		}
 	}
 
+	/**
+	 * A WebAssembly array backed by doubles.
+	 */
 	public static final class OfDouble extends WasmArray {
 		OfDouble(DefType type, double[] values) {
 			this.type = type;
@@ -241,22 +350,35 @@ public sealed abstract class WasmArray implements WasmEq {
 			return type;
 		}
 
+		@Override
 		public int length() {
 			return values.length;
 		}
 
+		@Override
 		public Object get(int index) {
 			return values[index];
 		}
 
+		@Override
 		public void set(int index, Object value) {
-			values[index] = (double) value;
+			values[index] = (double)value;
 		}
 
+		/**
+		 * Gets a double.
+		 * @param index The index.
+		 * @return The double at the index.
+		 */
 		public double getDouble(int index) {
 			return values[index];
 		}
 
+		/**
+		 * Sets a double.
+		 * @param index The index.
+		 * @param value The new double value.
+		 */
 		public void setDouble(int index, double value) {
 			values[index] = value;
 		}

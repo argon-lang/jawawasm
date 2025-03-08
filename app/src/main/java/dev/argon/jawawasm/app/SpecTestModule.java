@@ -38,7 +38,7 @@ class SpecTestModule implements WasmModule {
 		return exports.get(name);
 	}
 
-	private final class Print extends WasmFunction.SimpleFunction {
+	private final class Print implements WasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
 			return new FuncType(new ResultType(List.of()), new ResultType(List.of()));
@@ -51,7 +51,7 @@ class SpecTestModule implements WasmModule {
 		}
 	}
 
-	private final class PrintI32 extends WasmFunction.SimpleFunction {
+	private final class PrintI32 implements WasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
 			return new FuncType(new ResultType(List.of(NumType.I32)), new ResultType(List.of()));
@@ -65,7 +65,7 @@ class SpecTestModule implements WasmModule {
 		}
 	}
 
-	private final class PrintI64 extends WasmFunction.SimpleFunction {
+	private final class PrintI64 implements WasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
 			return new FuncType(new ResultType(List.of(NumType.I64)), new ResultType(List.of()));
@@ -79,7 +79,7 @@ class SpecTestModule implements WasmModule {
 		}
 	}
 
-	private final class PrintF32 extends WasmFunction.SimpleFunction {
+	private final class PrintF32 implements WasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
 			return new FuncType(new ResultType(List.of(NumType.F32)), new ResultType(List.of()));
@@ -93,7 +93,7 @@ class SpecTestModule implements WasmModule {
 		}
 	}
 
-	private final class PrintF64 extends WasmFunction.SimpleFunction {
+	private final class PrintF64 implements WasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
 			return new FuncType(new ResultType(List.of(NumType.F64)), new ResultType(List.of()));
@@ -107,7 +107,7 @@ class SpecTestModule implements WasmModule {
 		}
 	}
 
-	private final class PrintI32F32 extends WasmFunction.SimpleFunction {
+	private final class PrintI32F32 implements WasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
 			return new FuncType(new ResultType(List.of(NumType.I32, NumType.F32)), new ResultType(List.of()));
@@ -123,7 +123,7 @@ class SpecTestModule implements WasmModule {
 		}
 	}
 
-	private final class PrintF64F64 extends WasmFunction.SimpleFunction {
+	private final class PrintF64F64 implements WasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
 			return new FuncType(new ResultType(List.of(NumType.F64, NumType.F64)), new ResultType(List.of()));

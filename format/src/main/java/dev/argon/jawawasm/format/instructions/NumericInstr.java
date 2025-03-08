@@ -11,29 +11,12 @@ public sealed interface NumericInstr extends Instr {
 		/**
 		 * 32-bit
 		 */
-		_32 {
-			@Override
-			public int numBytes() {
-				return 4;
-			}
-		},
+		_32,
 
 		/**
 		 * 64-bit
 		 */
-		_64 {
-			@Override
-			public int numBytes() {
-				return 8;
-			}
-		},
-		;
-
-		public abstract int numBytes();
-
-		public int numBits() {
-			return numBytes() * 8;
-		}
+		_64,
 	}
 
 

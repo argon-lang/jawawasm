@@ -31,6 +31,20 @@ java {
     withJavadocJar()
 }
 
+tasks.javadoc {
+    val sourceSetDirectories = sourceSets
+        .main
+        .get()
+        .java
+        .sourceDirectories
+        .joinToString(":")
+
+    val coreOptions = options as CoreJavadocOptions
+    coreOptions.addStringOption("-source-path", sourceSetDirectories)
+
+    exclude("dev/argon/jawawasm/engine/internal/**")
+}
+
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
