@@ -14,7 +14,6 @@ repositories {
 }
 
 dependencies {
-    api(project(":runtime"))
     compileOnly("org.jspecify:jspecify:1.0.0")
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.1")
 }
@@ -31,12 +30,12 @@ java {
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
-            artifactId = "wasm-format"
+            artifactId = "jawawasm-runtime"
             from(components["java"])
 
             pom {
-                name = "JawaWasm Format"
-                description = "WebAssembly format reader in pure Java"
+                name = "JawaWasm Runtime"
+                description = "Types used at runtime for WebAssembly by JawaWasm"
                 url = "https://github.com/argon-lang/jawawasm"
                 licenses {
                     license {

@@ -119,11 +119,11 @@ class InstrValidator extends ValidatorBase {
 		}
 
 		private void pushAddress(MemIdx memIdx) throws ValidationException {
-			push(context.getMem(memIdx).addrType().asNumType());
+			push(AddressTypeUtils.asNumType(context.getMem(memIdx).addrType()));
 		}
 
 		private void pushIndex(TableIdx tableIdx) throws ValidationException {
-			push(context.getTable(tableIdx).addrType().asNumType());
+			push(AddressTypeUtils.asNumType(context.getTable(tableIdx).addrType()));
 		}
 
 		private ValType pop() throws ValidationException {
@@ -153,7 +153,7 @@ class InstrValidator extends ValidatorBase {
 		}
 
 		private void popAddress(MemIdx memIdx) throws ValidationException {
-			pop(context.getMem(memIdx).addrType().asNumType());
+			pop(AddressTypeUtils.asNumType(context.getMem(memIdx).addrType()));
 		}
 
 		private void popAddress(MemIdx memIdx1, MemIdx memIdx2) throws ValidationException {
@@ -164,7 +164,7 @@ class InstrValidator extends ValidatorBase {
 		}
 
 		private void popIndex(TableIdx tableIdx) throws ValidationException {
-			pop(context.getTable(tableIdx).addrType().asNumType());
+			pop(AddressTypeUtils.asNumType(context.getTable(tableIdx).addrType()));
 		}
 
 		private void popIndex(TableIdx tableIdx1, TableIdx tableIdx2) throws ValidationException {

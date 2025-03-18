@@ -1,6 +1,6 @@
 package dev.argon.jawawasm.format.instructions;
 
-import dev.argon.jawawasm.format.data.V128;
+import dev.argon.jawawasm.runtime.V128;
 
 /**
  * Vector instructions

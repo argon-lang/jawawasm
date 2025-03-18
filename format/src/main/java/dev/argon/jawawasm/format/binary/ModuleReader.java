@@ -1,6 +1,8 @@
 package dev.argon.jawawasm.format.binary;
 
-import dev.argon.jawawasm.format.data.V128;
+import dev.argon.jawawasm.runtime.AddrType;
+import dev.argon.jawawasm.format.types.Limits;
+import dev.argon.jawawasm.runtime.V128;
 import dev.argon.jawawasm.format.instructions.*;
 import dev.argon.jawawasm.format.modules.*;
 import dev.argon.jawawasm.format.modules.Module;
@@ -541,19 +543,19 @@ public class ModuleReader {
 		return switch(b) {
 			case 0x00 -> {
 				var limits = readLimits(false);
-				yield new MemType(MemType.AddrType.I32, limits);
+				yield new MemType(AddrType.I32, limits);
 			}
 			case 0x01 -> {
 				var limits = readLimits(true);
-				yield new MemType(MemType.AddrType.I32, limits);
+				yield new MemType(AddrType.I32, limits);
 			}
 			case 0x04 -> {
 				var limits = readLimits(false);
-				yield new MemType(MemType.AddrType.I64, limits);
+				yield new MemType(AddrType.I64, limits);
 			}
 			case 0x05 -> {
 				var limits = readLimits(true);
-				yield new MemType(MemType.AddrType.I64, limits);
+				yield new MemType(AddrType.I64, limits);
 			}
 			default -> throw new ModuleFormatException("malformed limits flags");
 		};

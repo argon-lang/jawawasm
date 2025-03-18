@@ -231,7 +231,7 @@ public class ModuleValidator extends ValidatorBase {
 
 				require(new Subtyping(context).isSubtypeRef(elem.type(), tableElementType), "type mismatch " + elem.type() + ", " + tableElementType);
 				iv.requireConstantExpr(active.offset());
-				iv.validateExpr(active.offset(), new ResultType(List.of(table.addrType().asNumType())));
+				iv.validateExpr(active.offset(), new ResultType(List.of(AddressTypeUtils.asNumType(table.addrType()))));
 			}
 			case ElemMode.Declarative(), ElemMode.Passive() -> {}
 		}
@@ -244,7 +244,7 @@ public class ModuleValidator extends ValidatorBase {
 				context.requireMem(active.memory());
 				var memory = context.getMem(active.memory());
 				iv.requireConstantExpr(active.offset());
-				iv.validateExpr(active.offset(), new ResultType(List.of(memory.addrType().asNumType())));
+				iv.validateExpr(active.offset(), new ResultType(List.of(AddressTypeUtils.asNumType(memory.addrType()))));
 			}
 			case DataMode.Passive() -> {}
 		}

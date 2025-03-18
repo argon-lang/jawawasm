@@ -1,7 +1,11 @@
 package dev.argon.jawawasm.app;
 
-import dev.argon.jawawasm.engine.*;
+import dev.argon.jawawasm.engine.interpreter.*;
 import dev.argon.jawawasm.format.types.*;
+import dev.argon.jawawasm.runtime.AddrType;
+import dev.argon.jawawasm.format.types.Limits;
+import dev.argon.jawawasm.runtime.MemoryAllocator;
+import dev.argon.jawawasm.runtime.WasmMemory;
 import org.jspecify.annotations.Nullable;
 
 import java.io.PrintWriter;
@@ -11,15 +15,15 @@ import java.util.Map;
 
 class SpecTestModule implements WasmModule {
 
-	public SpecTestModule(Engine engine, PrintWriter output) {
+	public SpecTestModule(MemoryAllocator allocator, PrintWriter output) {
 		this.output = output;
 		exports.put("global_i32", new WasmGlobal(new GlobalType(Mut.Const, NumType.I32), 666));
 		exports.put("global_i64", new WasmGlobal(new GlobalType(Mut.Const, NumType.I64), 666L));
 		exports.put("global_f32", new WasmGlobal(new GlobalType(Mut.Const, NumType.F32), 666.6f));
 		exports.put("global_f64", new WasmGlobal(new GlobalType(Mut.Const, NumType.F64), 666.6));
-		exports.put("memory", WasmMemory.create(engine, new MemType(MemType.AddrType.I32, new Limits(1, 2L))));
-		exports.put("table", new WasmTable(new TableType(MemType.AddrType.I32, new Limits(10, 20L), new RefType(true, HeapType.AbstractHeapType.FUNC)), null));
-		exports.put("table64", new WasmTable(new TableType(MemType.AddrType.I64, new Limits(10, 20L), new RefType(true, HeapType.AbstractHeapType.FUNC)), null));
+		exports.put("memory", new WasmMemoryExport(WasmMemory.create(allocator, AddrType.I32, 1, 2L)));
+		exports.put("table", new WasmTable(new TableType(AddrType.I32, new Limits(10, 20L), new RefType(true, HeapType.AbstractHeapType.FUNC)), null));
+		exports.put("table64", new WasmTable(new TableType(AddrType.I64, new Limits(10, 20L), new RefType(true, HeapType.AbstractHeapType.FUNC)), null));
 		exports.put("print", new Print());
 		exports.put("print_i32", new PrintI32());
 		exports.put("print_i64", new PrintI64());
@@ -38,104 +42,104 @@ class SpecTestModule implements WasmModule {
 		return exports.get(name);
 	}
 
-	private final class Print implements WasmFunction.SimpleFunction {
+	private final class Print implements DynamicWasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
 			return new FuncType(new ResultType(List.of()), new ResultType(List.of()));
 		}
 
 		@Override
-		public FunctionResult invoke(Object[] args) throws Throwable {
+		public DynamicFunctionResult invoke(Object[] args) throws Throwable {
 			output.println();
-			return new FunctionResult.Values(new Object[] {});
+			return new DynamicFunctionResult.Values(new Object[] {});
 		}
 	}
 
-	private final class PrintI32 implements WasmFunction.SimpleFunction {
+	private final class PrintI32 implements DynamicWasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
 			return new FuncType(new ResultType(List.of(NumType.I32)), new ResultType(List.of()));
 		}
 
 		@Override
-		public FunctionResult invoke(Object[] args) throws Throwable {
+		public DynamicFunctionResult invoke(Object[] args) throws Throwable {
 			int n = (int)args[0];
 			output.println(n);
-			return new FunctionResult.Values(new Object[] {});
+			return new DynamicFunctionResult.Values(new Object[] {});
 		}
 	}
 
-	private final class PrintI64 implements WasmFunction.SimpleFunction {
+	private final class PrintI64 implements DynamicWasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
 			return new FuncType(new ResultType(List.of(NumType.I64)), new ResultType(List.of()));
 		}
 
 		@Override
-		public FunctionResult invoke(Object[] args) throws Throwable {
+		public DynamicFunctionResult invoke(Object[] args) throws Throwable {
 			long n = (long)args[0];
 			output.println(n);
-			return new FunctionResult.Values(new Object[] {});
+			return new DynamicFunctionResult.Values(new Object[] {});
 		}
 	}
 
-	private final class PrintF32 implements WasmFunction.SimpleFunction {
+	private final class PrintF32 implements DynamicWasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
 			return new FuncType(new ResultType(List.of(NumType.F32)), new ResultType(List.of()));
 		}
 
 		@Override
-		public FunctionResult invoke(Object[] args) throws Throwable {
+		public DynamicFunctionResult invoke(Object[] args) throws Throwable {
 			float n = (float)args[0];
 			output.println(n);
-			return new FunctionResult.Values(new Object[] {});
+			return new DynamicFunctionResult.Values(new Object[] {});
 		}
 	}
 
-	private final class PrintF64 implements WasmFunction.SimpleFunction {
+	private final class PrintF64 implements DynamicWasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
 			return new FuncType(new ResultType(List.of(NumType.F64)), new ResultType(List.of()));
 		}
 
 		@Override
-		public FunctionResult invoke(Object[] args) throws Throwable {
+		public DynamicFunctionResult invoke(Object[] args) throws Throwable {
 			double n = (double)args[0];
 			output.println(n);
-			return new FunctionResult.Values(new Object[] {});
+			return new DynamicFunctionResult.Values(new Object[] {});
 		}
 	}
 
-	private final class PrintI32F32 implements WasmFunction.SimpleFunction {
+	private final class PrintI32F32 implements DynamicWasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
 			return new FuncType(new ResultType(List.of(NumType.I32, NumType.F32)), new ResultType(List.of()));
 		}
 
 		@Override
-		public FunctionResult invoke(Object[] args) throws Throwable {
+		public DynamicFunctionResult invoke(Object[] args) throws Throwable {
 			int n = (int)args[0];
 			float m = (float)args[1];
 			output.println(n);
 			output.println(m);
-			return new FunctionResult.Values(new Object[] {});
+			return new DynamicFunctionResult.Values(new Object[] {});
 		}
 	}
 
-	private final class PrintF64F64 implements WasmFunction.SimpleFunction {
+	private final class PrintF64F64 implements DynamicWasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
 			return new FuncType(new ResultType(List.of(NumType.F64, NumType.F64)), new ResultType(List.of()));
 		}
 
 		@Override
-		public FunctionResult invoke(Object[] args) throws Throwable {
+		public DynamicFunctionResult invoke(Object[] args) throws Throwable {
 			double n = (double)args[0];
 			double m = (double)args[1];
 			output.println(n);
 			output.println(m);
-			return new FunctionResult.Values(new Object[] {});
+			return new DynamicFunctionResult.Values(new Object[] {});
 		}
 	}
 }

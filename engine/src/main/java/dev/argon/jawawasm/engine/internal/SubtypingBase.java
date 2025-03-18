@@ -2,6 +2,7 @@ package dev.argon.jawawasm.engine.internal;
 
 import dev.argon.jawawasm.format.modules.TypeIdx;
 import dev.argon.jawawasm.format.types.*;
+import dev.argon.jawawasm.format.types.Limits;
 
 public abstract class SubtypingBase {
 

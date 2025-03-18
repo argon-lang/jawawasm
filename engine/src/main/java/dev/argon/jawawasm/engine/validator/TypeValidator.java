@@ -4,6 +4,7 @@ import dev.argon.jawawasm.engine.internal.TypeUnroll;
 import dev.argon.jawawasm.format.instructions.ControlInstr;
 import dev.argon.jawawasm.format.modules.TypeIdx;
 import dev.argon.jawawasm.format.types.*;
+import dev.argon.jawawasm.format.types.Limits;
 
 final class TypeValidator extends ValidatorBase {
 

@@ -8,4 +8,4 @@
  */
 
 rootProject.name = "jawawasm"
-include("app", "format", "engine")
+include("app", "format", "runtime", "engine")

@@ -1,11 +1,11 @@
 package dev.argon.jawawasm.app;
 
-import dev.argon.jawawasm.engine.*;
+import dev.argon.jawawasm.engine.interpreter.*;
 import dev.argon.jawawasm.engine.validator.ModuleValidator;
 import dev.argon.jawawasm.engine.validator.ValidationException;
 import dev.argon.jawawasm.format.ModuleFormatException;
 import dev.argon.jawawasm.format.binary.ModuleReader;
-import dev.argon.jawawasm.format.data.V128;
+import dev.argon.jawawasm.runtime.*;
 import dev.argon.jawawasm.format.modules.Module;
 import dev.argon.jawawasm.format.text.SExpr;
 import dev.argon.jawawasm.format.text.ScriptCommand;
@@ -17,6 +17,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.foreign.Arena;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -36,12 +37,17 @@ public final class ScriptInterpreter implements AutoCloseable {
 	 * @param output Writer to receive output.
 	 */
 	public ScriptInterpreter(Path wasmExecutable, PrintWriter output) {
+		arena = Arena.ofShared();
+		var allocator = new ArenaMemoryAllocator(arena);
+		engine = new Engine(allocator);
+
 		this.wasmExecutable = wasmExecutable;
-		engine.setMaxMemory(0x10000);
-		registeredModules.put("spectest", new SpecTestModule(engine, output));
+		allocator.setMaxMemory(0x10000);
+		registeredModules.put("spectest", new SpecTestModule(allocator, output));
 	}
 
-	private final Engine engine = new Engine();
+	private final Arena arena;
+	private final Engine engine;
 	private final ModuleResolver resolver = new ScriptResolver();
 	private final Path wasmExecutable;
 
@@ -154,7 +160,7 @@ public final class ScriptInterpreter implements AutoCloseable {
 					actual = runAction(action);
 				}
 				catch(ExecutionException ex) {
-					if(ex.getCause() instanceof WebAssemblyException) {
+					if(ex.getCause() instanceof DynamicWebAssemblyException) {
 						return;
 					}
 
@@ -335,16 +341,16 @@ public final class ScriptInterpreter implements AutoCloseable {
 			return true;
 		}
 		else if(expected instanceof AnyEqRef) {
-			return actual instanceof WasmEq;
+			return actual instanceof DynamicWasmEq;
 		}
 		else if(expected instanceof AnyFuncRef) {
-			return actual instanceof WasmFunction;
+			return actual instanceof DynamicWasmFunction;
 		}
 		else if(expected instanceof AnyStructRef) {
-			return actual instanceof WasmStruct;
+			return actual instanceof DynamicWasmStruct;
 		}
 		else if(expected instanceof AnyArrayRef) {
-			return actual instanceof WasmArray;
+			return actual instanceof DynamicWasmArray;
 		}
 		else if(expected instanceof AnyI31) {
 			return actual instanceof I31;
@@ -464,8 +470,8 @@ public final class ScriptInterpreter implements AutoCloseable {
 		return switch(action) {
 			case ScriptCommand.Action.Invoke(var name, var exportName, var exprs) -> {
 				var module = getModuleByName(name);
-				var export = (WasmFunction)module.getExport(exportName);
-				yield FunctionResult.resolveWith(() -> export.invoke(getConstantValues(exprs)));
+				var export = (DynamicWasmFunction)module.getExport(exportName);
+				yield DynamicFunctionResult.resolveWith(() -> export.invoke(getConstantValues(exprs)));
 			}
 
 			case ScriptCommand.Action.Get(var name, var exportName) -> {
@@ -642,6 +648,6 @@ public final class ScriptInterpreter implements AutoCloseable {
 
 	@Override
 	public void close() {
-		engine.close();
+		arena.close();
 	}
 }
