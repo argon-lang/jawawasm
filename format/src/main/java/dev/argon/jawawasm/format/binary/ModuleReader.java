@@ -143,15 +143,6 @@ public class ModuleReader {
 		return readAllNBytes(len);
 	}
 
-	private int readU7() throws IOException, ModuleFormatException {
-		byte b = readByte();
-		if((b & 0x80) == 0x80) {
-			throw new ModuleFormatException("integer representation too long");
-		}
-
-		return b;
-	}
-
 	private int readS7() throws IOException, ModuleFormatException {
 		byte b = readByte();
 		if((b & 0x80) == 0x80) {
@@ -506,7 +497,7 @@ public class ModuleReader {
 		return heapType;
 	}
 
-	private HeapType tryReadAbsHeapTypeRest(int value) {
+	private @Nullable HeapType tryReadAbsHeapTypeRest(int value) {
 		return switch(value) {
 			case -12 -> HeapType.AbstractHeapType.NOEXN;
 			case -13 -> HeapType.AbstractHeapType.NOFUNC;
@@ -602,7 +593,7 @@ public class ModuleReader {
 			return new ControlInstr.BlockType.Empty();
 		}
 		else if(value < 0) {
-			return new ControlInstr.BlockType.OfValType(readValTypeRest((int)value));
+			return new ControlInstr.BlockType.OfValType(readValTypeRest(value));
 		}
 		else {
 			return new ControlInstr.BlockType.OfIndex(new TypeIdx((int)value));

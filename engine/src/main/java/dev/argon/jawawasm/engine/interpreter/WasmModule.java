@@ -1,5 +1,7 @@
 package dev.argon.jawawasm.engine.interpreter;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * A WebAssembly module.
  */
@@ -9,5 +11,5 @@ public interface WasmModule {
 	 * @param name The export name.
 	 * @return The export.
 	 */
-	WasmExport getExport(String name);
+	@Nullable WasmExport getExport(String name);
 }

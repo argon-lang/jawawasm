@@ -2,6 +2,7 @@ package dev.argon.jawawasm.engine.interpreter;
 
 import dev.argon.jawawasm.format.types.GlobalType;
 import dev.argon.jawawasm.format.types.Mut;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A WebAssembly global.
@@ -12,14 +13,14 @@ public final class WasmGlobal implements WasmExport {
 	 * @param type The global type.
 	 * @param value The value.
 	 */
-	public WasmGlobal(GlobalType type, Object value) {
+	public WasmGlobal(GlobalType type, @Nullable Object value) {
 		this.type = type;
 		this.value = value;
 	}
 
 
 	private final GlobalType type;
-	private volatile Object value;
+	private volatile @Nullable Object value;
 
 	/**
 	 * Gets the global type.
@@ -33,7 +34,7 @@ public final class WasmGlobal implements WasmExport {
 	 * Gets the global value.
 	 * @return The global value.
 	 */
-	public Object get() {
+	public @Nullable Object get() {
 		return value;
 	}
 
@@ -41,7 +42,7 @@ public final class WasmGlobal implements WasmExport {
 	 * Sets the global value.
 	 * @param value The global value.
 	 */
-	public void set(Object value) {
+	public void set(@Nullable Object value) {
 		if(type.mutability() == Mut.Const) {
 			throw new IllegalStateException();
 		}

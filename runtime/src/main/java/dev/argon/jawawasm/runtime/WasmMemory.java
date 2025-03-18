@@ -11,7 +11,7 @@ public sealed interface WasmMemory extends WasmMemoryNoResize permits WasmMemory
 	 * Gets the maximum size of the memory in pages.
 	 * @return The maximum size of the memory or null if no maximum.
 	 */
-	Long maxPageSize();
+	@Nullable Long maxPageSize();
 
 	/**
 	 * Grow the memory.

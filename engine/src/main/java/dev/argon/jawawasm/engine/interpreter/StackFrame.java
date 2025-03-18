@@ -8,13 +8,14 @@ import dev.argon.jawawasm.format.modules.Func;
 import dev.argon.jawawasm.format.modules.LabelIdx;
 import dev.argon.jawawasm.format.types.*;
 import dev.argon.jawawasm.runtime.WasmMemory;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.util.*;
 
 class StackFrame {
 
-	public StackFrame(InstantiatedModule module, Func func, Object[] args) {
+	public StackFrame(InstantiatedModule module, Func func, @Nullable Object[] args) {
 		this.module = module;
 		block = func.body().body();
 		topBlockType = module.getFuncType(func.type());
@@ -45,32 +46,58 @@ class StackFrame {
 	private List<? extends Instr> block;
 	private FuncType blockType;
 	private int ip = 0;
-	private final List<Object> locals;
-	private final ArrayList<Object> stack = new ArrayList<>();
+	private final List<@Nullable Object> locals;
+	private final ArrayList<@Nullable Object> stack = new ArrayList<>();
 	
-	private void push(Object value) {
+	private void push(@Nullable Object value) {
 		stack.add(value);
 	}
 	
-	private Object pop() {
+	private @Nullable Object pop() {
 		Object value = stack.getLast();
 		stack.removeLast();
 		return value;
 	}
 
-	private Object peek() {
+	private Object popNonNull() {
+		Object value = pop();
+		Objects.requireNonNull(value);
+		return value;
+	}
+	
+	private int popInt() {
+		return (int)popNonNull();
+	}
+
+	private long popLong() {
+		return (long)popNonNull();
+	}
+
+	private float popFloat() {
+		return (float)popNonNull();
+	}
+
+	private double popDouble() {
+		return (double)popNonNull();
+	}
+
+	private V128 popV128() {
+		return (V128)popNonNull();
+	}
+
+	private @Nullable Object peek() {
 		return stack.getLast();
 	}
 
-	private Object[] getTopValues(int n) {
-		Object[] values = new Object[n];
+	private @Nullable Object[] getTopValues(int n) {
+		@Nullable Object[] values = new Object[n];
 		for(int i = values.length - 1; i >= 0; --i) {
 			values[i] = pop();
 		}
 		return values;
 	}
 
-	private void pushAll(Object[] values) {
+	private void pushAll(@Nullable Object[] values) {
 		for(var value : values) {
 			push(value);
 		}
@@ -102,13 +129,13 @@ class StackFrame {
 				}
 			}
 
-			Object[] values = getTopValues(blockType.results().types().size());
+			@Nullable Object[] values = getTopValues(blockType.results().types().size());
 
 			if(stack.isEmpty()) {
 				return new DynamicFunctionResult.Values(values);
 			}
 
-			var label = (Label)pop();
+			var label = (Label)popNonNull();
 			block = label.block;
 			blockType = label.outerBlockType;
 			ip = label.endIndex;
@@ -138,7 +165,7 @@ class StackFrame {
 			case NumericInstr.Inn_IUnOp innIUnOp -> {
 				switch(innIUnOp.size()) {
 					case _32 -> {
-						int a = (int)pop();
+						int a = popInt();
 
 						int result = switch(innIUnOp.op()) {
 							case CLZ -> Integer.numberOfLeadingZeros(a);
@@ -148,7 +175,7 @@ class StackFrame {
 						push(result);
 					}
 					case _64 -> {
-						long a = (long)pop();
+						long a = popLong();
 
 						long result = switch(innIUnOp.op()) {
 							case CLZ -> Long.numberOfLeadingZeros(a);
@@ -163,7 +190,7 @@ class StackFrame {
 			case NumericInstr.Fnn_FUnOp fnnFUnOp -> {
 				switch(fnnFUnOp.size()) {
 					case _32 -> {
-						float a = (float)pop();
+						float a = popFloat();
 
 						float result = switch(fnnFUnOp.op()) {
 							case ABS -> Math.abs(a);
@@ -177,7 +204,7 @@ class StackFrame {
 						push(result);
 					}
 					case _64 -> {
-						double a = (double)pop();
+						double a = popDouble();
 
 						double result = switch(fnnFUnOp.op()) {
 							case ABS -> Math.abs(a);
@@ -196,8 +223,8 @@ class StackFrame {
 			case NumericInstr.Inn_IBinOp iBinOpInstr -> {
 				switch(iBinOpInstr.size()) {
 					case _32 -> {
-						int b = (int)pop();
-						int a = (int)pop();
+						int b = popInt();
+						int a = popInt();
 
 						int result = switch(iBinOpInstr.op()) {
 							case ADD -> a + b;
@@ -219,8 +246,8 @@ class StackFrame {
 						push(result);
 					}
 					case _64 -> {
-						long b = (long)pop();
-						long a = (long)pop();
+						long b = popLong();
+						long a = popLong();
 
 						long result = switch(iBinOpInstr.op()) {
 							case ADD -> a + b;
@@ -247,8 +274,8 @@ class StackFrame {
 			case NumericInstr.Fnn_FBinOp fnnFBinOp -> {
 				switch(fnnFBinOp.size()) {
 					case _32 -> {
-						float b = (float)pop();
-						float a = (float)pop();
+						float b = popFloat();
+						float a = popFloat();
 
 						float result = switch(fnnFBinOp.op()) {
 							case ADD -> a + b;
@@ -262,8 +289,8 @@ class StackFrame {
 						push(result);
 					}
 					case _64 -> {
-						double b = (double)pop();
-						double a = (double)pop();
+						double b = popDouble();
+						double a = popDouble();
 
 						double result = switch(fnnFBinOp.op()) {
 							case ADD -> a + b;
@@ -282,7 +309,7 @@ class StackFrame {
 			case NumericInstr.Inn_ITestOp innITestOp -> {
 				switch(innITestOp.size()) {
 					case _32 -> {
-						int a = (int)pop();
+						int a = popInt();
 
 						boolean result = switch(innITestOp.op()) {
 							case EQZ -> a == 0;
@@ -290,7 +317,7 @@ class StackFrame {
 						push(result ? 1 : 0);
 					}
 					case _64 -> {
-						long a = (long)pop();
+						long a = popLong();
 
 						boolean result = switch(innITestOp.op()) {
 							case EQZ -> a == 0;
@@ -303,8 +330,8 @@ class StackFrame {
 			case NumericInstr.Inn_IRelOp innIRelOp -> {
 				switch(innIRelOp.size()) {
 					case _32 -> {
-						int b = (int)pop();
-						int a = (int)pop();
+						int b = popInt();
+						int a = popInt();
 
 						boolean result = switch(innIRelOp.op()) {
 							case EQ -> a == b;
@@ -321,8 +348,8 @@ class StackFrame {
 						push(result ? 1 : 0);
 					}
 					case _64 -> {
-						long b = (long)pop();
-						long a = (long)pop();
+						long b = popLong();
+						long a = popLong();
 
 						boolean result = switch(innIRelOp.op()) {
 							case EQ -> a == b;
@@ -344,8 +371,8 @@ class StackFrame {
 			case NumericInstr.Fnn_FRelOp fnnFRelOp -> {
 				switch(fnnFRelOp.size()) {
 					case _32 -> {
-						float b = (float)pop();
-						float a = (float)pop();
+						float b = popFloat();
+						float a = popFloat();
 
 						boolean result = switch(fnnFRelOp.op()) {
 							case EQ -> a == b;
@@ -358,8 +385,8 @@ class StackFrame {
 						push(result ? 1 : 0);
 					}
 					case _64 -> {
-						double b = (double)pop();
-						double a = (double)pop();
+						double b = popDouble();
+						double a = popDouble();
 
 						boolean result = switch(fnnFRelOp.op()) {
 							case EQ -> a == b;
@@ -377,11 +404,11 @@ class StackFrame {
 			case NumericInstr.Inn_Extend8_S innExtend8S -> {
 				switch(innExtend8S.size()) {
 					case _32 -> {
-						int a = (int)pop();
+						int a = popInt();
 						push((int)(byte)a);
 					}
 					case _64 -> {
-						long a = (long)pop();
+						long a = popLong();
 						push((long)(byte)a);
 					}
 				}
@@ -390,41 +417,40 @@ class StackFrame {
 			case NumericInstr.Inn_Extend16_S innExtend16S -> {
 				switch(innExtend16S.size()) {
 					case _32 -> {
-						int a = (int)pop();
-						int result = (short)a;
+						int a = popInt();
 						push((int)(short)a);
 					}
 					case _64 -> {
-						long a = (long)pop();
+						long a = popLong();
 						push((long)(short)a);
 					}
 				}
 			}
 
 			case NumericInstr.I64_Extend32_S() -> {
-				long a = (long)pop();
+				long a = popLong();
 				push((long)(int)a);
 			}
 
 			case NumericInstr.I32_Wrap_I64() -> {
-				long a = (long)pop();
+				long a = popLong();
 				push((int)a);
 			}
 
 			case NumericInstr.I64_Extend_I32_S() -> {
-				int a = (int)pop();
+				int a = popInt();
 				push((long)a);
 			}
 
 			case NumericInstr.I64_Extend_I32_U() -> {
-				int a = (int)pop();
+				int a = popInt();
 				push(Integer.toUnsignedLong(a));
 			}
 
 			case NumericInstr.Inn_Trunc_Fmm_S innTruncFmmS -> {
 				BigDecimal value = switch(innTruncFmmS.floatSize()) {
 					case _32 -> {
-						float a = (float)pop();
+						float a = popFloat();
 						if(!Float.isFinite(a)) {
 							throw new ArithmeticException();
 						}
@@ -432,7 +458,7 @@ class StackFrame {
 						yield new BigDecimal(a);
 					}
 					case _64 -> {
-						double a = (double)pop();
+						double a = popDouble();
 						if(!Double.isFinite(a)) {
 							throw new ArithmeticException();
 						}
@@ -459,7 +485,7 @@ class StackFrame {
 			case NumericInstr.Inn_Trunc_Fmm_U innTruncFmmU -> {
 				BigDecimal value = switch(innTruncFmmU.floatSize()) {
 					case _32 -> {
-						float a = (float)pop();
+						float a = popFloat();
 						if(!Float.isFinite(a) || a <= -1.0f) {
 							throw new ArithmeticException();
 						}
@@ -467,7 +493,7 @@ class StackFrame {
 						yield new BigDecimal(a);
 					}
 					case _64 -> {
-						double a = (double)pop();
+						double a = popDouble();
 						if(!Double.isFinite(a) || a <= -1.0) {
 							throw new ArithmeticException();
 						}
@@ -495,7 +521,7 @@ class StackFrame {
 			case NumericInstr.Inn_Trunc_Sat_Fmm_S innTruncSatFmmS -> {
 				switch(innTruncSatFmmS.floatSize()) {
 					case _32 -> {
-						float a = (float)pop();
+						float a = popFloat();
 
 						switch(innTruncSatFmmS.intSize()) {
 							case _32 -> push((int)a);
@@ -503,7 +529,7 @@ class StackFrame {
 						}
 					}
 					case _64 -> {
-						double a = (double)pop();
+						double a = popDouble();
 
 						switch(innTruncSatFmmS.intSize()) {
 							case _32 -> push((int)a);
@@ -516,7 +542,7 @@ class StackFrame {
 			case NumericInstr.Inn_Trunc_Sat_Fmm_U innTruncSatFmmU -> {
 				switch(innTruncSatFmmU.floatSize()) {
 					case _32 -> {
-						float a = (float)pop();
+						float a = popFloat();
 
 						switch(innTruncSatFmmU.intSize()) {
 							case _32 -> push(Util.truncSatF32U32(a));
@@ -524,7 +550,7 @@ class StackFrame {
 						}
 					}
 					case _64 -> {
-						double a = (double)pop();
+						double a = popDouble();
 
 						switch(innTruncSatFmmU.intSize()) {
 							case _32 -> push(Util.truncSatF64U32(a));
@@ -535,11 +561,11 @@ class StackFrame {
 			}
 
 			case NumericInstr.F32_Demote_F64() -> {
-				double a = (double)pop();
+				double a = popDouble();
 				push((float)a);
 			}
 			case NumericInstr.F64_Promote_F32() -> {
-				float a = (float)pop();
+				float a = popFloat();
 				push((double)a);
 			}
 
@@ -547,15 +573,15 @@ class StackFrame {
 				switch(fnnConvertImmS.floatSize()) {
 					case _32 -> {
 						float result = switch(fnnConvertImmS.intSize()) {
-							case _32 -> (float)(int)pop();
-							case _64 -> (float)(long)pop();
+							case _32 -> (float)popInt();
+							case _64 -> (float)popLong();
 						};
 						push(result);
 					}
 					case _64 -> {
 						double result = switch(fnnConvertImmS.intSize()) {
-							case _32 -> (double)(int)pop();
-							case _64 -> (double)(long)pop();
+							case _32 -> (double)popInt();
+							case _64 -> (double)popLong();
 						};
 						push(result);
 					}
@@ -566,15 +592,15 @@ class StackFrame {
 				switch(fnnConvertImmU.floatSize()) {
 					case _32 -> {
 						float result = switch(fnnConvertImmU.intSize()) {
-							case _32 -> (float)Integer.toUnsignedLong((int)pop());
-							case _64 -> Util.u64ToF32((long)pop());
+							case _32 -> (float)Integer.toUnsignedLong(popInt());
+							case _64 -> Util.u64ToF32(popLong());
 						};
 						push(result);
 					}
 					case _64 -> {
 						double result = switch(fnnConvertImmU.intSize()) {
-							case _32 -> (double)Integer.toUnsignedLong((int)pop());
-							case _64 -> new BigDecimal(Long.toUnsignedString((long)pop())).doubleValue();
+							case _32 -> (double)Integer.toUnsignedLong(popInt());
+							case _64 -> new BigDecimal(Long.toUnsignedString(popLong())).doubleValue();
 						};
 						push(result);
 					}
@@ -584,12 +610,12 @@ class StackFrame {
 			case NumericInstr.Fnn_Reinterpret_Inn fnnReinterpretInn -> {
 				switch(fnnReinterpretInn.size()) {
 					case _32 -> {
-						int a = (int)pop();
+						int a = popInt();
 						float result = Float.intBitsToFloat(a);
 						push(result);
 					}
 					case _64 -> {
-						long a = (long)pop();
+						long a = popLong();
 						double result = Double.longBitsToDouble(a);
 						push(result);
 					}
@@ -599,12 +625,12 @@ class StackFrame {
 			case NumericInstr.Inn_Reinterpret_Fnn innReinterpretFnn -> {
 				switch(innReinterpretFnn.size()) {
 					case _32 -> {
-						float a = (float)pop();
+						float a = popFloat();
 						int result = Float.floatToRawIntBits(a);
 						push(result);
 					}
 					case _64 -> {
-						double a = (double)pop();
+						double a = popDouble();
 						long result = Double.doubleToRawLongBits(a);
 						push(result);
 					}
@@ -618,7 +644,7 @@ class StackFrame {
 			case VectorInstr.V128_Const(var value) -> push(value);
 
 			case VectorInstr.VVUnOp vvUnOp -> {
-				V128 a = (V128)pop();
+				V128 a = popV128();
 
 				V128.Unary8Function f = switch(vvUnOp) {
 					case NOT -> b -> (byte)~b;
@@ -632,8 +658,8 @@ class StackFrame {
 			}
 
 			case VectorInstr.VVBinOp vvBinOp -> {
-				V128 b = (V128)pop();
-				V128 a = (V128)pop();
+				V128 b = popV128();
+				V128 a = popV128();
 
 				V128.Binary8Function f = switch(vvBinOp) {
 					case AND -> (b0, b1) -> (byte)(b0 & b1);
@@ -647,9 +673,9 @@ class StackFrame {
 			}
 
 			case VectorInstr.VVTernOp vvTernOp -> {
-				V128 c = (V128)pop();
-				V128 b = (V128)pop();
-				V128 a = (V128)pop();
+				V128 c = popV128();
+				V128 b = popV128();
+				V128 a = popV128();
 
 				V128.Ternary8Function f = switch(vvTernOp) {
 					case BITSELECT -> (b0, b1, b2) -> (byte)((b0 & b2) | (b1 & ~b2));
@@ -660,7 +686,7 @@ class StackFrame {
 			}
 
 			case VectorInstr.VVTestOp vvTestOp -> {
-				V128 a = (V128)pop();
+				V128 a = popV128();
 
 				int result = switch(vvTestOp) {
 					case ANY_TRUE -> a.anyTrue() ? 1 : 0;
@@ -672,44 +698,44 @@ class StackFrame {
 			case VectorInstr.I8x16_Op_Instr(var op) -> {
 				switch(op) {
 					case VectorInstr.Swizzle() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 						push(a.swizzle8(b));
 					}
 
 					case VectorInstr.Shuffle(var laneIndexes) -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 						push(laneIndexes.shuffle8(a, b));
 					}
 
 					case VectorInstr.Splat() -> {
-						int a = (int)pop();
+						int a = popInt();
 						push(V128.splat8((byte)a));
 					}
 
 					case VectorInstr.ExtractLane_U(var laneIdx) -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						byte result = a.extractLane8(laneIdx);
 						push(Byte.toUnsignedInt(result));
 					}
 
 					case VectorInstr.ExtractLane_S(var laneIdx) -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						byte result = a.extractLane8(laneIdx);
 						push((int)result);
 					}
 
 					case VectorInstr.ReplaceLane(var laneIdx) -> {
-						int b = (int)pop();
-						V128 a = (V128)pop();
+						int b = popInt();
+						V128 a = popV128();
 						V128 result = a.replaceLane8(laneIdx, (byte)b);
 						push(result);
 					}
 
 					case VectorInstr.VIRelOp viRelOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary8Function f = switch(viRelOp) {
 							case VectorInstr.VIRelOp_S viRelOpS -> switch(viRelOpS) {
@@ -732,7 +758,7 @@ class StackFrame {
 					}
 
 					case VectorInstr.VIUnOp viUnOp -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 
 						V128.Unary8Function f = switch(viUnOp) {
 							case ABS -> n0 -> (byte)Math.abs(n0);
@@ -743,41 +769,41 @@ class StackFrame {
 					}
 
 					case VectorInstr.Popcnt() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						push(a.unary8(n0 -> (byte)Integer.bitCount(Byte.toUnsignedInt(n0))));
 					}
 
 					case VectorInstr.All_True() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						boolean result = a.allTrue8();
 						push(result ? 1 : 0);
 					}
 
 					case VectorInstr.BitMask() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						int result = a.bitmask8();
 						push(result);
 					}
 
 					case VectorInstr.I8x16_Narrow_I16x8_U() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128 result = V128.build8(i -> Util.narrowU16I8(i < 8 ? a.extractLane16(i) : b.extractLane16(i - 8)));
 						push(result);
 					}
 
 					case VectorInstr.I8x16_Narrow_I16x8_S() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128 result = V128.build8(i -> Util.narrowS16I8(i < 8 ? a.extractLane16(i) : b.extractLane16(i - 8)));
 						push(result);
 					}
 
 					case VectorInstr.VIShiftOp viShiftOp -> {
-						int b = (int)pop() & 0x07;
-						V128 a = (V128)pop();
+						int b = popInt() & 0x07;
+						V128 a = popV128();
 
 						V128.Unary8Function f = switch(viShiftOp) {
 							case SHL -> n0 -> (byte)(n0 << b);
@@ -789,8 +815,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.VIBinOp viBinOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary8Function f = switch(viBinOp) {
 							case ADD -> (n0, n1) -> (byte)(n0 + n1);
@@ -801,8 +827,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.VIMinMaxOp viBinOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary8Function f = switch(viBinOp) {
 							case MIN_U -> (n0, n1) -> (byte)Math.min(Byte.toUnsignedInt(n0), Byte.toUnsignedInt(n1));
@@ -815,8 +841,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.VISatBinOp viSatBinOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary8Function f = switch(viSatBinOp) {
 							case ADD_SAT_U -> Util::addSatU8;
@@ -829,8 +855,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.VIAverageOps viAverageOps -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary8Function f = switch(viAverageOps) {
 							case AVGR_U -> (n0, n1) -> (byte)((Byte.toUnsignedInt(n0) + Byte.toUnsignedInt(n1) + 1) / 2);
@@ -843,32 +869,32 @@ class StackFrame {
 			case VectorInstr.I16x8_Op_Instr(var op) -> {
 				switch(op) {
 					case VectorInstr.Splat() -> {
-						int a = (int)pop();
+						int a = popInt();
 						push(V128.splat16((short)a));
 					}
 
 					case VectorInstr.ExtractLane_U(var laneIdx) -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						short result = a.extractLane16(laneIdx);
 						push(Short.toUnsignedInt(result));
 					}
 
 					case VectorInstr.ExtractLane_S(var laneIdx) -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						short result = a.extractLane16(laneIdx);
 						push((int)result);
 					}
 
 					case VectorInstr.ReplaceLane(var laneIdx) -> {
-						int b = (int)pop();
-						V128 a = (V128)pop();
+						int b = popInt();
+						V128 a = popV128();
 						V128 result = a.replaceLane16(laneIdx, (short)b);
 						push(result);
 					}
 
 					case VectorInstr.VIRelOp viRelOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary16Function f = switch(viRelOp) {
 							case VectorInstr.VIRelOp_S viRelOpS -> switch(viRelOpS) {
@@ -891,7 +917,7 @@ class StackFrame {
 					}
 
 					case VectorInstr.VIUnOp viUnOp -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 
 						V128.Unary16Function f = switch(viUnOp) {
 							case ABS -> n0 -> (short)Math.abs(n0);
@@ -902,8 +928,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.Q15mulr_Sat_S() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128 result = a.binary16(b, (n0, n1) -> Util.narrowS32I16((n0 * n1 + (1 << 14)) >> 15));
 
@@ -911,60 +937,60 @@ class StackFrame {
 					}
 
 					case VectorInstr.All_True() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						boolean result = a.allTrue16();
 						push(result ? 1 : 0);
 					}
 
 					case VectorInstr.BitMask() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						int result = a.bitmask16();
 						push(result);
 					}
 
 					case VectorInstr.I16x8_Narrow_I32x4_U() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128 result = V128.build16(i -> Util.narrowU32I16(i < 4 ? a.extractLane32(i) : b.extractLane32(i - 4)));
 						push(result);
 					}
 
 					case VectorInstr.I16x8_Narrow_I32x4_S() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128 result = V128.build16(i -> Util.narrowS32I16(i < 4 ? a.extractLane32(i) : b.extractLane32(i - 4)));
 						push(result);
 					}
 
 					case VectorInstr.I16x8_Extend_Low_I8x16_U() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build16(i -> (short)Byte.toUnsignedInt(a.extractLane8(i)));
 						push(result);
 					}
 
 					case VectorInstr.I16x8_Extend_Low_I8x16_S() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build16(i -> (short)a.extractLane8(i));
 						push(result);
 					}
 
 					case VectorInstr.I16x8_Extend_High_I8x16_U() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build16(i -> (short)Byte.toUnsignedInt(a.extractLane8(i + 8)));
 						push(result);
 					}
 
 					case VectorInstr.I16x8_Extend_High_I8x16_S() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build16(i -> (short)a.extractLane8(i + 8));
 						push(result);
 					}
 
 					case VectorInstr.VIShiftOp viShiftOp -> {
-						int b = (int)pop() & 0x0F;
-						V128 a = (V128)pop();
+						int b = popInt() & 0x0F;
+						V128 a = popV128();
 
 						V128.Unary16Function f = switch(viShiftOp) {
 							case SHL -> n0 -> (short)(n0 << b);
@@ -976,8 +1002,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.VIBinOp viBinOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary16Function f = switch(viBinOp) {
 							case ADD -> (n0, n1) -> (short)(n0 + n1);
@@ -988,8 +1014,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.VIMinMaxOp viBinOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary16Function f = switch(viBinOp) {
 							case MIN_U -> (n0, n1) -> (short)Math.min(Short.toUnsignedInt(n0), Short.toUnsignedInt(n1));
@@ -1002,8 +1028,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.VISatBinOp viSatBinOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary16Function f = switch(viSatBinOp) {
 							case ADD_SAT_U -> Util::addSatU16;
@@ -1016,8 +1042,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.VIMulOp viMulOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary16Function f = switch(viMulOp) {
 							case MUL -> (n0, n1) -> (short)(n0 * n1);
@@ -1027,8 +1053,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.I16x8_ExtMul_Low_I8x16_U() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128 result = V128.build16(i -> (short)(Byte.toUnsignedInt(a.extractLane8(i)) * Byte.toUnsignedInt(b.extractLane8(i))));
 
@@ -1036,8 +1062,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.I16x8_ExtMul_Low_I8x16_S() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128 result = V128.build16(i -> (short)(a.extractLane8(i) * b.extractLane8(i)));
 
@@ -1045,8 +1071,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.I16x8_ExtMul_High_I8x16_U() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128 result = V128.build16(i -> (short)(Byte.toUnsignedInt(a.extractLane8(i + 8)) * Byte.toUnsignedInt(b.extractLane8(i + 8))));
 
@@ -1054,8 +1080,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.I16x8_ExtMul_High_I8x16_S() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128 result = V128.build16(i -> (short)(a.extractLane8(i + 8) * b.extractLane8(i + 8)));
 
@@ -1063,8 +1089,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.VIAverageOps viAverageOps -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary16Function f = switch(viAverageOps) {
 							case AVGR_U -> (n0, n1) -> (short)((Short.toUnsignedInt(n0) + Short.toUnsignedInt(n1) + 1) / 2);
@@ -1074,7 +1100,7 @@ class StackFrame {
 					}
 
 					case VectorInstr.I16x8_ExtAdd_Pairwise_I8x16_U() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 
 						V128 result = V128.build16(i -> (short)(Byte.toUnsignedInt(a.extractLane8(i)) + Byte.toUnsignedInt(a.extractLane8(i + 8))));
 
@@ -1082,7 +1108,7 @@ class StackFrame {
 					}
 
 					case VectorInstr.I16x8_ExtAdd_Pairwise_I8x16_S() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 
 						V128 result = V128.build16(i -> (short)(a.extractLane8(i) + a.extractLane8(i + 8)));
 
@@ -1094,26 +1120,26 @@ class StackFrame {
 			case VectorInstr.I32x4_Op_Instr(var op) -> {
 				switch(op) {
 					case VectorInstr.Splat() -> {
-						int a = (int)pop();
+						int a = popInt();
 						push(V128.splat32(a));
 					}
 
 					case VectorInstr.ExtractLane(var laneIdx) -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						int result = a.extractLane32(laneIdx);
 						push(result);
 					}
 
 					case VectorInstr.ReplaceLane(var laneIdx) -> {
-						int b = (int)pop();
-						V128 a = (V128)pop();
+						int b = popInt();
+						V128 a = popV128();
 						V128 result = a.replaceLane32(laneIdx, b);
 						push(result);
 					}
 
 					case VectorInstr.VIRelOp viRelOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary32Function f = switch(viRelOp) {
 							case VectorInstr.VIRelOp_S viRelOpS -> switch(viRelOpS) {
@@ -1136,7 +1162,7 @@ class StackFrame {
 					}
 
 					case VectorInstr.VIUnOp viUnOp -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 
 						V128.Unary32Function f = switch(viUnOp) {
 							case ABS -> Math::abs;
@@ -1147,51 +1173,51 @@ class StackFrame {
 					}
 
 					case VectorInstr.Dot_I16x8_S() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 						V128 result = V128.build32(i -> a.extractLane16(i) * b.extractLane16(i) + a.extractLane16(i + 4) * b.extractLane16(i + 4));
 						push(result);
 					}
 
 					case VectorInstr.All_True() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						boolean result = a.allTrue32();
 						push(result ? 1 : 0);
 					}
 
 					case VectorInstr.BitMask() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						int result = a.bitmask32();
 						push(result);
 					}
 
 					case VectorInstr.I32x4_Extend_Low_I16x8_U() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build32(i -> Short.toUnsignedInt(a.extractLane16(i)));
 						push(result);
 					}
 
 					case VectorInstr.I32x4_Extend_Low_I16x8_S() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build32(a::extractLane16);
 						push(result);
 					}
 
 					case VectorInstr.I32x4_Extend_High_I16x8_U() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build32(i -> Short.toUnsignedInt(a.extractLane16(i + 4)));
 						push(result);
 					}
 
 					case VectorInstr.I32x4_Extend_High_I16x8_S() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build32(i -> a.extractLane16(i + 4));
 						push(result);
 					}
 
 					case VectorInstr.VIShiftOp viShiftOp -> {
-						int b = (int)pop();
-						V128 a = (V128)pop();
+						int b = popInt();
+						V128 a = popV128();
 
 						V128.Unary32Function f = switch(viShiftOp) {
 							case SHL -> n0 -> n0 << b;
@@ -1203,8 +1229,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.VIBinOp viBinOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary32Function f = switch(viBinOp) {
 							case ADD -> Integer::sum;
@@ -1215,8 +1241,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.VIMinMaxOp viBinOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary32Function f = switch(viBinOp) {
 							case MIN_U -> Util::minU32;
@@ -1229,8 +1255,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.VIMulOp viMulOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary32Function f = switch(viMulOp) {
 							case MUL -> (n0, n1) -> n0 * n1;
@@ -1240,64 +1266,64 @@ class StackFrame {
 					}
 
 					case VectorInstr.I32x4_ExtMul_Low_I16x8_U() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 						V128 result = V128.build32(i -> Short.toUnsignedInt(a.extractLane16(i)) * Short.toUnsignedInt(b.extractLane16(i)));
 						push(result);
 					}
 
 					case VectorInstr.I32x4_ExtMul_Low_I16x8_S() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 						V128 result = V128.build32(i -> a.extractLane16(i) * b.extractLane16(i));
 						push(result);
 					}
 
 					case VectorInstr.I32x4_ExtMul_High_I16x8_U() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 						V128 result = V128.build32(i -> Short.toUnsignedInt(a.extractLane16(i + 4)) * Short.toUnsignedInt(b.extractLane16(i + 4)));
 						push(result);
 					}
 
 					case VectorInstr.I32x4_ExtMul_High_I16x8_S() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 						V128 result = V128.build32(i -> a.extractLane16(i + 4) * b.extractLane16(i + 4));
 						push(result);
 					}
 
 					case VectorInstr.I32x4_ExtAdd_Pairwise_I16x8_U() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build32(i -> Short.toUnsignedInt(a.extractLane16(i)) + Short.toUnsignedInt(a.extractLane16(i + 4)));
 						push(result);
 					}
 
 					case VectorInstr.I32x4_ExtAdd_Pairwise_I16x8_S() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build32(i -> a.extractLane16(i) + a.extractLane16(i + 4));
 						push(result);
 					}
 
 					case VectorInstr.I32x4_Trunc_Sat_F32x4_U() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build32(i -> Util.truncSatF32U32(a.extractLaneF32(i)));
 						push(result);
 					}
 
 					case VectorInstr.I32x4_Trunc_Sat_F32x4_S() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build32(i -> (int)a.extractLaneF32(i));
 						push(result);
 					}
 
 					case VectorInstr.I32x4_Trunc_Sat_F64x4_U_Zero() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build32(i -> i < 2 ? Util.truncSatF64U32(a.extractLaneF64(i)) : 0);
 						push(result);
 					}
 					case VectorInstr.I32x4_Trunc_Sat_F64x2_S_Zero() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build32(i -> i < 2 ? (int)a.extractLaneF64(i) : 0);
 						push(result);
 					}
@@ -1307,26 +1333,26 @@ class StackFrame {
 			case VectorInstr.I64x2_Op_Instr(var op) -> {
 				switch(op) {
 					case VectorInstr.Splat() -> {
-						long a = (long)pop();
+						long a = popLong();
 						push(V128.splat64(a));
 					}
 
 					case VectorInstr.ExtractLane(var laneIdx) -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						long result = a.extractLane64(laneIdx);
 						push(result);
 					}
 
 					case VectorInstr.ReplaceLane(var laneIdx) -> {
-						long b = (long)pop();
-						V128 a = (V128)pop();
+						long b = popLong();
+						V128 a = popV128();
 						V128 result = a.replaceLane64(laneIdx, b);
 						push(result);
 					}
 
 					case VectorInstr.VIRelOp_S viRelOpS -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary64Function f = switch(viRelOpS) {
 							case EQ -> (n0, n1) -> n0 == n1 ? -1 : 0;
@@ -1341,7 +1367,7 @@ class StackFrame {
 					}
 
 					case VectorInstr.VIUnOp viUnOp -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 
 						V128.Unary64Function f = switch(viUnOp) {
 							case ABS -> Math::abs;
@@ -1352,44 +1378,44 @@ class StackFrame {
 					}
 
 					case VectorInstr.All_True() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						boolean result = a.allTrue64();
 						push(result ? 1 : 0);
 					}
 
 					case VectorInstr.BitMask() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						int result = a.bitmask64();
 						push(result);
 					}
 
 					case VectorInstr.I64x2_Extend_Low_I32x4_U() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build64(i -> Integer.toUnsignedLong(a.extractLane32(i)));
 						push(result);
 					}
 
 					case VectorInstr.I64x2_Extend_Low_I32x4_S() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build64(i -> (long)a.extractLane32(i));
 						push(result);
 					}
 
 					case VectorInstr.I64x2_Extend_High_I32x4_U() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build64(i -> Integer.toUnsignedLong(a.extractLane32(i + 2)));
 						push(result);
 					}
 
 					case VectorInstr.I64x2_Extend_High_I32x4_S() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.build64(i -> (long)a.extractLane32(i + 2));
 						push(result);
 					}
 
 					case VectorInstr.VIShiftOp viShiftOp -> {
-						int b = (int)pop();
-						V128 a = (V128)pop();
+						int b = popInt();
+						V128 a = popV128();
 
 						V128.Unary64Function f = switch(viShiftOp) {
 							case SHL -> n0 -> n0 << b;
@@ -1401,8 +1427,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.VIBinOp viBinOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary64Function f = switch(viBinOp) {
 							case ADD -> Long::sum;
@@ -1413,8 +1439,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.VIMulOp viMulOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.Binary64Function f = switch(viMulOp) {
 							case MUL -> (n0, n1) -> n0 * n1;
@@ -1424,8 +1450,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.I64x2_ExtMul_Low_I32x4_U() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128 result = V128.build64(i -> Integer.toUnsignedLong(a.extractLane32(i)) * Integer.toUnsignedLong(b.extractLane32(i)));
 
@@ -1433,8 +1459,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.I64x2_ExtMul_Low_I32x4_S() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128 result = V128.build64(i -> (long)a.extractLane32(i) * (long)b.extractLane32(i));
 
@@ -1442,8 +1468,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.I64x2_ExtMul_High_I32x4_U() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128 result = V128.build64(i -> Integer.toUnsignedLong(a.extractLane32(i + 2)) * Integer.toUnsignedLong(b.extractLane32(i + 2)));
 
@@ -1451,8 +1477,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.I64x2_ExtMul_High_I32x4_S() -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128 result = V128.build64(i -> (long)a.extractLane32(i + 2) * (long)b.extractLane32(i + 2));
 
@@ -1464,26 +1490,26 @@ class StackFrame {
 			case VectorInstr.F32x4_Op_Instr(var op) -> {
 				switch(op) {
 					case VectorInstr.Splat() -> {
-						float a = (float)pop();
+						float a = popFloat();
 						push(V128.splatF32(a));
 					}
 
 					case VectorInstr.ExtractLane(var laneIdx) -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						float result = a.extractLaneF32(laneIdx);
 						push(result);
 					}
 
 					case VectorInstr.ReplaceLane(var laneIdx) -> {
-						float b = (float)pop();
-						V128 a = (V128)pop();
+						float b = popFloat();
+						V128 a = popV128();
 						V128 result = a.replaceLaneF32(laneIdx, b);
 						push(result);
 					}
 
 					case VectorInstr.VFRelOp vfRelOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128 result = V128.build32(switch(vfRelOp) {
 							case EQ -> i -> a.extractLaneF32(i) == b.extractLaneF32(i) ? -1 : 0;
@@ -1498,7 +1524,7 @@ class StackFrame {
 					}
 
 					case VectorInstr.VFUnOp vfUnOp -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 
 						V128.UnaryF32Function f = switch(vfUnOp) {
 							case ABS -> Math::abs;
@@ -1514,8 +1540,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.VFBinOp vfBinOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.BinaryF32Function f = switch(vfBinOp) {
 							case ADD -> Float::sum;
@@ -1532,19 +1558,19 @@ class StackFrame {
 					}
 
 					case VectorInstr.F32x4_Convert_I32x4_U() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.buildF32(i -> (float)Integer.toUnsignedLong(a.extractLane32(i)));
 						push(result);
 					}
 
 					case VectorInstr.F32x4_Convert_I32x4_S() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.buildF32(i -> (float)a.extractLane32(i));
 						push(result);
 					}
 
 					case VectorInstr.F32x4_Demote_F64x2_Zero() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.buildF32(i -> i < 2 ? (float)a.extractLaneF64(i) : 0.0f);
 						push(result);
 					}
@@ -1554,16 +1580,16 @@ class StackFrame {
 			case VectorInstr.F32x4_Ternary_Op_Instr(var op) -> {
 				switch(op) {
 					case VectorInstr.Relaxed_F32x4_MAdd() -> {
-						V128 c = (V128)pop();
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 c = popV128();
+						V128 b = popV128();
+						V128 a = popV128();
 						push(a.ternaryF32(b, c, (ai, bi, ci) -> ai * bi + ci));
 					}
 
 					case VectorInstr.Relaxed_F32x4_NMAdd() -> {
-						V128 c = (V128)pop();
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 c = popV128();
+						V128 b = popV128();
+						V128 a = popV128();
 						push(a.ternaryF32(b, c, (ai, bi, ci) -> -(ai * bi) + ci));
 					}
 				}
@@ -1572,26 +1598,26 @@ class StackFrame {
 			case VectorInstr.F64x2_Op_Instr(var op) -> {
 				switch(op) {
 					case VectorInstr.Splat() -> {
-						double a = (double)pop();
+						double a = popDouble();
 						push(V128.splatF64(a));
 					}
 
 					case VectorInstr.ExtractLane(var laneIdx) -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						double result = a.extractLaneF64(laneIdx);
 						push(result);
 					}
 
 					case VectorInstr.ReplaceLane(var laneIdx) -> {
-						double b = (double)pop();
-						V128 a = (V128)pop();
+						double b = popDouble();
+						V128 a = popV128();
 						V128 result = a.replaceLaneF64(laneIdx, b);
 						push(result);
 					}
 
 					case VectorInstr.VFRelOp vfRelOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128 result = V128.build64(switch(vfRelOp) {
 							case EQ -> i -> a.extractLaneF64(i) == b.extractLaneF64(i) ? -1 : 0;
@@ -1606,7 +1632,7 @@ class StackFrame {
 					}
 
 					case VectorInstr.VFUnOp vfUnOp -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 
 						V128.UnaryF64Function f = switch(vfUnOp) {
 							case ABS -> Math::abs;
@@ -1622,8 +1648,8 @@ class StackFrame {
 					}
 
 					case VectorInstr.VFBinOp vfBinOp -> {
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 b = popV128();
+						V128 a = popV128();
 
 						V128.BinaryF64Function f = switch(vfBinOp) {
 							case ADD -> Double::sum;
@@ -1640,19 +1666,19 @@ class StackFrame {
 					}
 
 					case VectorInstr.F64x2_Convert_Low_I32x4_U() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.buildF64(i -> (double)Integer.toUnsignedLong(a.extractLane32(i)));
 						push(result);
 					}
 
 					case VectorInstr.F64x2_Convert_Low_I32x4_S() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.buildF64(i -> (double)a.extractLane32(i));
 						push(result);
 					}
 
 					case VectorInstr.F64x2_Promote_Low_F32x4() -> {
-						V128 a = (V128)pop();
+						V128 a = popV128();
 						V128 result = V128.buildF64(i -> (double)a.extractLaneF32(i));
 						push(result);
 					}
@@ -1662,16 +1688,16 @@ class StackFrame {
 			case VectorInstr.F64x2_Ternary_Op_Instr(var op) -> {
 				switch(op) {
 					case VectorInstr.Relaxed_F64x2_MAdd() -> {
-						V128 c = (V128)pop();
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 c = popV128();
+						V128 b = popV128();
+						V128 a = popV128();
 						push(a.ternaryF64(b, c, (ai, bi, ci) -> ai * bi + ci));
 					}
 
 					case VectorInstr.Relaxed_F64x2_NMAdd() -> {
-						V128 c = (V128)pop();
-						V128 b = (V128)pop();
-						V128 a = (V128)pop();
+						V128 c = popV128();
+						V128 b = popV128();
+						V128 a = popV128();
 						push(a.ternaryF64(b, c, (ai, bi, ci) -> -(ai * bi) + ci));
 					}
 				}
@@ -1679,8 +1705,8 @@ class StackFrame {
 
 			case VectorInstr.I16x8_Relaxed_Dot_I8x16_I7x16_S() -> {
 				short[] intermediate = new short[16];
-				V128 b = (V128)pop();
-				V128 a = (V128)pop();
+				V128 b = popV128();
+				V128 a = popV128();
 
 				for(int i = 0; i < intermediate.length; ++i) {
 					intermediate[i] = (short)(a.extractLane8(i) * b.extractLane8(i));
@@ -1690,9 +1716,9 @@ class StackFrame {
 
 			case VectorInstr.I32x4_Relaxed_Dot_I8x16_I7x16_Add_S() -> {
 				int[] intermediate = new int[16];
-				V128 c = (V128)pop();
-				V128 b = (V128)pop();
-				V128 a = (V128)pop();
+				V128 c = popV128();
+				V128 b = popV128();
+				V128 a = popV128();
 				for(int i = 0; i < intermediate.length; ++i) {
 					intermediate[i] = a.extractLane8(i) * b.extractLane8(i);
 				}
@@ -1761,25 +1787,36 @@ class StackFrame {
 			}
 
 			case ReferenceInstr.Ref_I31() -> {
-				var a = (int)pop();
+				var a = popInt();
 				push(new I31(a));
 			}
 
 			case ReferenceInstr.I31_Get_S() -> {
-				var a = (I31)pop();
+				var a = (I31)popNonNull();
 				push(a.signedValue());
 			}
 
 			case ReferenceInstr.I31_Get_U() -> {
-				var a = (I31)pop();
+				var a = (I31)popNonNull();
 				push(a.unsignedValue());
 			}
 
+			case ReferenceInstr.StructInstr structInstr -> evaluateStructInstr(structInstr);
+			case ReferenceInstr.ArrayInstr arrayInstr -> evaluateArrayInstr(arrayInstr);
+
+			case ReferenceInstr.Any_Convert_Extern(), ReferenceInstr.Extern_Convert_Any() -> {}
+
+			default -> throw new RuntimeException("Not implemented: " + instr);
+		}
+	}
+
+	private void evaluateStructInstr(ReferenceInstr.StructInstr instr) throws Throwable {
+		switch(instr) {
 			case ReferenceInstr.Struct_New(var typeIdx) -> {
 				var structType = module.getStructType(typeIdx);
 				var fieldTypes = structType.fields();
 
-				var values = new Object[fieldTypes.size()];
+				@Nullable Object[] values = new Object[fieldTypes.size()];
 				for(int i = fieldTypes.size() - 1; i >= 0; --i) {
 					values[i] = packValue(pop(), fieldTypes.get(i).storageType());
 				}
@@ -1791,7 +1828,7 @@ class StackFrame {
 				var structType = module.getStructType(typeIdx);
 				var fieldTypes = structType.fields();
 
-				var values = new Object[fieldTypes.size()];
+				@Nullable Object[] values = new Object[fieldTypes.size()];
 				for(int i = fieldTypes.size() - 1; i >= 0; --i) {
 					values[i] = Defaults.defaultValuePacked(fieldTypes.get(i).storageType());
 				}
@@ -1803,7 +1840,7 @@ class StackFrame {
 				var structType = module.getStructType(typeIdx);
 				var fieldType = structType.fields().get(fieldIdx.index());
 
-				var o = (DynamicWasmStruct)pop();
+				var o = (DynamicWasmStruct)popNonNull();
 
 				switch(fieldType.storageType()) {
 					case PackedType _ -> throw new RuntimeException("Expected a val type");
@@ -1815,7 +1852,7 @@ class StackFrame {
 				var structType = module.getStructType(typeIdx);
 				var fieldType = structType.fields().get(fieldIdx.index());
 
-				var o = (DynamicWasmStruct)pop();
+				var o = (DynamicWasmStruct)popNonNull();
 
 				push(unpackValueS(o.getField(fieldIdx.index()), fieldType.storageType()));
 			}
@@ -1824,7 +1861,7 @@ class StackFrame {
 				var structType = module.getStructType(typeIdx);
 				var fieldType = structType.fields().get(fieldIdx.index());
 
-				var o = (DynamicWasmStruct)pop();
+				var o = (DynamicWasmStruct)popNonNull();
 
 				push(unpackValueU(o.getField(fieldIdx.index()), fieldType.storageType()));
 			}
@@ -1834,15 +1871,19 @@ class StackFrame {
 				var fieldType = structType.fields().get(fieldIdx.index());
 
 				var value = pop();
-				var o = (DynamicWasmStruct)pop();
+				var o = (DynamicWasmStruct)popNonNull();
 
 				o.setField(fieldIdx.index(), packValue(value, fieldType.storageType()));
 			}
+		}
+	}
 
+	private void evaluateArrayInstr(ReferenceInstr.ArrayInstr instr) throws Throwable {
+		switch(instr) {
 			case ReferenceInstr.Array_New(var typeIdx) -> {
 				var arrayType = module.getArrayType(typeIdx);
 
-				int n = (int)pop();
+				int n = popInt();
 				var val = packValue(pop(), arrayType.fieldType().storageType());
 
 				var arr = DynamicWasmArray.create(module.getDefType(typeIdx), n);
@@ -1856,7 +1897,7 @@ class StackFrame {
 			case ReferenceInstr.Array_New_Default(var typeIdx) -> {
 				var arrayType = module.getArrayType(typeIdx);
 
-				int n = (int)pop();
+				int n = popInt();
 				var val = Defaults.defaultValuePacked(arrayType.fieldType().storageType());
 
 				var arr = DynamicWasmArray.create(module.getDefType(typeIdx), n);
@@ -1883,8 +1924,8 @@ class StackFrame {
 				var arrayType = module.getArrayType(typeIdx);
 				var data = module.getData(dataIdx);
 
-				int n = (int)pop();
-				int s = (int)pop();
+				int n = popInt();
+				int s = popInt();
 				int d = 0;
 				var array = DynamicWasmArray.create(module.getDefType(typeIdx), n);
 
@@ -1919,8 +1960,8 @@ class StackFrame {
 				var arrayType = module.getArrayType(typeIdx);
 				var elem = module.getElement(elemIdx);
 
-				int n = (int)pop();
-				int s = (int)pop();
+				int n = popInt();
+				int s = popInt();
 				int d = 0;
 				var array = DynamicWasmArray.create(module.getDefType(typeIdx), n);
 
@@ -1928,15 +1969,16 @@ class StackFrame {
 				Objects.checkFromIndexSize(d, n, array.length());
 
 				for(int i = 0; i < n; ++i) {
-					array.set(d + i, packValue(elem.get(s + i), arrayType.fieldType().storageType()));
+					var value = packValue(elem.get(s + i), arrayType.fieldType().storageType());
+					array.set(d + i, value);
 				}
 
 				push(array);
 			}
 
-			case ReferenceInstr.Array_Get(_) -> {
-				int i = (int)pop();
-				var a = (DynamicWasmArray)pop();
+			case ReferenceInstr.Array_Get _ -> {
+				int i = popInt();
+				var a = (DynamicWasmArray)popNonNull();
 
 				push(a.get(i));
 			}
@@ -1944,8 +1986,8 @@ class StackFrame {
 			case ReferenceInstr.Array_Get_S(var typeIdx) -> {
 				var arrayType = module.getArrayType(typeIdx);
 
-				int i = (int)pop();
-				var a = (DynamicWasmArray)pop();
+				int i = popInt();
+				var a = (DynamicWasmArray)popNonNull();
 
 				push(unpackValueS(a.get(i), arrayType.fieldType().storageType()));
 			}
@@ -1953,8 +1995,8 @@ class StackFrame {
 			case ReferenceInstr.Array_Get_U(var typeIdx) -> {
 				var arrayType = module.getArrayType(typeIdx);
 
-				int i = (int)pop();
-				var a = (DynamicWasmArray)pop();
+				int i = popInt();
+				var a = (DynamicWasmArray)popNonNull();
 
 				push(unpackValueU(a.get(i), arrayType.fieldType().storageType()));
 			}
@@ -1963,23 +2005,23 @@ class StackFrame {
 				var arrayType = module.getArrayType(typeIdx);
 
 				var val = pop();
-				int i = (int)pop();
-				var a = (DynamicWasmArray)pop();
+				int i = popInt();
+				var a = (DynamicWasmArray)popNonNull();
 
 				a.set(i, packValue(val, arrayType.fieldType().storageType()));
 			}
 
 			case ReferenceInstr.Array_Len() -> {
-				var a = (DynamicWasmArray)pop();
+				var a = (DynamicWasmArray)popNonNull();
 				push(a.length());
 			}
 
 			case ReferenceInstr.Array_Fill(var typeIdx) -> {
 				var arrayType = module.getArrayType(typeIdx);
 
-				int n = (int)pop();
+				int n = popInt();
 				Object val = packValue(pop(), arrayType.fieldType().storageType());
-				int d = (int)pop();
+				int d = popInt();
 				var array = (DynamicWasmArray)pop();
 
 				if(array == null) {
@@ -1994,10 +2036,10 @@ class StackFrame {
 			}
 
 			case ReferenceInstr.Array_Copy _ -> {
-				int n = (int)pop();
-				int s = (int)pop();
+				int n = popInt();
+				int s = popInt();
 				var src = (DynamicWasmArray)pop();
-				int d = (int)pop();
+				int d = popInt();
 				var dest = (DynamicWasmArray)pop();
 
 				if(src == null || dest == null) {
@@ -2023,9 +2065,9 @@ class StackFrame {
 				var arrayType = module.getArrayType(typeIdx);
 				var data = module.getData(dataIdx);
 
-				int n = (int)pop();
-				int s = (int)pop();
-				int d = (int)pop();
+				int n = popInt();
+				int s = popInt();
+				int d = popInt();
 				var array = (DynamicWasmArray)pop();
 
 				if(array == null) {
@@ -2060,9 +2102,9 @@ class StackFrame {
 				var arrayType = module.getArrayType(typeIdx);
 				var elem = module.getElement(elemIdx);
 
-				int n = (int)pop();
-				int s = (int)pop();
-				int d = (int)pop();
+				int n = popInt();
+				int s = popInt();
+				int d = popInt();
 				var array = (DynamicWasmArray)pop();
 
 				if(array == null) {
@@ -2076,44 +2118,49 @@ class StackFrame {
 					array.set(d + i, packValue(elem.get(s + i), arrayType.fieldType().storageType()));
 				}
 			}
-
-			case ReferenceInstr.Any_Convert_Extern(), ReferenceInstr.Extern_Convert_Any() -> {}
-
-			default -> throw new RuntimeException("Not implemented: " + instr);
 		}
 	}
 
-	private Object packValue(Object value, StorageType t) {
+	private @Nullable Object packValue(@Nullable Object value, StorageType t) {
 		return switch(t) {
-			case PackedType packedType -> switch(packedType) {
-				case I8 -> (byte)(int)value;
-				case I16 -> (short)(int)value;
-			};
+			case PackedType packedType -> {
+				Objects.requireNonNull(value);
+				yield switch(packedType) {
+					case I8 -> (byte)(int)value;
+					case I16 -> (short)(int)value;
+				};
+			}
 			case ValType _ -> value;
 		};
 	}
 
-	private Object unpackValueS(Object value, StorageType t) {
+	private Object unpackValueS(@Nullable Object value, StorageType t) {
 		return switch(t) {
-			case PackedType packedType -> switch(packedType) {
-				case I8 -> (int)(byte)value;
-				case I16 -> (int)(short)value;
-			};
+			case PackedType packedType -> {
+				Objects.requireNonNull(value);
+				yield switch(packedType) {
+					case I8 -> (int)(byte)value;
+					case I16 -> (int)(short)value;
+				};
+			}
 			case ValType _ -> throw new RuntimeException("Expected a packed type");
 		};
 	}
 
-	private Object unpackValueU(Object value, StorageType t) {
+	private Object unpackValueU(@Nullable Object value, StorageType t) {
 		return switch(t) {
-			case PackedType packedType -> switch(packedType) {
-				case I8 -> Byte.toUnsignedInt((byte)value);
-				case I16 -> Short.toUnsignedInt((short)value);
-			};
+			case PackedType packedType -> {
+				Objects.requireNonNull(value);
+				yield switch(packedType) {
+					case I8 -> Byte.toUnsignedInt((byte)value);
+					case I16 -> Short.toUnsignedInt((short)value);
+				};
+			}
 			case ValType _ -> throw new RuntimeException("Expected a packed type");
 		};
 	}
 
-	private boolean refIsInstance(RefType t, Object o) {
+	private boolean refIsInstance(RefType t, @Nullable Object o) {
 		if(o == null) {
 			return t.isNullable();
 		}
@@ -2154,7 +2201,7 @@ class StackFrame {
 		for(int i = 0; i < n; ++i) {
 			short value = 0;
 			for(int j = 0; j < 2; ++j) {
-				value |= (short)((src[s + i * 2 + j] & 0xFF) << 8 * j);
+				value |= (short)((src[s + i * 2 + j] & 0xFF) << (8 * j));
 			}
 			dest.setShort(d + i, value);
 		}
@@ -2167,7 +2214,7 @@ class StackFrame {
 		for(int i = 0; i < n; ++i) {
 			int value = 0;
 			for(int j = 0; j < 4; ++j) {
-				value |= (src[s + i * 4 + j] & 0xFF) << 8 * j;
+				value |= (src[s + i * 4 + j] & 0xFF) << (8 * j);
 			}
 
 			dest.setInt(d + i, value);
@@ -2181,7 +2228,7 @@ class StackFrame {
 		for(int i = 0; i < n; ++i) {
 			long value = 0;
 			for(int j = 0; j < 8; ++j) {
-				value |= (long)(src[s + i * 8 + j] & 0xFF) << 8 * j;
+				value |= (long)(src[s + i * 8 + j] & 0xFF) << (8 * j);
 			}
 
 			dest.setLong(d + i, value);
@@ -2195,7 +2242,7 @@ class StackFrame {
 		for(int i = 0; i < n; ++i) {
 			int value = 0;
 			for(int j = 0; j < 4; ++j) {
-				value |= (src[s + i * 4 + j] & 0xFF) << 8 * j;
+				value |= (src[s + i * 4 + j] & 0xFF) << (8 * j);
 			}
 
 			dest.setFloat(d + i, Float.intBitsToFloat(value));
@@ -2209,7 +2256,7 @@ class StackFrame {
 		for(int i = 0; i < n; ++i) {
 			long value = 0;
 			for(int j = 0; j < 8; ++j) {
-				value |= (long)(src[s + i * 8 + j] & 0xFF) << 8 * j;
+				value |= (long)(src[s + i * 8 + j] & 0xFF) << (8 * j);
 			}
 
 			dest.setDouble(d + i, Double.longBitsToDouble(value));
@@ -2233,7 +2280,7 @@ class StackFrame {
 				pop();
 			}
 			case ParametricInstr.Select _ -> {
-				int c = (int)pop();
+				int c = popInt();
 				Object val2 = pop();
 				Object val1 = pop();
 				push(c != 0 ? val1 : val2);
@@ -2316,8 +2363,8 @@ class StackFrame {
 				WasmTable table = module.getTable(tableIdx);
 				WasmElements elem = module.getElement(elemIdx);
 
-				int n = (int)pop();
-				int s = (int)pop();
+				int n = popInt();
+				int s = popInt();
 				long d = popIndex(table);
 
 				WasmTable.init(d, s, n, table, elem);
@@ -2370,7 +2417,7 @@ class StackFrame {
 			
 			case MemoryInstr.Inn_Store innStore -> {
 				var memory = module.getMemory(innStore.memArg().memIdx());
-				Object value = pop();
+				Object value = popNonNull();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, innStore.memArg().offset());
 
@@ -2382,7 +2429,7 @@ class StackFrame {
 
 			case MemoryInstr.Fnn_Store fnnStore -> {
 				var memory = module.getMemory(fnnStore.memArg().memIdx());
-				Object value = pop();
+				Object value = popNonNull();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, fnnStore.memArg().offset());
 
@@ -2401,7 +2448,7 @@ class StackFrame {
 
 			case MemoryInstr.V128_Store v128Store -> {
 				var memory = module.getMemory(v128Store.memArg().memIdx());
-				V128 value = (V128)pop();
+				V128 value = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, v128Store.memArg().offset());
 
@@ -2474,7 +2521,7 @@ class StackFrame {
 
 			case MemoryInstr.Inn_Store8 innStore8 -> {
 				var memory = module.getMemory(innStore8.memArg().memIdx());
-				Object value = pop();
+				Object value = popNonNull();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, innStore8.memArg().offset());
 
@@ -2488,7 +2535,7 @@ class StackFrame {
 
 			case MemoryInstr.Inn_Store16 innStore16 -> {
 				var memory = module.getMemory(innStore16.memArg().memIdx());
-				Object value = pop();
+				Object value = popNonNull();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, innStore16.memArg().offset());
 
@@ -2502,7 +2549,7 @@ class StackFrame {
 
 			case MemoryInstr.I64_Store32(var memArg) -> {
 				var memory = module.getMemory(memArg.memIdx());
-				int value = (int)(long)pop();
+				int value = (int)popLong();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 
@@ -2545,9 +2592,10 @@ class StackFrame {
 				long address = calculateMemoryAddress(i, memArg.offset());
 
 				short[] values = new short[4];
-				for(int j = 0; j < values.length; ++j) {
-					values[j] = memory.loadI16(calculateMemoryAddress(address, j * 2));
-				}
+				values[0] = memory.loadI16(calculateMemoryAddress(address, 0));
+				values[1] = memory.loadI16(calculateMemoryAddress(address, 2));
+				values[2] = memory.loadI16(calculateMemoryAddress(address, 4));
+				values[3] = memory.loadI16(calculateMemoryAddress(address, 6));
 
 				V128 result = V128.build32(j -> Short.toUnsignedInt(values[j]));
 				push(result);
@@ -2559,9 +2607,10 @@ class StackFrame {
 				long address = calculateMemoryAddress(i, memArg.offset());
 
 				short[] values = new short[4];
-				for(int j = 0; j < values.length; ++j) {
-					values[j] = memory.loadI16(calculateMemoryAddress(address, j * 2));
-				}
+				values[0] = memory.loadI16(calculateMemoryAddress(address, 0));
+				values[1] = memory.loadI16(calculateMemoryAddress(address, 2));
+				values[2] = memory.loadI16(calculateMemoryAddress(address, 4));
+				values[3] = memory.loadI16(calculateMemoryAddress(address, 6));
 
 				V128 result = V128.build32(j -> values[j]);
 				push(result);
@@ -2573,9 +2622,8 @@ class StackFrame {
 				long address = calculateMemoryAddress(i, memArg.offset());
 
 				int[] values = new int[2];
-				for(int j = 0; j < values.length; ++j) {
-					values[j] = memory.loadI32(calculateMemoryAddress(address, j * 4));
-				}
+				values[0] = memory.loadI32(calculateMemoryAddress(address, 0));
+				values[1] = memory.loadI32(calculateMemoryAddress(address, 4));
 
 				V128 result = V128.build64(j -> Integer.toUnsignedLong(values[j]));
 				push(result);
@@ -2587,9 +2635,8 @@ class StackFrame {
 				long address = calculateMemoryAddress(i, memArg.offset());
 
 				int[] values = new int[4];
-				for(int j = 0; j < values.length; ++j) {
-					values[j] = memory.loadI32(calculateMemoryAddress(address, j * 4));
-				}
+				values[0] = memory.loadI32(calculateMemoryAddress(address, 0));
+				values[1] = memory.loadI32(calculateMemoryAddress(address, 4));
 
 				V128 result = V128.build64(j -> values[j]);
 				push(result);
@@ -2653,7 +2700,7 @@ class StackFrame {
 
 			case MemoryInstr.V128_Load8_Lane(var memArg, var laneIdx) -> {
 				var memory = module.getMemory(memArg.memIdx());
-				V128 v = (V128)pop();
+				V128 v = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 				byte value = memory.loadI8(address);
@@ -2663,7 +2710,7 @@ class StackFrame {
 
 			case MemoryInstr.V128_Load16_Lane(var memArg, var laneIdx) -> {
 				var memory = module.getMemory(memArg.memIdx());
-				V128 v = (V128)pop();
+				V128 v = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 				short value = memory.loadI16(address);
@@ -2673,7 +2720,7 @@ class StackFrame {
 
 			case MemoryInstr.V128_Load32_Lane(var memArg, var laneIdx) -> {
 				var memory = module.getMemory(memArg.memIdx());
-				V128 v = (V128)pop();
+				V128 v = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 				int value = memory.loadI32(address);
@@ -2683,7 +2730,7 @@ class StackFrame {
 
 			case MemoryInstr.V128_Load64_Lane(var memArg, var laneIdx) -> {
 				var memory = module.getMemory(memArg.memIdx());
-				V128 v = (V128)pop();
+				V128 v = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 				long value = memory.loadI64(address);
@@ -2693,7 +2740,7 @@ class StackFrame {
 
 			case MemoryInstr.V128_Store8_Lane(var memArg, var laneIdx) -> {
 				var memory = module.getMemory(memArg.memIdx());
-				V128 v = (V128)pop();
+				V128 v = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 				memory.storeI8(address, v.extractLane8(laneIdx));
@@ -2701,21 +2748,21 @@ class StackFrame {
 
 			case MemoryInstr.V128_Store16_Lane(var memArg, var laneIdx) -> {
 				var memory = module.getMemory(memArg.memIdx());
-				V128 v = (V128)pop();
+				V128 v = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 				memory.storeI16(address, v.extractLane16(laneIdx));
 			}
 			case MemoryInstr.V128_Store32_Lane(var memArg, var laneIdx) -> {
 				var memory = module.getMemory(memArg.memIdx());
-				V128 v = (V128)pop();
+				V128 v = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 				memory.storeI32(address, v.extractLane32(laneIdx));
 			}
 			case MemoryInstr.V128_Store64_Lane(var memArg, var laneIdx) -> {
 				var memory = module.getMemory(memArg.memIdx());
-				V128 v = (V128)pop();
+				V128 v = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 				memory.storeI64(address, v.extractLane64(laneIdx));
@@ -2737,7 +2784,7 @@ class StackFrame {
 			case MemoryInstr.Memory_Fill(var memIdx) -> {
 				var memory = module.getMemory(memIdx);
 				long n = popAddress(memory);
-				byte val = (byte)(int)pop();
+				byte val = (byte)popInt();
 				long d = popAddress(memory);
 
 				if(!Util.sumInRange(d, n, memory.byteSize())) {
@@ -2783,8 +2830,8 @@ class StackFrame {
 			case MemoryInstr.Memory_Init(var memIdx, var dataIdx) -> {
 				var memory = module.getMemory(memIdx);
 				var data = module.getData(dataIdx);
-				int n = (int)pop();
-				int s = (int)pop();
+				int n = popInt();
+				int s = popInt();
 				long d = popAddress(memory);
 
 				memory.copyFromArray(d, s, n, data.init());
@@ -2826,7 +2873,7 @@ class StackFrame {
 		return address + offset;
 	}
 
-	private DynamicFunctionResult evaluateControlInstruction(ControlInstr instr) throws Throwable {
+	private @Nullable DynamicFunctionResult evaluateControlInstruction(ControlInstr instr) throws Throwable {
 		return switch(instr) {
 			case ControlInstr.Nop() -> null;
 			case ControlInstr.Unreachable() -> throw new UnreachableTrap();
@@ -2839,7 +2886,7 @@ class StackFrame {
 				yield null;
 			}
 			case ControlInstr.If(var type, var thenBlock, var elseBlock) -> {
-				int value = (int)pop();
+				int value = popInt();
 				var innerBlock = value != 0 ? thenBlock : elseBlock;
 				enterBlock(type, innerBlock, ip + 1, true);
 				yield null;
@@ -2850,21 +2897,21 @@ class StackFrame {
 				throw new DynamicWebAssemblyException(wasmTag, values);
 			}
 			case ControlInstr.Throw_Ref() -> {
-				throw (DynamicWebAssemblyException)pop();
+				throw (DynamicWebAssemblyException)popNonNull();
 			}
 			case ControlInstr.Br(var label) -> {
 				branch(label.index());
 				yield null;
 			}
 			case ControlInstr.Br_If(var label) -> {
-				int value = (int)pop();
+				int value = popInt();
 				if(value != 0) {
 					branch(label.index());
 				}
 				yield null;
 			}
 			case ControlInstr.Br_Table(var table, var fallback) -> {
-				int value = (int)pop();
+				int value = popInt();
 
 				LabelIdx labelIdx;
 				if(value >= 0 && value < table.size()) {
@@ -2895,14 +2942,14 @@ class StackFrame {
 				}
 				yield null;
 			}
-			case ControlInstr.Br_OnCast(var label, _, var t2) -> {
+			case ControlInstr.Br_OnCast(var label, var _, var t2) -> {
 				Object o = peek();
 				if(refIsInstance(module.closure.resolveRefType(t2), o)) {
 					branch(label.index());
 				}
 				yield null;
 			}
-			case ControlInstr.Br_OnCastFail(var label, _, var t2) -> {
+			case ControlInstr.Br_OnCastFail(var label, var _, var t2) -> {
 				Object o = peek();
 				if(!refIsInstance(module.closure.resolveRefType(t2), o)) {
 					branch(label.index());
@@ -2916,7 +2963,7 @@ class StackFrame {
 			case ControlInstr.Call(var funcIdx) -> {
 				var func = module.getFunction(funcIdx);
 				var args = getTopValues(func.functionType().args().types().size());
-				Object[] results = func.invokeNow(args);
+				@Nullable Object[] results = func.invokeNow(args);
 				pushAll(results);
 				yield null;
 			}
@@ -2927,7 +2974,7 @@ class StackFrame {
 				}
 
 				var args = getTopValues(func.functionType().args().types().size());
-				Object[] results = func.invokeNow(args);
+				@Nullable Object[] results = func.invokeNow(args);
 				pushAll(results);
 				yield null;
 			}
@@ -2937,6 +2984,7 @@ class StackFrame {
 
 				var defType = module.getDefType(funcTypeIdx);
 				var func = (DynamicWasmFunction)table.get(index);
+				Objects.requireNonNull(func);
 				var funcObjType = func.type();
 
 				if(!module.subtyping.isSubtypeDefType(funcObjType, defType)) {
@@ -2944,7 +2992,7 @@ class StackFrame {
 				}
 
 				var args = getTopValues(func.functionType().args().types().size());
-				Object[] results = func.invokeNow(args);
+				@Nullable Object[] results = func.invokeNow(args);
 				pushAll(results);
 				yield null;
 			}
@@ -2968,6 +3016,7 @@ class StackFrame {
 
 				var defType = module.getDefType(funcTypeIdx);
 				var func = (DynamicWasmFunction)table.get(index);
+				Objects.requireNonNull(func);
 
 				if(!module.subtyping.isSubtypeDefType(func.type(), defType)) {
 					throw new IndirectCallTypeMismatchTrap();
@@ -3039,11 +3088,11 @@ class StackFrame {
 		enterBlock(type, innerBlock, null, branchIP, useResultType);
 	}
 
-	private void enterBlock(ControlInstr.BlockType type, List<? extends Instr> innerBlock, ExceptionHandler handler, int branchIP, boolean useResultType) {
+	private void enterBlock(ControlInstr.BlockType type, List<? extends Instr> innerBlock, @Nullable ExceptionHandler handler, int branchIP, boolean useResultType) {
 		var expandedType = expandBlockType(type);
 		var label = new Label(block, blockType, useResultType ? expandedType.results() : expandedType.args(), branchIP, ip + 1);
 
-		Object[] values = getTopValues(expandedType.args().types().size());
+		@Nullable Object[] values = getTopValues(expandedType.args().types().size());
 
 		if(handler != null) push(handler);
 		push(label);
@@ -3079,7 +3128,7 @@ class StackFrame {
 
 	private void branch(int n) {
 		var label = getLabel(n);
-		Object[] values = getTopValues(label.resultType().types().size());
+		@Nullable Object[] values = getTopValues(label.resultType().types().size());
 
 		while(true) {
 			if(n == 0 && stack.isEmpty()) {

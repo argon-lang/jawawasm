@@ -38,7 +38,11 @@ public class App {
 		}
 
 		System.out.println("Executing script");
-		try(var interpreter = new ScriptInterpreter(wasmExecutable, new PrintWriter(System.out))) {
+
+		@SuppressWarnings("DefaultCharset")
+		var output = new PrintWriter(System.out);
+
+		try(var interpreter = new ScriptInterpreter(wasmExecutable, output)) {
 			interpreter.executeScript(scriptFile, commands);
 		}
     }

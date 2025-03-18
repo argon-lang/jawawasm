@@ -133,7 +133,7 @@ public class ScriptReader {
 		return commands;
 	}
 
-	private SExprInfo tryReadExpr() throws IOException, ModuleFormatException {
+	private @Nullable SExprInfo tryReadExpr() throws IOException, ModuleFormatException {
 		skipToNextToken();
 
 		int line = lineNumber;

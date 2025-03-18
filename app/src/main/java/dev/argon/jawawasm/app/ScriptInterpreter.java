@@ -513,7 +513,6 @@ public final class ScriptInterpreter implements AutoCloseable {
 					throw new ModuleConversionException();
 				}
 
-				long size = Files.size(temp);
 				try(var is = Files.newInputStream(temp)) {
 					return new ModuleReader(is).readModule();
 				}

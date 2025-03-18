@@ -1,15 +1,17 @@
 package dev.argon.jawawasm.runtime;
 
+import org.jspecify.annotations.Nullable;
+
 final class WasmMemoryMeta implements WasmMemory {
 
-	public WasmMemoryMeta(MemoryAllocator allocator, Long maxSize, WasmMemoryNoResize mem) {
+	public WasmMemoryMeta(MemoryAllocator allocator, @Nullable Long maxSize, WasmMemoryNoResize mem) {
 		this.allocator = allocator;
 		this.maxSize = maxSize;
 		this.mem = mem;
 	}
 
 	private final MemoryAllocator allocator;
-	private final Long maxSize;
+	private final @Nullable Long maxSize;
 	private WasmMemoryNoResize mem;
 
 	@Override
@@ -28,7 +30,7 @@ final class WasmMemoryMeta implements WasmMemory {
 	}
 
 	@Override
-	public Long maxPageSize() {
+	public @Nullable Long maxPageSize() {
 		return maxSize;
 	}
 

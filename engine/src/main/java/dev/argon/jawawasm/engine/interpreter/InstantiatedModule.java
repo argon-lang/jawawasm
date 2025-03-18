@@ -44,7 +44,7 @@ public final class InstantiatedModule implements WasmModule {
 		for(int i = 0; i < elements.length; ++i) {
 			Elem elem = module.elems().get(i);
 
-			Object[] values = new Object[elem.init().size()];
+			@Nullable Object[] values = new Object[elem.init().size()];
 			for(int j = 0; j < values.length; ++j) {
 				values[j] = evaluateInitializer(elem.init().get(j).body(), elem.type());
 			}
@@ -170,8 +170,8 @@ public final class InstantiatedModule implements WasmModule {
 		};
 	}
 
-	private Object evaluateInitializer(List<? extends Instr> init, ValType type) throws ExecutionException {
-		Object[] values = DynamicFunctionResult.resolveWith(() ->
+	private @Nullable Object evaluateInitializer(List<? extends Instr> init, ValType type) throws ExecutionException {
+		@Nullable Object[] values = DynamicFunctionResult.resolveWith(() ->
 				new StackFrame(
 						InstantiatedModule.this,
 						init,
@@ -188,7 +188,7 @@ public final class InstantiatedModule implements WasmModule {
 	}
 
 	private abstract class IndexSpaceBuilder<T, TImportDesc extends ImportDesc, Def> {
-		protected abstract TImportDesc castImportDesc(ImportDesc desc);
+		protected abstract @Nullable TImportDesc castImportDesc(ImportDesc desc);
 		protected abstract T checkImport(TImportDesc desc, WasmExport export) throws ModuleLinkException;
 
 		protected abstract List<? extends Def> definitions();
@@ -228,7 +228,7 @@ public final class InstantiatedModule implements WasmModule {
 
 	private final class FunctionBuilder extends IndexSpaceBuilder<DynamicWasmFunction, ImportDesc.Func, Func> {
 		@Override
-		protected ImportDesc.Func castImportDesc(ImportDesc desc) {
+		protected ImportDesc.@Nullable Func castImportDesc(ImportDesc desc) {
 			return (desc instanceof ImportDesc.Func f) ? f : null;
 		}
 
@@ -267,7 +267,7 @@ public final class InstantiatedModule implements WasmModule {
 				}
 
 				@Override
-				public DynamicFunctionResult invoke(Object[] args) throws Throwable {
+				public DynamicFunctionResult invoke(@Nullable Object[] args) throws Throwable {
 					return new StackFrame(InstantiatedModule.this, func, args).evaluate();
 				}
 			};
@@ -276,7 +276,7 @@ public final class InstantiatedModule implements WasmModule {
 
 	private final class TableBuilder extends IndexSpaceBuilder<WasmTable, ImportDesc.Table, Table> {
 		@Override
-		protected ImportDesc.Table castImportDesc(ImportDesc desc) {
+		protected ImportDesc.@Nullable Table castImportDesc(ImportDesc desc) {
 			return (desc instanceof ImportDesc.Table t) ? t : null;
 		}
 
@@ -309,7 +309,7 @@ public final class InstantiatedModule implements WasmModule {
 
 	private final class MemoryBuilder extends IndexSpaceBuilder<WasmMemory, ImportDesc.Mem, Mem> {
 		@Override
-		protected ImportDesc.Mem castImportDesc(ImportDesc desc) {
+		protected ImportDesc.@Nullable Mem castImportDesc(ImportDesc desc) {
 			return (desc instanceof ImportDesc.Mem m) ? m : null;
 		}
 
@@ -341,7 +341,7 @@ public final class InstantiatedModule implements WasmModule {
 
 	private final class GlobalBuilder extends IndexSpaceBuilder<WasmGlobal, ImportDesc.Global, Global> {
 		@Override
-		protected ImportDesc.Global castImportDesc(ImportDesc desc) {
+		protected ImportDesc.@Nullable Global castImportDesc(ImportDesc desc) {
 			return (desc instanceof ImportDesc.Global g) ? g : null;
 		}
 
@@ -372,7 +372,7 @@ public final class InstantiatedModule implements WasmModule {
 
 	private final class TagBuilder extends IndexSpaceBuilder<DynamicWasmTag, ImportDesc.Tag, Tag> {
 		@Override
-		protected ImportDesc.Tag castImportDesc(ImportDesc desc) {
+		protected ImportDesc.@Nullable Tag castImportDesc(ImportDesc desc) {
 			return (desc instanceof ImportDesc.Tag t) ? t : null;
 		}
 

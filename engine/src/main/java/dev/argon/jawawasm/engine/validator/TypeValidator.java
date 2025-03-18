@@ -112,13 +112,13 @@ final class TypeValidator extends ValidatorBase {
 	public void validateRecursiveType(RecursiveType recType, int recTypeStart) throws ValidationException {
 		int typeIndex = recTypeStart;
 		for(var subType : recType.subtypes()) {
-			validateSubType(subType, recTypeStart, typeIndex);
+			validateSubType(subType, typeIndex);
 
 			++typeIndex;
 		}
 	}
 
-	private void validateSubType(SubType subType, int recTypeStart, int typeIndex) throws ValidationException {
+	private void validateSubType(SubType subType, int typeIndex) throws ValidationException {
 		validateCompositeType(subType.compositeType());
 
 		if(subType.superTypes().size() > 1) {

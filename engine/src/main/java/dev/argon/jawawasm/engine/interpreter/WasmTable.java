@@ -18,7 +18,7 @@ public final class WasmTable implements WasmExport {
 	 * @param type The table type.
 	 * @param initialValue The initial value for elements of the table.
 	 */
-	public WasmTable(TableType type, Object initialValue) {
+	public WasmTable(TableType type, @Nullable Object initialValue) {
 		this.tableType = type;
 		values = new ArrayList<>((int)type.limits().min());
 		for(int i = 0; i < type.limits().min(); ++i) {
@@ -27,7 +27,7 @@ public final class WasmTable implements WasmExport {
 	}
 
 	private final TableType tableType;
-	private final List<Object> values;
+	private final List<@Nullable Object> values;
 
 	/**
 	 * Gets the table type.
@@ -54,7 +54,7 @@ public final class WasmTable implements WasmExport {
 	 * @param i The index.
 	 * @return The element.
 	 */
-	public synchronized Object get(long i) {
+	public synchronized @Nullable Object get(long i) {
 		Objects.checkIndex(i, values.size());
 		return values.get((int)i);
 	}
@@ -75,7 +75,7 @@ public final class WasmTable implements WasmExport {
 	 * @param value The value to set for new elements.
 	 * @return The old size.
 	 */
-	public synchronized long grow(long n, Object value) {
+	public synchronized long grow(long n, @Nullable Object value) {
 		int oldSize = values.size();
 
 		if(n < 0 || (tableType.limits().max() != null && oldSize + n > tableType.limits().max()) || oldSize + n < 0 || n > Integer.MAX_VALUE) {
@@ -96,7 +96,7 @@ public final class WasmTable implements WasmExport {
 	 * @param i The start index.
 	 * @param table The table to fill.
 	 */
-	public static void fill(long n, Object val, long i, WasmTable table) {
+	public static void fill(long n, @Nullable Object val, long i, WasmTable table) {
 		if(!Util.sumInRange(i, n, table.size())) {
 			throw new IndexOutOfBoundsException();
 		}

@@ -2,6 +2,9 @@ package dev.argon.jawawasm.format.types;
 
 import dev.argon.jawawasm.runtime.AddrType;
 import dev.argon.jawawasm.runtime.WasmMemory;
+import org.jspecify.annotations.Nullable;
+
+import java.util.Objects;
 
 /**
  * Utility methods for address types.
@@ -30,7 +33,9 @@ public class AddressTypeUtils {
 	 * @param address The boxed address.
 	 * @return The address as a long.
 	 */
-	public static long unboxAddress(AddrType addrType, Object address) {
+	public static long unboxAddress(AddrType addrType, @Nullable Object address) {
+		Objects.requireNonNull(address);
+
 		return switch(addrType) {
 			case I32 -> Integer.toUnsignedLong((int)address);
 			case I64 -> (long)address;

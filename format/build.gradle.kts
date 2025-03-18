@@ -1,8 +1,10 @@
+import net.ltgt.gradle.errorprone.errorprone
 
 plugins {
     `java-library`
     `maven-publish`
     signing
+    id("net.ltgt.errorprone") version "4.1.0"
 }
 
 
@@ -15,8 +17,11 @@ repositories {
 
 dependencies {
     api(project(":runtime"))
-    compileOnly("org.jspecify:jspecify:1.0.0")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.9.1")
+    compileOnly(libs.jspecify)
+    testImplementation(libs.junit.jupiter)
+
+    errorprone(libs.nullaway)
+    errorprone(libs.errorprone)
 }
 
 java {
@@ -26,6 +31,19 @@ java {
 
     withSourcesJar()
     withJavadocJar()
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.errorprone {
+        disableWarningsInGeneratedCode.set(true)
+
+        option("NullAway:OnlyNullMarked", "true")
+        option("NullAway:JSpecifyMode", "true")
+    }
+}
+
+tasks.compileJava {
+    options.errorprone.error("NullAway")
 }
 
 publishing {

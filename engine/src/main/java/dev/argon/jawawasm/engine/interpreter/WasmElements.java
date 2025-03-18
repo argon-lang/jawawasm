@@ -1,5 +1,7 @@
 package dev.argon.jawawasm.engine.interpreter;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * WebAssembly elements.
  */
@@ -8,11 +10,11 @@ public class WasmElements {
 	 * Create elements.
 	 * @param values The element vaules.
 	 */
-	public WasmElements(Object[] values) {
+	public WasmElements(@Nullable Object[] values) {
 		this.values = values;
 	}
 
-	private final Object[] values;
+	private final @Nullable Object[] values;
 
 	/**
 	 * Gets the number of values.
@@ -27,7 +29,7 @@ public class WasmElements {
 	 * @param i The index.
 	 * @return The element.
 	 */
-	public Object get(int i) {
+	public @Nullable Object get(int i) {
 		return values[i];
 	}
 }

@@ -1,0 +1,7 @@
+[libraries]
+jspecify = { module = "org.jspecify:jspecify", version = "1.0.0" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version = "5.9.1" }
+
+nullaway = { module = "com.uber.nullaway:nullaway", version = "0.12.4" }
+errorprone = { module = "com.google.errorprone:error_prone_core", version = "2.36.0" }
+

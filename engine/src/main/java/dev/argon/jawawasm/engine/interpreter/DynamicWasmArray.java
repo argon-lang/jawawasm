@@ -1,6 +1,9 @@
 package dev.argon.jawawasm.engine.interpreter;
 
 import dev.argon.jawawasm.format.types.*;
+import org.jspecify.annotations.Nullable;
+
+import java.util.Objects;
 
 /**
  * A WebAssembly array.
@@ -19,14 +22,14 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 	 * @param index The index.
 	 * @return The element at the index.
 	 */
-	public abstract Object get(int index);
+	public abstract @Nullable Object get(int index);
 
 	/**
 	 * Sets the element at index.
 	 * @param index The index.
 	 * @param value The new value.
 	 */
-	public abstract void set(int index, Object value);
+	public abstract void set(int index, @Nullable Object value);
 
 	static DynamicWasmArray create(DefType type, int length) {
 		var arrayType = (ArrayType)type.recursiveType().subtypes().get(type.index()).compositeType();
@@ -55,7 +58,7 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 		}
 
 		private final DefType type;
-		private final Object[] values;
+		private final @Nullable Object[] values;
 
 		@Override
 		public HeapType heapType() {
@@ -68,12 +71,12 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 		}
 
 		@Override
-		public Object get(int index) {
+		public @Nullable Object get(int index) {
 			return values[index];
 		}
 
 		@Override
-		public void set(int index, Object value) {
+		public void set(int index, @Nullable Object value) {
 			values[index] = value;
 		}
 	}
@@ -106,7 +109,8 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 		}
 
 		@Override
-		public void set(int index, Object value) {
+		public void set(int index, @Nullable Object value) {
+			Objects.requireNonNull(value);
 			values[index] = (byte)value;
 		}
 
@@ -157,7 +161,8 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 		}
 
 		@Override
-		public void set(int index, Object value) {
+		public void set(int index, @Nullable Object value) {
+			Objects.requireNonNull(value);
 			values[index] = (short)value;
 		}
 
@@ -208,7 +213,8 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 		}
 
 		@Override
-		public void set(int index, Object value) {
+		public void set(int index, @Nullable Object value) {
+			Objects.requireNonNull(value);
 			values[index] = (int)value;
 		}
 
@@ -259,7 +265,8 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 		}
 
 		@Override
-		public void set(int index, Object value) {
+		public void set(int index, @Nullable Object value) {
+			Objects.requireNonNull(value);
 			values[index] = (long)value;
 		}
 
@@ -310,7 +317,8 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 		}
 
 		@Override
-		public void set(int index, Object value) {
+		public void set(int index, @Nullable Object value) {
+			Objects.requireNonNull(value);
 			values[index] = (float)value;
 		}
 
@@ -361,7 +369,8 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 		}
 
 		@Override
-		public void set(int index, Object value) {
+		public void set(int index, @Nullable Object value) {
+			Objects.requireNonNull(value);
 			values[index] = (double)value;
 		}
 

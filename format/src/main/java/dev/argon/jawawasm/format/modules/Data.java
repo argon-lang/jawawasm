@@ -5,5 +5,6 @@ package dev.argon.jawawasm.format.modules;
  * @param init The initial data.
  * @param mode The mode.
  */
+@SuppressWarnings("ArrayRecordComponent")
 public record Data(byte[] init, DataMode mode) {
 }

@@ -1,6 +1,7 @@
 package dev.argon.jawawasm.engine.interpreter;
 
 import dev.argon.jawawasm.format.types.*;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
@@ -31,7 +32,7 @@ public non-sealed interface DynamicWasmFunction extends WasmExport, DynamicWasmO
 	 * @return The function result.
 	 * @throws Throwable if an error occurs.
 	 */
-	DynamicFunctionResult invoke(Object[] args) throws Throwable;
+	DynamicFunctionResult invoke(@Nullable Object[] args) throws Throwable;
 
 	/**
 	 * Invoke the function
@@ -39,7 +40,7 @@ public non-sealed interface DynamicWasmFunction extends WasmExport, DynamicWasmO
 	 * @return The return vaules.
 	 * @throws Throwable if an error occurs.
 	 */
-	default Object[] invokeNow(Object[] args) throws Throwable {
+	default @Nullable Object[] invokeNow(@Nullable Object[] args) throws Throwable {
 		return DynamicFunctionResult.resolve(invoke(args));
 	}
 

@@ -72,9 +72,10 @@ public interface WasmMemoryNoResize {
 	 */
 	default V128 loadV128(long address) {
 		int[] values = new int[4];
-		for(int i = 0; i < values.length; ++i) {
-			values[i] = loadI32(address + i * 4);
-		}
+		values[0] = loadI32(address);
+		values[1] = loadI32(address + 4);
+		values[2] = loadI32(address + 8);
+		values[3] = loadI32(address + 12);
 		return V128.build32(i -> values[i]);
 	}
 
@@ -127,9 +128,10 @@ public interface WasmMemoryNoResize {
 	 * @param value The value.
 	 */
 	default void storeV128(long address, V128 value) {
-		for(int i = 0; i < 4; ++i) {
-			storeI32(address + i * 4, value.extractLane32(i));
-		}
+		storeI32(address, value.extractLane32(0));
+		storeI32(address + 4, value.extractLane32(1));
+		storeI32(address + 8, value.extractLane32(2));
+		storeI32(address + 12, value.extractLane32(3));
 	}
 
 	/**

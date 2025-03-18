@@ -1,6 +1,9 @@
+import net.ltgt.gradle.errorprone.errorprone
+
 plugins {
     application
     java
+    id("net.ltgt.errorprone") version "4.1.0"
 }
 
 repositories {
@@ -12,9 +15,12 @@ dependencies {
     implementation(project(":engine"))
     implementation(project(":runtime"))
 
-    compileOnly("org.jspecify:jspecify:0.3.0")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.9.2")
+    compileOnly(libs.jspecify)
+    testImplementation(libs.junit.jupiter)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    errorprone(libs.nullaway)
+    errorprone(libs.errorprone)
 }
 
 java {
@@ -24,6 +30,19 @@ java {
 
     withSourcesJar()
     withJavadocJar()
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.errorprone {
+        disableWarningsInGeneratedCode.set(true)
+
+        option("NullAway:OnlyNullMarked", "true")
+        option("NullAway:JSpecifyMode", "true")
+    }
+}
+
+tasks.compileJava {
+    options.errorprone.error("NullAway")
 }
 
 application {

@@ -2,6 +2,7 @@ package dev.argon.jawawasm.engine.interpreter;
 
 import dev.argon.jawawasm.format.types.HeapType;
 import dev.argon.jawawasm.runtime.WebAssemblyException;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An exception thrown by WebAssembly.
@@ -12,7 +13,7 @@ public final class DynamicWebAssemblyException extends WebAssemblyException impl
 	 * @param tag The tag type of the exception.
 	 * @param values The exception payload.
 	 */
-	public DynamicWebAssemblyException(DynamicWasmTag tag, Object[] values) {
+	public DynamicWebAssemblyException(DynamicWasmTag tag, @Nullable Object[] values) {
 		this.tag = tag;
 		this.values = values;
 	}
@@ -25,7 +26,7 @@ public final class DynamicWebAssemblyException extends WebAssemblyException impl
 	/**
 	 * The payload.
 	 */
-	private final Object[] values;
+	private final @Nullable Object[] values;
 
 	/**
 	 * Gets the tag of this exception.
@@ -39,7 +40,7 @@ public final class DynamicWebAssemblyException extends WebAssemblyException impl
 	 * Gets the payload.
 	 * @return The payload.
 	 */
-	public Object[] getValues() {
+	public @Nullable Object[] getValues() {
 		return values;
 	}
 

@@ -3,6 +3,7 @@ package dev.argon.jawawasm.engine.internal;
 import dev.argon.jawawasm.format.modules.TypeIdx;
 import dev.argon.jawawasm.format.types.*;
 import dev.argon.jawawasm.format.types.Limits;
+import org.jspecify.annotations.Nullable;
 
 public abstract class SubtypingBase {
 
@@ -84,7 +85,7 @@ public abstract class SubtypingBase {
 		return isSubtypeDefType(a, null, b);
 	}
 
-	private boolean isSubtypeDefType(DefType a, SubType aSubType, DefType b) {
+	private boolean isSubtypeDefType(DefType a, @Nullable SubType aSubType, DefType b) {
 		if(close(a).equals(close(b))) {
 			return true;
 		}

@@ -2,11 +2,12 @@ package dev.argon.jawawasm.engine.interpreter;
 
 import dev.argon.jawawasm.runtime.V128;
 import dev.argon.jawawasm.format.types.*;
+import org.jspecify.annotations.Nullable;
 
 final class Defaults {
 	private Defaults() {}
 
-	public static Object defaultValue(ValType t) {
+	public static @Nullable Object defaultValue(ValType t) {
 		return switch(t) {
 			case NumType numType -> switch(numType) {
 				case I32 -> 0;
@@ -25,7 +26,7 @@ final class Defaults {
 		};
 	}
 
-	public static Object defaultValuePacked(StorageType t) {
+	public static @Nullable Object defaultValuePacked(StorageType t) {
 		return switch(t) {
 			case PackedType packedType -> switch(packedType) {
 				case I8 -> (byte)0;
