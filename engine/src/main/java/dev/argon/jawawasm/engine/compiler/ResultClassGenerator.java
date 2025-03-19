@@ -80,6 +80,7 @@ class ResultClassGenerator extends WasmClassGenerator {
 
 							for(int i = 0; i < resultType.types().size(); ++i) {
 								cb.loadLocal(typeKind(ctorArgs.get(i)), slotIndex);
+								slotIndex += slotSize(ctorArgs.get(i));
 							}
 
 							cb.invokespecial(endResultClass.className(), "<init>", MethodTypeDesc.of(CD_void, ctorArgs));
@@ -168,6 +169,7 @@ class ResultClassGenerator extends WasmClassGenerator {
 									cb.aload(0);
 									cb.loadLocal(typeKind(ctorArgs.get(i)), slotIndex);
 									cb.putfield(className, "item" + i, ctorArgs.get(i));
+									slotIndex += slotSize(ctorArgs.get(i));
 								}
 
 								cb.aload(0);

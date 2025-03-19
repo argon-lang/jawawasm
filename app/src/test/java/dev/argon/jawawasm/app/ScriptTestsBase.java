@@ -55,9 +55,9 @@ abstract class ScriptTestsBase {
 			}
 		}
 
-		if(!path.toString().equals("int_exprs.wast")) {
-			return true;
-		}
+//		if(!path.toString().equals("fac.wast")) {
+//			return true;
+//		}
 
 		return false;
 	}

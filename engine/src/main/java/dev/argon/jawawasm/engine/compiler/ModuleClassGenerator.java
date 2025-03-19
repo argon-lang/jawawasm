@@ -7,11 +7,8 @@ import dev.argon.jawawasm.format.types.AggregateType;
 import dev.argon.jawawasm.format.types.DefType;
 import dev.argon.jawawasm.format.types.FuncType;
 import dev.argon.jawawasm.format.types.ResultType;
-import org.jspecify.annotations.Nullable;
 
-import java.lang.classfile.ClassBuilder;
-import java.lang.classfile.ClassFile;
-import java.lang.classfile.CodeBuilder;
+import java.lang.classfile.*;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.util.ArrayList;
@@ -70,8 +67,9 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 			switch(imp.desc()) {
 				case ImportDesc.Func func -> {
 					localName = "func" + funcs.size();
-					var type = compiler.getMethodType(types.get(func.type().index()));
-					funcs.add(new FunctionInfo(localName, type));
+					var defType = types.get(func.type().index());
+					var type = compiler.getMethodType(defType);
+					funcs.add(new FunctionInfo(localName, type, getFuncType(defType)));
 					generateFunctionImport(clb, imp, func, localName, type);
 				}
 				case ImportDesc.Table table -> {
@@ -88,7 +86,7 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 				case ImportDesc.Mem _ -> {
 					localName = "mem" + memCount;
 					++memCount;
-					clb.withField(localName, Constants.memoryType, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
+					clb.withField(localName, memoryType, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
 				}
 				case ImportDesc.Tag tag -> {
 					throw new RuntimeException("Not implemented");
@@ -102,8 +100,9 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 
 		for(var func : module.funcs()) {
 			var name = "func" + funcs.size();
-			var type = compiler.getMethodType(types.get(func.type().index()));
-			funcs.add(new FunctionInfo(name, type));
+			var defType = types.get(func.type().index());
+			var type = compiler.getMethodType(defType);
+			funcs.add(new FunctionInfo(name, type, getFuncType(defType)));
 			functionCodegens.add(() -> generateFunction(clb, name, type, func));
 		}
 
@@ -161,14 +160,11 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 	}
 
 	private void generateFunction(ClassBuilder clb, String name, MethodTypeDesc type, Func func) {
+		System.err.println("generateFunction " + name);
 		clb.withMethodBody(name, type, ClassFile.ACC_PRIVATE, cb -> {
 			var funcType = types.get(func.type().index());
 
-			var subtype = funcType.recursiveType().subtypes().get(funcType.index());
-			var returnType = switch(subtype.compositeType()) {
-				case AggregateType _ -> throw new RuntimeException("Unexpected aggregate type");
-				case FuncType ft -> ft.results();
-			};
+			var returnType = getFuncType(funcType).results();
 
 			int paramCount = type.parameterCount();
 			LocalInfo[] locals = new LocalInfo[paramCount + func.locals().size()];
@@ -195,8 +191,8 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 				slotOffset += slotSize(localType.type());
 			}
 
-			var bytecodeGen = new BytecodeGenerator(cb, locals);
-			bytecodeGen.generateFunctionBody(func.body(), returnType);
+			var bytecodeGen = new BytecodeGenerator(cb, locals, returnType, slotOffset);
+			bytecodeGen.generateFunctionBody(func.body());
 		});
 
 		// Generate static method that is easier to call.
@@ -232,26 +228,39 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 	}
 
 	private final class BytecodeGenerator {
-		public BytecodeGenerator(CodeBuilder cb, LocalInfo[] locals) {
+		public BytecodeGenerator(CodeBuilder cb, LocalInfo[] locals, ResultType returnType, int tempVarSlot) {
 			this.cb = cb;
 			this.locals = locals;
+			this.returnType = returnType;
+			this.tempVarSlot = tempVarSlot;
 		}
 
 
 		private final CodeBuilder cb;
 		private final LocalInfo[] locals;
+		private final ResultType returnType;
+		private int tempVarSlot;
+		private final List<TypeKind> stackTypes = new ArrayList<>();
+		private final List<LabelInfo> labels = new ArrayList<>();
 		private boolean isUnreachable = false;
+		private boolean usesReturnLabel = false;
 
-		public void generateFunctionBody(Expr body, ResultType returnType) {
+		public void generateFunctionBody(Expr body) {
+			var returnLabel = cb.newLabel();
+			labels.add(new LabelInfo(returnLabel, returnType));
 			generateInstructionBlock(body);
 
-			if(!isUnreachable) {
-				generateReturn(returnType);
+			if(!isUnreachable || usesReturnLabel) {
+				cb.labelBinding(returnLabel);
+				generateReturn();
 			}
 		}
 
 		public void generateInstructionBlock(Expr body) {
 			for(var insn : body.body()) {
+				System.err.println("Stack: " + stackTypes);
+				System.err.println("Instruction: " + insn);
+
 				generateInstruction(insn);
 
 				if(isUnreachable) {
@@ -260,12 +269,13 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 			}
 		}
 
+
 		private void generateInstruction(Instr insn) {
 			switch(insn) {
-				case ControlInstr controlInstr -> generateConstrolInstr(controlInstr);
+				case ControlInstr controlInstr -> generateControlInstr(controlInstr);
 				case MemoryInstr memoryInstr -> throw new RuntimeException("Not implemented");
 				case NumericInstr numericInstr -> generateNumericInstr(numericInstr);
-				case ParametricInstr parametricInstr -> throw new RuntimeException("Not implemented");
+				case ParametricInstr parametricInstr -> generateParametricInstr(parametricInstr);
 				case ReferenceInstr referenceInstr -> throw new RuntimeException("Not implemented");
 				case TableInstr tableInstr -> throw new RuntimeException("Not implemented");
 				case VariableInstr variableInstr -> generateVaiableInstr(variableInstr);
@@ -273,42 +283,119 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 			}
 		}
 
-		private void generateConstrolInstr(ControlInstr instr) {
+		private void generateControlInstr(ControlInstr instr) {
 			switch(instr) {
 				case ControlInstr.Nop() -> cb.nop();
+				case ControlInstr.Unreachable() -> {
+					var trap = ClassDesc.of(RUNTIME_PACKAGE, "UnreachableTrap");
+					cb.new_(trap);
+					cb.dup();
+					cb.invokespecial(trap, "<init>", MethodTypeDesc.ofDescriptor("()V"));
+					cb.athrow();
+					isUnreachable = true;
+					stackTypes.clear();
+				}
+				case ControlInstr.Block(var blockType, var innerBlock) -> {
+					var type = getBlockFuncType(blockType);
+
+					var endLabel = cb.newLabel();
+
+					var state = enterBlock(blockType);
+
+					labels.add(new LabelInfo(endLabel, type.results()));
+					generateInstructionBlock(new Expr(innerBlock));
+					labels.removeLast();
+					cb.labelBinding(endLabel);
+
+					exitBlock(blockType, state);
+					isUnreachable = false;
+				}
+				case ControlInstr.Loop(var blockType, var innerBlock) -> {
+					var type = getBlockFuncType(blockType);
+
+					var restartLoopLabel = cb.newLabel();
+
+					var state = enterBlock(blockType);
+
+					cb.labelBinding(restartLoopLabel);
+					labels.add(new LabelInfo(restartLoopLabel, type.args()));
+					generateInstructionBlock(new Expr(innerBlock));
+					labels.removeLast();
+
+					if(!isUnreachable) {
+						exitBlock(blockType, state);
+					}
+				}
+
+
+				case ControlInstr.Br(var labelIdx) -> {
+					var label = getLabel(labelIdx);
+					doJump(label.label, label.labelType, Opcode.GOTO, Opcode.NOP);
+
+					isUnreachable = true;
+					stackTypes.clear();
+				}
+				case ControlInstr.Br_If(var labelIdx) -> {
+					var label = getLabel(labelIdx);
+					stackTypes.removeLast();
+					doJump(label.label, label.labelType, Opcode.IFNE, Opcode.IFEQ);
+				}
 
 				case ControlInstr.If(var blockType, var thenBody, var elseBody) -> {
-					var endLabel = cb.newLabel();
-					var thenLabel = cb.newLabel();
+					var type = getBlockFuncType(blockType);
 
-					cb.ifne(thenLabel);
+					var exitThenLabel = cb.newLabel();
+					var elseLabel = cb.newLabel();
+					var exitElseLabel = cb.newLabel();
+					var endLabel = cb.newLabel();
+
+					stackTypes.removeLast();
+					cb.ifeq(elseLabel);
+
+					var stackTypesCopy = new ArrayList<>(stackTypes);
+
+					var state = enterBlock(blockType);
+					labels.add(new LabelInfo(exitThenLabel, type.results()));
 					generateInstructionBlock(new Expr(thenBody));
-					if(!isUnreachable) {
-						cb.goto_(endLabel);
-					}
+					labels.removeLast();
+					cb.labelBinding(exitThenLabel);
+					exitBlock(blockType, state);
+					cb.goto_(endLabel);
 					isUnreachable = false;
 
-					cb.labelBinding(thenLabel);
+					cb.labelBinding(elseLabel);
 
+					stackTypes.clear();
+					stackTypes.addAll(stackTypesCopy);
+
+					state = enterBlock(blockType);
+					labels.add(new LabelInfo(exitElseLabel, type.results()));
 					generateInstructionBlock(new Expr(elseBody));
+					labels.removeLast();
+					exitBlock(blockType, state);
 					isUnreachable = false;
 
 					cb.labelBinding(endLabel);
 				}
 
+				case ControlInstr.Return() -> generateReturn();
 
-//				case ControlInstr.Call(var funcIdx) -> {
-//					var funcInfo = funcs.get(funcIdx.index());
-//
-//
-//				}
+				case ControlInstr.Call(var funcIdx) -> {
+					var funcInfo = funcs.get(funcIdx.index());
 
-//				case ControlInstr.Block block -> {
-//				}
-//				case ControlInstr.Br br -> {
-//				}
-//				case ControlInstr.Br_If brIf -> {
-//				}
+					var resultType = compiler.getResultType(funcInfo.funcType.results());
+					var endResultType = resultType.nested("EndResult");
+
+					for(int i = 0; i < funcInfo.type.parameterCount(); ++i) {
+						stackTypes.removeLast();
+					}
+
+					cb.aload(0);
+					cb.invokestatic(className, "static_" + funcInfo.name(), getStaticThunkType(funcInfo.type()));
+					cb.invokestatic(resultType, "get", MethodTypeDesc.of(endResultType, resultType), true);
+					unpackResultType(funcInfo.funcType.results(), endResultType);
+				}
+
 //				case ControlInstr.Br_OnCast brOnCast -> {
 //				}
 //				case ControlInstr.Br_OnCastFail brOnCastFail -> {
@@ -324,8 +411,6 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 //				case ControlInstr.Call_Ref callRef -> {
 //				}
 //				case ControlInstr.Loop loop -> {
-//				}
-//				case ControlInstr.Return aReturn -> {
 //				}
 //				case ControlInstr.Return_Call returnCall -> {
 //				}
@@ -348,10 +433,22 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 
 		private void generateNumericInstr(NumericInstr instr) {
 			switch(instr) {
-				case NumericInstr.I32_Const(var value) -> cb.loadConstant(value);
-				case NumericInstr.I64_Const(var value) -> cb.loadConstant(value);
-				case NumericInstr.F32_Const(var value) -> cb.loadConstant(value);
-				case NumericInstr.F64_Const(var value) -> cb.loadConstant(value);
+				case NumericInstr.I32_Const(var value) -> {
+					cb.loadConstant(value);
+					stackTypes.add(TypeKind.INT);
+				}
+				case NumericInstr.I64_Const(var value) -> {
+					cb.loadConstant(value);
+					stackTypes.add(TypeKind.LONG);
+				}
+				case NumericInstr.F32_Const(var value) -> {
+					cb.loadConstant(value);
+					stackTypes.add(TypeKind.FLOAT);
+				}
+				case NumericInstr.F64_Const(var value) -> {
+					cb.loadConstant(value);
+					stackTypes.add(TypeKind.DOUBLE);
+				}
 				case NumericInstr.Inn_IUnOp(var size, var op) -> {
 					var methodName = switch(op) {
 						case CLZ -> "numberOfLeadingZeros";
@@ -498,6 +595,8 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 							}
 						}
 					}
+
+					stackTypes.removeLast();
 				}
 				case NumericInstr.Fnn_FBinOp(var size, var op) -> {
 					var descriptor = switch(size) {
@@ -534,6 +633,8 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 						case MAX -> cb.invokestatic(utilClass, "max", descriptor);
 						case COPYSIGN -> cb.invokestatic(mathClass, "copySign", descriptor);
 					}
+
+					stackTypes.removeLast();
 				}
 				case NumericInstr.Inn_ITestOp(var size, var op) -> {
 					var descriptor = switch(size) {
@@ -544,6 +645,9 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 					switch(op) {
 						case EQZ -> cb.invokestatic(utilClass, "equalsZero", descriptor);
 					}
+
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.INT);
 				}
 				case NumericInstr.Inn_IRelOp(var size, var op) -> {
 					var descriptor = switch(size) {
@@ -566,6 +670,10 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 					};
 
 					cb.invokestatic(utilClass, methodName, descriptor);
+
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.INT);
 				}
 
 
@@ -584,9 +692,21 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 					}
 				}
 				case NumericInstr.I64_Extend32_S() -> cb.l2i().i2l();
-				case NumericInstr.I32_Wrap_I64() -> cb.l2i();
-				case NumericInstr.I64_Extend_I32_S() -> cb.i2l();
-				case NumericInstr.I64_Extend_I32_U() -> cb.invokestatic(CD_Integer, "toUnsignedLong", MethodTypeDesc.ofDescriptor("(I)J"));
+				case NumericInstr.I32_Wrap_I64() -> {
+					cb.l2i();
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.INT);
+				}
+				case NumericInstr.I64_Extend_I32_S() -> {
+					cb.i2l();
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.LONG);
+				}
+				case NumericInstr.I64_Extend_I32_U() -> {
+					cb.invokestatic(CD_Integer, "toUnsignedLong", MethodTypeDesc.ofDescriptor("(I)J"));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.INT);
+				}
 
 //				case NumericInstr.F32_Demote_F64 f32DemoteF64 -> {
 //				}
@@ -615,15 +735,65 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 			}
 		}
 
+		private void generateParametricInstr(ParametricInstr instr) {
+			switch(instr) {
+				case ParametricInstr.Drop() -> {
+					var t = stackTypes.getLast();
+					stackTypes.removeLast();
+
+					if(t.slotSize() == 2) {
+						cb.pop2();
+					}
+					else {
+						cb.pop();
+					}
+				}
+				case ParametricInstr.Select _ -> {
+					stackTypes.removeLast();
+					var t = stackTypes.getLast();
+					stackTypes.removeLast();
+
+					var endLabel = cb.newLabel();
+					var bottomLabel = cb.newLabel();
+
+					cb.ifeq(bottomLabel);
+
+					if(t.slotSize() == 2) {
+						cb.dup2_x2();
+						cb.pop2();
+						cb.pop2();
+					}
+					else {
+						cb.swap();
+					}
+
+					cb.goto_(endLabel);
+
+					cb.labelBinding(bottomLabel);
+					if(t.slotSize() == 2) {
+						cb.pop2();
+					}
+					else {
+						cb.pop();
+					}
+
+					cb.labelBinding(endLabel);
+				}
+			}
+		}
+
 		private void generateVaiableInstr(VariableInstr instr) {
 			switch(instr) {
 				case VariableInstr.Local_Get(var localIdx) -> {
 					var localInfo = locals[localIdx.index()];
-					cb.loadLocal(typeKind(localInfo.type()), localInfo.slotIndex());
+					var t = typeKind(localInfo.type());
+					cb.loadLocal(t, localInfo.slotIndex());
+					stackTypes.add(t);
 				}
 				case VariableInstr.Local_Set(var localIdx) -> {
 					var localInfo = locals[localIdx.index()];
 					cb.storeLocal(typeKind(localInfo.type()), localInfo.slotIndex());
+					stackTypes.removeLast();
 				}
 				case VariableInstr.Local_Tee(var localIdx) -> {
 					var localInfo = locals[localIdx.index()];
@@ -635,7 +805,7 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 			}
 		}
 
-		private void generateReturn(ResultType returnType) {
+		private void generateReturn() {
 			var resultArgTypes = new ArrayList<ClassDesc>();
 
 			for(var t : returnType.types()) {
@@ -647,6 +817,170 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 
 			cb.invokestatic(compiler.getResultType(returnType), "of", MethodTypeDesc.of(returnTypeClass, resultArgTypes), true);
 			cb.areturn();
+
+			isUnreachable = true;
+			stackTypes.clear();
+		}
+
+		private LabelInfo getLabel(LabelIdx labelIdx) {
+			if(labelIdx.index() == labels.size() - 1) {
+				usesReturnLabel = true;
+			}
+			return labels.get(labels.size() - 1 - labelIdx.index());
+		}
+
+		private void unpackResultType(ResultType resultType, ClassDesc endResultClass) {
+			if(resultType.types().isEmpty()) {
+				cb.pop();
+				return;
+			}
+
+			for(int i = 0; i < resultType.types().size(); ++i) {
+				var t = compiler.getValType(resultType.types().get(i)).type();
+
+				stackTypes.add(typeKind(t));
+
+				boolean isLast = i == resultType.types().size() - 1;
+				if(!isLast) {
+					cb.dup();
+				}
+
+				cb.getfield(endResultClass, "item" + i, t);
+
+				if(!isLast) {
+					if(slotSize(t) == 2) {
+						cb.dup2_x1();
+						cb.pop2();
+					}
+					else {
+						cb.swap();
+					}
+				}
+			}
+		}
+
+		private record LabelInfo(Label label, ResultType labelType) {}
+
+		private record StashedBlockState(int oldTempVarSlot, List<StashedStackValue> stashedStackValues) {}
+		private record StashedStackValue(int slot, TypeKind typeKind) {}
+
+		private StashedBlockState enterBlock(ControlInstr.BlockType blockType) {
+			var type = getBlockFuncType(blockType);
+
+			if(stackTypes.size() == type.args().types().size()) {
+				return new StashedBlockState(tempVarSlot, List.of());
+			}
+
+			int oldTempVarSlot = tempVarSlot;
+			int stashCount = stackTypes.size() - type.args().types().size();
+
+			List<StashedStackValue> stashedStackValues = new ArrayList<>();
+			for(var t : stackTypes) {
+				stashedStackValues.add(new StashedStackValue(tempVarSlot, t));
+				tempVarSlot += t.slotSize();
+			}
+
+			for(var value : stashedStackValues.reversed()) {
+				cb.storeLocal(value.typeKind, value.slot);
+			}
+
+			var stashedArgs = stashedStackValues.subList(stashCount, stashedStackValues.size());
+			for(var stashedArg : stashedArgs) {
+				cb.loadLocal(stashedArg.typeKind, stashedArg.slot);
+
+				// A bit odd because we can't actually discard the variables until
+				// after all instructions from the loop have run.
+				// But this value won't matter until after the loop anyway.
+				tempVarSlot -= stashedArg.typeKind.slotSize();
+			}
+
+			stashedArgs.clear();
+			stackTypes.clear();
+
+			return new StashedBlockState(oldTempVarSlot, stashedStackValues);
+		}
+
+		private void exitBlock(ControlInstr.BlockType blockType, StashedBlockState state) {
+			var type = getBlockFuncType(blockType);
+
+
+			if(state.stashedStackValues.isEmpty()) {
+				return;
+			}
+
+			var stashedValues = new ArrayList<>(state.stashedStackValues);
+			for(var resType : type.results().types()) {
+				var javaType  = compiler.getValType(resType).type();
+				var t = typeKind(javaType);
+				stashedValues.add(new StashedStackValue(tempVarSlot, t));
+				tempVarSlot += t.slotSize();
+			}
+
+			for(var resStash : stashedValues.subList(state.stashedStackValues.size(), stashedValues.size()).reversed()) {
+				cb.storeLocal(resStash.typeKind, resStash.slot);
+			}
+
+			for(var stashedValue : stashedValues) {
+				cb.loadLocal(stashedValue.typeKind, stashedValue.slot);
+				stackTypes.add(stashedValue.typeKind);
+			}
+
+			tempVarSlot = state.oldTempVarSlot;
+		}
+
+		private void doJump(Label label, ResultType labelType, Opcode jump, Opcode inverseJump) {
+			if(stackTypes.size() == labelType.types().size()) {
+				cb.branch(jump, label);
+				return;
+			}
+
+			int oldTempVarSlot = tempVarSlot;
+			var stashedValues = new ArrayList<StashedStackValue>();
+			for(var resType : labelType.types()) {
+				var javaType  = compiler.getValType(resType).type();
+				var t = typeKind(javaType);
+				stashedValues.add(new StashedStackValue(tempVarSlot, t));
+				tempVarSlot += t.slotSize();
+			}
+
+			var isUnconditional = jump == Opcode.GOTO || jump == Opcode.GOTO_W;
+
+			var afterJumpLabel = cb.newLabel();
+
+			if(!isUnconditional) {
+				cb.branch(inverseJump, afterJumpLabel);
+			}
+
+			var localStackTypes = new ArrayList<>(stackTypes);
+
+			for(var resStash : stashedValues.reversed()) {
+				cb.storeLocal(resStash.typeKind, resStash.slot);
+				localStackTypes.removeLast();
+			}
+
+			while(!localStackTypes.isEmpty()) {
+				var t = localStackTypes.getLast();
+				localStackTypes.removeLast();
+
+				if(t.slotSize() == 2) {
+					cb.pop2();
+				}
+				else {
+					cb.pop();
+				}
+			}
+
+			for(var stashedValue : stashedValues) {
+				cb.loadLocal(stashedValue.typeKind, stashedValue.slot);
+				localStackTypes.add(stashedValue.typeKind);
+			}
+
+			tempVarSlot = oldTempVarSlot;
+
+			cb.goto_(label);
+
+			cb.labelBinding(afterJumpLabel);
+
 		}
 	}
 
@@ -658,9 +992,25 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 		});
 	}
 
+	private FuncType getFuncType(DefType t) {
+		var subtype = t.recursiveType().subtypes().get(t.index());
+		return switch(subtype.compositeType()) {
+			case AggregateType _ -> throw new RuntimeException("Unexpected aggregate type");
+			case FuncType ft -> ft;
+		};
+	}
+
+	private FuncType getBlockFuncType(ControlInstr.BlockType t) {
+		return switch(t) {
+			case ControlInstr.BlockType.Empty() -> new FuncType(new ResultType(List.of()), new ResultType(List.of()));
+			case ControlInstr.BlockType.OfIndex(var typeIdx)  -> getFuncType(types.get(typeIdx.index()));
+			case ControlInstr.BlockType.OfValType(var valType) -> new FuncType(new ResultType(List.of()), new ResultType(List.of(valType)));
+		};
+	}
+
 	private record ImportInfo(String module, String importedName, String localName, ImportDesc desc) {}
 
-	private record FunctionInfo(String name, MethodTypeDesc type) {}
+	private record FunctionInfo(String name, MethodTypeDesc type, FuncType funcType) {}
 
 	private record TableInfo(String fieldName, ClassDesc type) {}
 
