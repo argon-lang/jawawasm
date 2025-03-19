@@ -39,6 +39,10 @@ public class ModuleCompiler {
 		return gen;
 	}
 
+	void enqueueGenerator(WasmClassGenerator generator) {
+		generatorQueue.offer(generator);
+	}
+
 	public @Nullable WasmClassGenerator dequeueGenerator() {
 		return generatorQueue.poll();
 	}

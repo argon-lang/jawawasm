@@ -55,7 +55,7 @@ abstract class ScriptTestsBase {
 			}
 		}
 
-		if(!path.toString().equals("f32.wast")) {
+		if(!path.toString().equals("int_exprs.wast")) {
 			return true;
 		}
 

@@ -1,4 +1,4 @@
-package dev.argon.jawawasm.engine.interpreter;
+package dev.argon.jawawasm.runtime;
 
 /**
  * An `unreachable` instruction was reached.

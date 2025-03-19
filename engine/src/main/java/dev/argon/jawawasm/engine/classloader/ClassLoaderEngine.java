@@ -12,11 +12,17 @@ import dev.argon.jawawasm.runtime.ModuleResolutionException;
 import dev.argon.jawawasm.runtime.WasmModule;
 
 import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassHierarchyResolver;
+import java.lang.constant.ClassDesc;
+import java.lang.reflect.AccessFlag;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 public class ClassLoaderEngine {
 	/**
@@ -25,13 +31,23 @@ public class ClassLoaderEngine {
 	public ClassLoaderEngine(String packageName, MemoryAllocator allocator) {
 		this.packageName = packageName;
 		this.allocator = allocator;
+
+		classFile = ClassFile.of(
+			ClassFile.ShortJumpsOption.FIX_SHORT_JUMPS,
+			ClassFile.ClassHierarchyResolverOption.of(
+				new LoaderHierarchyResolver().orElse(ClassHierarchyResolver.defaultResolver())
+			)
+		);
+
 		compiler = new ModuleCompiler(new CompilerOptions(
+			classFile,
 			packageName
 		));
 	}
 
 	private final String packageName;
 	private final MemoryAllocator allocator;
+	private final ClassFile classFile;
 	private final ModuleCompiler compiler;
 	private final ClassLoader classLoader = new EngineClassLoaderImpl();
 	private final AtomicInteger moduleIndex = new AtomicInteger(0);
@@ -52,6 +68,8 @@ public class ClassLoaderEngine {
 		try {
 			int currentIndex = moduleIndex.getAndIncrement();
 			var classGenerator = compiler.enqueueModule(module, "Module" + currentIndex, new MappedResolver(resolver));
+			List<byte[]> newClassBytecode = new ArrayList<>();
+
 			for(;;) {
 				var cg = compiler.dequeueGenerator();
 
@@ -61,12 +79,28 @@ public class ClassLoaderEngine {
 
 				var content = cg.generate();
 
-				var binaryName = getBinaryName(cg);
+				var binaryName = getBinaryName(cg.className());
 
 				generatedClasses.put(binaryName, content);
+				newClassBytecode.add(content);
 			}
 
-			Class<?> cls = classLoader.loadClass(getBinaryName(classGenerator));
+			for(var ncb : newClassBytecode) {
+				var errors = classFile.verify(ncb);
+
+				if(!errors.isEmpty()) {
+					var classModel = classFile.parse(ncb);
+					System.err.println(classModel);
+					for(var method : classModel.methods()) {
+						System.err.println(method);
+						method.code().ifPresent(code -> code.elementList().forEach(System.err::println));
+
+					}
+					throw new RuntimeException("Verification errors for " + classModel.thisClass() + ":\n" + errors.stream().map(VerifyError::toString).collect(Collectors.joining(",")));
+				}
+			}
+
+			Class<?> cls = classLoader.loadClass(getBinaryName(classGenerator.className()));
 
 			WasmModule instance;
 			try {
@@ -86,8 +120,8 @@ public class ClassLoaderEngine {
 		}
 	}
 
-	private static String getBinaryName(WasmClassGenerator cg) {
-		var desc = cg.className().descriptorString();
+	private static String getBinaryName(ClassDesc classDesc) {
+		var desc = classDesc.descriptorString();
 		return desc.substring(1, desc.length() - 1).replace('/', '.');
 	}
 
@@ -151,6 +185,26 @@ public class ClassLoaderEngine {
 			}
 
 			return defineClass(name, data, 0, data.length);
+		}
+	}
+
+	private final class LoaderHierarchyResolver implements ClassHierarchyResolver {
+		@Override
+		public ClassHierarchyInfo getClassInfo(ClassDesc classDesc) {
+			var bytecode = generatedClasses.get(getBinaryName(classDesc));
+
+			var classModel = classFile.parse(bytecode);
+			if(classModel.flags().has(AccessFlag.INTERFACE)) {
+				return ClassHierarchyInfo.ofInterface();
+			}
+			else {
+				var superclass = classModel.superclass().orElse(null);
+				if(superclass == null) {
+					return ClassHierarchyInfo.ofClass(null);
+				}
+
+				return ClassHierarchyInfo.ofClass(ClassDesc.ofInternalName(superclass.asInternalName()));
+			}
 		}
 	}
 

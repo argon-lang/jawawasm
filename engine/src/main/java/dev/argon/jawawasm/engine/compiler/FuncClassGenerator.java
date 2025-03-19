@@ -12,13 +12,12 @@ import java.util.ArrayList;
 
 class FuncClassGenerator extends WasmClassGenerator {
 	public FuncClassGenerator(ModuleCompiler compiler, SubType subtype, FuncType funcType, String className) {
-		this.compiler = compiler;
+		super(compiler);
 		this.subtype = subtype;
 		this.funcType = funcType;
 		this.className = ClassDesc.of(compiler.getOptions().javaPackage(), className);
 	}
 
-	private final ModuleCompiler compiler;
 	private final SubType subtype;
 	private final FuncType funcType;
 	private final ClassDesc className;
@@ -37,7 +36,7 @@ class FuncClassGenerator extends WasmClassGenerator {
 		var methodType = compiler.getMethodType(funcType);
 
 
-		return ClassFile.of()
+		return compiler.getOptions().classFile()
 			.build(
 				className,
 				clb -> clb

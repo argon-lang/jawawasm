@@ -23,12 +23,11 @@ import static java.lang.constant.ConstantDescs.*;
 
 public class ModuleClassGenerator extends WasmClassGenerator {
 	ModuleClassGenerator(ModuleCompiler compiler, Module module, String className) {
-		this.compiler = compiler;
+		super(compiler);
 		this.module = module;
 		this.className = ClassDesc.of(compiler.getOptions().javaPackage(), className);
 	}
 
-	private final ModuleCompiler compiler;
 	private final Module module;
 	private final ClassDesc className;
 
@@ -46,7 +45,7 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 
 	@Override
 	protected byte[] generateImpl() {
-		return ClassFile.of().build(className(), this::buildClass);
+		return compiler.getOptions().classFile().build(className(), this::buildClass);
 	}
 
 	private void buildClass(ClassBuilder clb) {
@@ -199,6 +198,37 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 			var bytecodeGen = new BytecodeGenerator(cb, locals);
 			bytecodeGen.generateFunctionBody(func.body(), returnType);
 		});
+
+		// Generate static method that is easier to call.
+		var staticType = getStaticThunkType(type);
+		clb.withMethodBody("static_" + name, staticType, ClassFile.ACC_STATIC | ClassFile.ACC_PRIVATE, cb -> {
+
+			// Find the offset of this.
+			int slotOffset = 0;
+			for(int i = 0; i < type.parameterCount(); ++i) {
+				var paramType = type.parameterType(i);
+				slotOffset += slotSize(paramType);
+			}
+
+			cb.aload(slotOffset);
+
+			slotOffset = 0;
+			for(int i = 0; i < type.parameterCount(); ++i) {
+				var paramType = type.parameterType(i);
+				cb.loadLocal(typeKind(paramType), slotOffset);
+				slotOffset += slotSize(paramType);
+			}
+
+			cb.invokevirtual(className, name, type);
+			cb.areturn();
+		});
+	}
+
+	private MethodTypeDesc getStaticThunkType(MethodTypeDesc type) {
+		var staticTypeArgs = new ArrayList<>(type.parameterList());
+		staticTypeArgs.add(className);
+		var staticType = MethodTypeDesc.of(type.returnType(), staticTypeArgs);
+		return staticType;
 	}
 
 	private final class BytecodeGenerator {
@@ -212,33 +242,27 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 		private final LocalInfo[] locals;
 		private boolean isUnreachable = false;
 
-		public void generateFunctionBody(Expr body, ResultType resultType) {
-			generateInstructionBlock(body, resultType);
+		public void generateFunctionBody(Expr body, ResultType returnType) {
+			generateInstructionBlock(body);
+
+			if(!isUnreachable) {
+				generateReturn(returnType);
+			}
 		}
 
 		public void generateInstructionBlock(Expr body) {
-			generateInstructionBlock(body, null);
-		}
-
-		public void generateInstructionBlock(Expr body, @Nullable ResultType returnType) {
 			for(var insn : body.body()) {
 				generateInstruction(insn);
 
 				if(isUnreachable) {
-					isUnreachable = false;
-					returnType = null; // No need to return the stack values when unreachable
 					break;
 				}
-			}
-
-			if(returnType != null) {
-				generateReturn(returnType);
 			}
 		}
 
 		private void generateInstruction(Instr insn) {
 			switch(insn) {
-				case ControlInstr controlInstr -> throw new RuntimeException("Not implemented");
+				case ControlInstr controlInstr -> generateConstrolInstr(controlInstr);
 				case MemoryInstr memoryInstr -> throw new RuntimeException("Not implemented");
 				case NumericInstr numericInstr -> generateNumericInstr(numericInstr);
 				case ParametricInstr parametricInstr -> throw new RuntimeException("Not implemented");
@@ -246,6 +270,79 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 				case TableInstr tableInstr -> throw new RuntimeException("Not implemented");
 				case VariableInstr variableInstr -> generateVaiableInstr(variableInstr);
 				case VectorInstr vectorInstr -> throw new RuntimeException("Not implemented");
+			}
+		}
+
+		private void generateConstrolInstr(ControlInstr instr) {
+			switch(instr) {
+				case ControlInstr.Nop() -> cb.nop();
+
+				case ControlInstr.If(var blockType, var thenBody, var elseBody) -> {
+					var endLabel = cb.newLabel();
+					var thenLabel = cb.newLabel();
+
+					cb.ifne(thenLabel);
+					generateInstructionBlock(new Expr(thenBody));
+					if(!isUnreachable) {
+						cb.goto_(endLabel);
+					}
+					isUnreachable = false;
+
+					cb.labelBinding(thenLabel);
+
+					generateInstructionBlock(new Expr(elseBody));
+					isUnreachable = false;
+
+					cb.labelBinding(endLabel);
+				}
+
+
+//				case ControlInstr.Call(var funcIdx) -> {
+//					var funcInfo = funcs.get(funcIdx.index());
+//
+//
+//				}
+
+//				case ControlInstr.Block block -> {
+//				}
+//				case ControlInstr.Br br -> {
+//				}
+//				case ControlInstr.Br_If brIf -> {
+//				}
+//				case ControlInstr.Br_OnCast brOnCast -> {
+//				}
+//				case ControlInstr.Br_OnCastFail brOnCastFail -> {
+//				}
+//				case ControlInstr.Br_OnNonNull brOnNonNull -> {
+//				}
+//				case ControlInstr.Br_OnNull brOnNull -> {
+//				}
+//				case ControlInstr.Br_Table brTable -> {
+//				}
+//				case ControlInstr.Call_Indirect callIndirect -> {
+//				}
+//				case ControlInstr.Call_Ref callRef -> {
+//				}
+//				case ControlInstr.Loop loop -> {
+//				}
+//				case ControlInstr.Return aReturn -> {
+//				}
+//				case ControlInstr.Return_Call returnCall -> {
+//				}
+//				case ControlInstr.Return_Call_Indirect returnCallIndirect -> {
+//				}
+//				case ControlInstr.Return_Call_Ref returnCallRef -> {
+//				}
+//				case ControlInstr.Throw aThrow -> {
+//				}
+//				case ControlInstr.Throw_Ref throwRef -> {
+//				}
+//				case ControlInstr.Try_Table tryTable -> {
+//				}
+//				case ControlInstr.Unreachable unreachable -> {
+//				}
+
+				default -> throw new RuntimeException("Not implemented: " + instr);
 			}
 		}
 
@@ -287,6 +384,10 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 							}
 						}
 						case SQRT -> {
+							switch(size) {
+								case _32 -> cb.f2d();
+								case _64 -> {}
+							}
 							cb.invokestatic(mathClass, "sqrt", MethodTypeDesc.ofDescriptor("(D)D"));
 							switch(size) {
 								case _32 -> cb.d2f();
@@ -544,7 +645,7 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 
 			var returnTypeClass = compiler.getResultType(returnType);
 
-			cb.invokestatic(compiler.getResultType(returnType), "of", MethodTypeDesc.of(returnTypeClass, resultArgTypes));
+			cb.invokestatic(compiler.getResultType(returnType), "of", MethodTypeDesc.of(returnTypeClass, resultArgTypes), true);
 			cb.areturn();
 		}
 	}
