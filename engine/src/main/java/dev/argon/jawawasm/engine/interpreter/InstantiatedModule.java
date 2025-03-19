@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.engine.interpreter;
 
+import dev.argon.jawawasm.engine.ModuleResolver;
 import dev.argon.jawawasm.engine.internal.SubtypingBase;
 import dev.argon.jawawasm.engine.internal.TypeClosure;
 import dev.argon.jawawasm.engine.internal.TypeRoll;
@@ -98,7 +99,7 @@ public final class InstantiatedModule implements WasmModule {
 
 	private final Engine engine;
 	private final Module module;
-	private final ModuleResolver resolver;
+	private final ModuleResolver<WasmModule> resolver;
 
 	private final List<DefType> flatTypes;
 	private final List<DynamicWasmFunction> functions = new ArrayList<>();
@@ -131,7 +132,7 @@ public final class InstantiatedModule implements WasmModule {
 	private synchronized WasmModule getReference(String name) throws ModuleResolutionException {
 		WasmModule ref = referencedModules.get(name);
 		if(ref == null) {
-			ref = resolver.resolve(name);
+			ref = resolver.resolve(this, name);
 			referencedModules.put(name, ref);
 		}
 		return ref;

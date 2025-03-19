@@ -282,8 +282,8 @@ class StackFrame {
 							case SUB -> a - b;
 							case MUL -> a * b;
 							case DIV -> a / b;
-							case MIN -> Util.minF32(a, b);
-							case MAX -> Util.maxF32(a, b);
+							case MIN -> Util.min(a, b);
+							case MAX -> Util.max(a, b);
 							case COPYSIGN -> Math.copySign(a, b);
 						};
 						push(result);
@@ -297,8 +297,8 @@ class StackFrame {
 							case SUB -> a - b;
 							case MUL -> a * b;
 							case DIV -> a / b;
-							case MIN -> Util.minF64(a, b);
-							case MAX -> Util.maxF64(a, b);
+							case MIN -> Util.min(a, b);
+							case MAX -> Util.max(a, b);
 							case COPYSIGN -> Math.copySign(a, b);
 						};
 						push(result);
@@ -1548,8 +1548,8 @@ class StackFrame {
 							case SUB -> (n0, n1) -> n0 - n1;
 							case MUL -> (n0, n1) -> n0 * n1;
 							case DIV -> (n0, n1) -> n0 / n1;
-							case MIN -> Util::minF32;
-							case MAX -> Util::maxF32;
+							case MIN -> Util::min;
+							case MAX -> Util::max;
 							case PMIN -> (n0, n1) -> n1 < n0 ? n1 : n0;
 							case PMAX -> (n0, n1) -> n0 < n1 ? n1 : n0;
 						};
@@ -1656,8 +1656,8 @@ class StackFrame {
 							case SUB -> (n0, n1) -> n0 - n1;
 							case MUL -> (n0, n1) -> n0 * n1;
 							case DIV -> (n0, n1) -> n0 / n1;
-							case MIN -> Util::minF64;
-							case MAX -> Util::maxF64;
+							case MIN -> Util::min;
+							case MAX -> Util::max;
 							case PMIN -> (n0, n1) -> n1 < n0 ? n1 : n0;
 							case PMAX -> (n0, n1) -> n0 < n1 ? n1 : n0;
 						};

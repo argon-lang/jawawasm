@@ -611,7 +611,7 @@ public final class Util {
 	 * @return the smaller of a and b; returns NaN if either input is NaN,
 	 *         prefers -0.0f over +0.0f when both are zero
 	 */
-	public static float minF32(float a, float b) {
+	public static float min(float a, float b) {
 		if(Float.isNaN(a) || Float.isNaN(b)) {
 			return Float.NaN;
 		}
@@ -636,7 +636,7 @@ public final class Util {
 	 * @return the smaller of a and b; returns NaN if either input is NaN,
 	 *         prefers -0.0 over +0.0 when both are zero
 	 */
-	public static double minF64(double a, double b) {
+	public static double min(double a, double b) {
 		if(Double.isNaN(a) || Double.isNaN(b)) {
 			return Double.NaN;
 		}
@@ -661,7 +661,7 @@ public final class Util {
 	 * @return the larger of a and b; returns NaN if either input is NaN,
 	 *         prefers +0.0f over -0.0f when both are zero
 	 */
-	public static float maxF32(float a, float b) {
+	public static float max(float a, float b) {
 		if(Float.isNaN(a) || Float.isNaN(b)) {
 			return Float.NaN;
 		}
@@ -686,7 +686,7 @@ public final class Util {
 	 * @return the larger of a and b; returns NaN if either input is NaN,
 	 *         prefers +0.0 over -0.0 when both are zero
 	 */
-	public static double maxF64(double a, double b) {
+	public static double max(double a, double b) {
 		if(Double.isNaN(a) || Double.isNaN(b)) {
 			return Double.NaN;
 		}
@@ -704,5 +704,91 @@ public final class Util {
 	}
 
 
+	public static boolean equalsZero(int value) {
+		return value == 0;
+	}
+
+	public static boolean equalsZero(long value) {
+		return value == 0;
+	}
+
+	public static boolean numEquals(int a, int b) {
+		return a == b;
+	}
+
+	public static boolean numNotEquals(int a, int b) {
+		return a != b;
+	}
+
+	public static boolean numLessThanSigned(int a, int b) {
+		return a < b;
+	}
+
+	public static boolean numLessThanUnsigned(int a, int b) {
+		return Integer.compareUnsigned(a, b) < 0;
+	}
+	public static boolean numGreaterThanSigned(int a, int b) {
+		return a > b;
+	}
+
+	public static boolean numGreaterThanUnsigned(int a, int b) {
+		return Integer.compareUnsigned(a, b) > 0;
+	}
+
+	public static boolean numLessThanOrEqualSigned(int a, int b) {
+		return a <= b;
+	}
+
+	public static boolean numLessThanOrEqualUnsigned(int a, int b) {
+		return Integer.compareUnsigned(a, b) <= 0;
+	}
+
+	public static boolean numGreaterThanOrEqualSigned(int a, int b) {
+		return a >= b;
+	}
+
+	public static boolean numGreaterThanOrEqualUnsigned(int a, int b) {
+		return Integer.compareUnsigned(a, b) >= 0;
+	}
+
+	public static boolean numEquals(long a, long b) {
+		return a == b;
+	}
+
+	public static boolean numNotEquals(long a, long b) {
+		return a != b;
+	}
+
+	public static boolean numLessThanSigned(long a, long b) {
+		return a < b;
+	}
+
+	public static boolean numLessThanUnsigned(long a, long b) {
+		return Long.compareUnsigned(a, b) < 0;
+	}
+
+	public static boolean numGreaterThanSigned(long a, long b) {
+		return a > b;
+	}
+
+	public static boolean numGreaterThanUnsigned(long a, long b) {
+		return Long.compareUnsigned(a, b) > 0;
+	}
+
+	public static boolean numLessThanOrEqualSigned(long a, long b) {
+		return a <= b;
+	}
+
+	public static boolean numLessThanOrEqualUnsigned(long a, long b) {
+		return Long.compareUnsigned(a, b) <= 0;
+	}
+
+	public static boolean numGreaterThanOrEqualSigned(long a, long b) {
+		return a >= b;
+	}
+
+	public static boolean numGreaterThanOrEqualUnsigned(long a, long b) {
+		return Long.compareUnsigned(a, b) >= 0;
+	}
 
 }

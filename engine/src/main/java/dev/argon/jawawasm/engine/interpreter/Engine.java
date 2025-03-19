@@ -1,9 +1,9 @@
 package dev.argon.jawawasm.engine.interpreter;
 
+import dev.argon.jawawasm.engine.ModuleResolver;
 import dev.argon.jawawasm.format.modules.Module;
 import dev.argon.jawawasm.runtime.*;
 
-import java.lang.foreign.Arena;
 import java.util.concurrent.ExecutionException;
 
 /**

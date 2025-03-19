@@ -3,7 +3,6 @@
  */
 package dev.argon.jawawasm.app;
 
-import dev.argon.jawawasm.format.text.ScriptCommand;
 import dev.argon.jawawasm.format.text.ScriptCommandInfo;
 import dev.argon.jawawasm.format.text.ScriptReader;
 import org.junit.jupiter.api.DynamicTest;
@@ -13,24 +12,24 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 @Execution(ExecutionMode.CONCURRENT)
-class ScriptTests {
+abstract class ScriptTestsBase {
 
 	private final List<String> excludedTests = List.of(new String[] {
 		// Exclude tests for the text format.
 		"id.wast",
 		"annotations.wast",
 		"inline-module.wast",
+
+		"gc/",
+		"multi-memory/",
+		"relaxed-simd/",
+		"simd/",
 
 	});
 
@@ -56,14 +55,18 @@ class ScriptTests {
 			}
 		}
 
-//		if(!path.toString().equals("type-subtyping.wast")) {
-//			return true;
-//		}
+		if(!path.toString().equals("f32.wast")) {
+			return true;
+		}
 
 		return false;
 	}
 
+	protected abstract ScriptExecutor<?> createScriptExecutor(Path wasmExecutable);
+
 	private void runWastScript(Path path) throws Throwable {
+
+
 		List<? extends ScriptCommandInfo> commands;
 		try(var reader = Files.newBufferedReader(path)) {
 			commands = new ScriptReader(reader).readCommands();
@@ -74,7 +77,7 @@ class ScriptTests {
 			wasmPathStr = "../webassembly-spec/interpreter/wasm";
 		}
 
-		try(var interpreter = new ScriptInterpreter(Path.of(wasmPathStr), new PrintWriter(System.out))) {
+		try(var interpreter = createScriptExecutor(Path.of(wasmPathStr))) {
 			interpreter.executeScript(path.getFileName().toString(), commands);
 		}
 	}

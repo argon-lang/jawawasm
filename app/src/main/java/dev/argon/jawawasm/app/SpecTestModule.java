@@ -12,6 +12,7 @@ import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 class SpecTestModule implements WasmModule {
 
@@ -49,7 +50,7 @@ class SpecTestModule implements WasmModule {
 		}
 
 		@Override
-		public DynamicFunctionResult invoke(Object[] args) throws Throwable {
+		public DynamicFunctionResult invoke(@Nullable Object[] args) throws Throwable {
 			output.println();
 			return new DynamicFunctionResult.Values(new Object[] {});
 		}
@@ -62,8 +63,8 @@ class SpecTestModule implements WasmModule {
 		}
 
 		@Override
-		public DynamicFunctionResult invoke(Object[] args) throws Throwable {
-			int n = (int)args[0];
+		public DynamicFunctionResult invoke(@Nullable Object[] args) throws Throwable {
+			int n = (int)Objects.requireNonNull(args[0]);
 			output.println(n);
 			return new DynamicFunctionResult.Values(new Object[] {});
 		}
@@ -76,8 +77,8 @@ class SpecTestModule implements WasmModule {
 		}
 
 		@Override
-		public DynamicFunctionResult invoke(Object[] args) throws Throwable {
-			long n = (long)args[0];
+		public DynamicFunctionResult invoke(@Nullable Object[] args) throws Throwable {
+			long n = (long)Objects.requireNonNull(args[0]);
 			output.println(n);
 			return new DynamicFunctionResult.Values(new Object[] {});
 		}
@@ -90,8 +91,8 @@ class SpecTestModule implements WasmModule {
 		}
 
 		@Override
-		public DynamicFunctionResult invoke(Object[] args) throws Throwable {
-			float n = (float)args[0];
+		public DynamicFunctionResult invoke(@Nullable Object[] args) throws Throwable {
+			float n = (float)Objects.requireNonNull(args[0]);
 			output.println(n);
 			return new DynamicFunctionResult.Values(new Object[] {});
 		}
@@ -104,8 +105,8 @@ class SpecTestModule implements WasmModule {
 		}
 
 		@Override
-		public DynamicFunctionResult invoke(Object[] args) throws Throwable {
-			double n = (double)args[0];
+		public DynamicFunctionResult invoke(@Nullable Object[] args) throws Throwable {
+			double n = (double)Objects.requireNonNull(args[0]);
 			output.println(n);
 			return new DynamicFunctionResult.Values(new Object[] {});
 		}
@@ -118,9 +119,9 @@ class SpecTestModule implements WasmModule {
 		}
 
 		@Override
-		public DynamicFunctionResult invoke(Object[] args) throws Throwable {
-			int n = (int)args[0];
-			float m = (float)args[1];
+		public DynamicFunctionResult invoke(@Nullable Object[] args) throws Throwable {
+			int n = (int)Objects.requireNonNull(args[0]);
+			float m = (float)Objects.requireNonNull(args[1]);
 			output.println(n);
 			output.println(m);
 			return new DynamicFunctionResult.Values(new Object[] {});
@@ -134,9 +135,9 @@ class SpecTestModule implements WasmModule {
 		}
 
 		@Override
-		public DynamicFunctionResult invoke(Object[] args) throws Throwable {
-			double n = (double)args[0];
-			double m = (double)args[1];
+		public DynamicFunctionResult invoke(@Nullable Object[] args) throws Throwable {
+			double n = (double)Objects.requireNonNull(args[0]);
+			double m = (double)Objects.requireNonNull(args[1]);
 			output.println(n);
 			output.println(m);
 			return new DynamicFunctionResult.Values(new Object[] {});
