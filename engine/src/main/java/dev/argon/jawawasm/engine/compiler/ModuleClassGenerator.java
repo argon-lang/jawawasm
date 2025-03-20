@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.engine.compiler;
 
+import dev.argon.jawawasm.engine.internal.TypeRoll;
 import dev.argon.jawawasm.format.instructions.*;
 import dev.argon.jawawasm.format.modules.*;
 import dev.argon.jawawasm.format.modules.Module;
@@ -56,8 +57,9 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 		clb.withSuperclass(wasmModuleClass);
 
 		for(var recType : module.types()) {
+			var rolledRecType = TypeRoll.roll(recType, types.size());
 			for(int i = 0; i < recType.subtypes().size(); ++i) {
-				types.add(new DefType(recType, i));
+				types.add(new DefType(rolledRecType, i));
 			}
 		}
 
