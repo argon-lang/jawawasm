@@ -64,26 +64,6 @@ public final class WasmTable<T extends @Nullable Object> {
 	}
 
 	/**
-	 * Gets an element of the table.
-	 * @param index The index of the element to get.
-	 * @return The element at the index.
-	 */
-	@SuppressWarnings("NullAway")
-	public T get(long index) {
-		Objects.checkIndex(index, items.length);
-		return get((int)index);
-	}
-
-	/**
-	 * Sets an element of the table.
-	 * @param index The index of the element to set.
-	 * @param value The new value of the element.
-	 */
-	public void set(long index, T value) {
-		set((int)index, value);
-	}
-
-	/**
 	 * Sets an element of the table.
 	 * @param index The index of the element to set.
 	 * @param value The new value of the element.
@@ -131,6 +111,28 @@ public final class WasmTable<T extends @Nullable Object> {
 	}
 
 	/**
+	 * Copy values from an array.
+	 * @param d The starting table index.
+	 * @param s The starting array index.
+	 * @param n The number of items to copy.
+	 * @param values The source values.
+	 */
+	public void copyFromArray(int d, int s, int n, T[] values) {
+		System.arraycopy(values, s, items, d, n);
+	}
+
+	/**
+	 * Copy values from an array.
+	 * @param d The starting table index.
+	 * @param s The starting array index.
+	 * @param n The number of items to copy.
+	 * @param values The source values.
+	 */
+	public void copyFrom(int d, int s, int n, WasmTable<T> values) {
+		System.arraycopy(values.items, s, items, d, n);
+	}
+
+	/**
 	 * Implements table.get for tables with 32 bit indexes
 	 * @param index The index of the element to get.
 	 * @param table The table containing the element.
@@ -149,7 +151,11 @@ public final class WasmTable<T extends @Nullable Object> {
 	 * @param <T> The element type.
 	 */
 	public static <T extends @Nullable Object> T table_get(long index, WasmTable<T> table) {
-		return table.get(index);
+		if(index < 0 || index > Integer.MAX_VALUE) {
+			throw new IndexOutOfBoundsException();
+		}
+
+		return table.get((int)index);
 	}
 
 	/**
@@ -171,7 +177,71 @@ public final class WasmTable<T extends @Nullable Object> {
 	 * @param <T> The element type.
 	 */
 	public static <T extends @Nullable Object> void table_set(long index, T value, WasmTable<T> table) {
-		table.set(index, value);
+		if(index < 0 || index > Integer.MAX_VALUE) {
+			throw new IndexOutOfBoundsException();
+		}
+
+		table.set((int)index, value);
+	}
+
+	/**
+	 * Copy values from an array.
+	 * @param d The starting table index.
+	 * @param s The starting array index.
+	 * @param n The number of items to copy.
+	 * @param values The source values.
+	 * @param table The destination table.
+	 * @param <T> The element type.
+	 */
+	public static <T extends @Nullable Object> void copyFromArray(int d, int s, int n, T[] values, WasmTable<T> table) {
+		table.copyFromArray(d, s, n, values);
+	}
+
+	/**
+	 * Copy values from an array.
+	 * @param d The starting table index.
+	 * @param s The starting array index.
+	 * @param n The number of items to copy.
+	 * @param table The destination table.
+	 * @param values The source values.
+	 * @param <T> The element type.
+	 */
+	public static <T extends @Nullable Object> void copyFromArray(long d, int s, int n, T[] values, WasmTable<T> table) {
+		if(d < 0 || d > Integer.MAX_VALUE) {
+			throw new IndexOutOfBoundsException();
+		}
+
+		table.copyFromArray((int)d, s, n, values);
+	}
+
+	/**
+	 * Copy values between tables.
+	 * @param d The starting table index.
+	 * @param s The starting array index.
+	 * @param n The number of items to copy.
+	 * @param destTable The destination table.
+	 * @param srcTable The source table.
+	 * @param <T> The element type.
+	 */
+	public static <T extends @Nullable Object> void copy(int d, int s, int n, WasmTable<T> destTable, WasmTable<T> srcTable) {
+		destTable.copyFrom(d, s, n, srcTable);
+	}
+
+	/**
+	 * Copy values between tables.
+	 * @param d The starting table index.
+	 * @param s The starting array index.
+	 * @param n The number of items to copy.
+	 * @param destTable The destination table.
+	 * @param srcTable The source table.
+	 * @param <T> The element type.
+	 */
+	public static <T extends @Nullable Object> void copy(long d, long s, long n, WasmTable<T> destTable, WasmTable<T> srcTable) {
+		if(d < 0 || d > Integer.MAX_VALUE || s < 0 || s > Integer.MAX_VALUE || n < 0 || n > Integer.MAX_VALUE) {
+			throw new IndexOutOfBoundsException();
+		}
+
+		destTable.copyFrom((int)d, (int)s, (int)n, srcTable);
 	}
 
 }

@@ -88,20 +88,18 @@ class WasmMemoryImpl extends WasmMemoryNoResize {
 	}
 
 	@Override
-	public void copy(long d, long s, long n) {
-		mem.asSlice(d, n).copyFrom(mem.asSlice(s, n));
-	}
+	public void copyFrom(long d, long s, long n, WasmMemory srcMemory) {
+		if(!(srcMemory instanceof WasmMemoryMeta srcMemory2)) {
+			super.copyFrom(d, s, n, srcMemory);
+			return;
+		}
 
-	@Override
-	public void copyFromArray(long address, int offset, int length, byte[] data) {
-		var source = MemorySegment.ofArray(data);
-		mem.asSlice(address, length).copyFrom(source.asSlice(offset, length));
-	}
+		if(!(srcMemory2.underlying() instanceof WasmMemoryImpl srcMemory3)) {
+			super.copyFrom(d, s, n, srcMemory);
+			return;
+		}
 
-	@Override
-	public void copyToArray(long address, int offset, int length, byte[] data) {
-		var dest = MemorySegment.ofArray(data);
-		dest.asSlice(offset, length).copyFrom(mem.asSlice(address, length));
+		mem.asSlice(d, n).copyFrom(srcMemory3.mem.asSlice(s, n));
 	}
 
 	@Override
@@ -117,6 +115,18 @@ class WasmMemoryImpl extends WasmMemoryNoResize {
 		}
 
 		mem.copyFrom(other3.mem);
+	}
+
+	@Override
+	public void copyFromArray(long address, int offset, int length, byte[] data) {
+		var source = MemorySegment.ofArray(data);
+		mem.asSlice(address, length).copyFrom(source.asSlice(offset, length));
+	}
+
+	@Override
+	public void copyToArray(long address, int offset, int length, byte[] data) {
+		var dest = MemorySegment.ofArray(data);
+		dest.asSlice(offset, length).copyFrom(mem.asSlice(address, length));
 	}
 
 

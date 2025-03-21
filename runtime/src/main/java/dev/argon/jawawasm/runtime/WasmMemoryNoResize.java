@@ -158,14 +158,14 @@ public abstract class WasmMemoryNoResize {
 	 * @param s The start address of the source.
 	 * @param n The number of bytes to copy.
 	 */
-	public void copy(long d, long s, long n) {
+	public void copyFrom(long d, long s, long n, WasmMemory srcMemory) {
 		if(!Util.sumInRange(d, n, byteSize()) || !Util.sumInRange(s, n, byteSize())) {
 			throw new IndexOutOfBoundsException();
 		}
 
 		if(d <= s) {
 			while(n != 0) {
-				byte b = loadI8(s);
+				byte b = srcMemory.loadI8(s);
 				storeI8(d, b);
 				++d;
 				++s;
@@ -174,10 +174,28 @@ public abstract class WasmMemoryNoResize {
 		}
 		else {
 			while(n != 0) {
-				byte b = loadI8(s + n - 1);
+				byte b = srcMemory.loadI8(s + n - 1);
 				storeI8(d + n - 1, b);
 				--n;
 			}
+		}
+	}
+
+	/**
+	 * Copy data from another memory.
+	 * @param other The other memory.
+	 */
+	public void copyFrom(WasmMemoryNoResize other) {
+		long pagesToCopy = other.pageSize();
+
+		if(pagesToCopy > pageSize()) {
+			throw new IndexOutOfBoundsException();
+		}
+
+		long byteSize = pagesToCopy * Util.PAGE_SIZE;
+
+		for(long address = 0; address < byteSize; address += 8) {
+			storeI64(address, other.loadI64(address));
 		}
 	}
 
@@ -219,24 +237,6 @@ public abstract class WasmMemoryNoResize {
 			++address;
 			++offset;
 			--length;
-		}
-	}
-
-	/**
-	 * Copy data from another memory.
-	 * @param other The other memory.
-	 */
-	public void copyFrom(WasmMemoryNoResize other) {
-		long pagesToCopy = other.pageSize();
-
-		if(pagesToCopy > pageSize()) {
-			throw new IndexOutOfBoundsException();
-		}
-
-		long byteSize = pagesToCopy * Util.PAGE_SIZE;
-
-		for(long address = 0; address < byteSize; address += 8) {
-			storeI64(address, other.loadI64(address));
 		}
 	}
 

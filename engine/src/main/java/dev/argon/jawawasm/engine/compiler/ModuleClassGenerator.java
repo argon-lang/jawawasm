@@ -42,10 +42,10 @@ class ModuleClassGenerator extends WasmClassGenerator {
 	private final List<FunctionInfo> funcs = new ArrayList<>();
 	private final List<TableInfo> tables = new ArrayList<>();
 	private final List<GlobalInfo> globals = new ArrayList<>();
+	private final List<MemInfo> mems = new ArrayList<>();
+	private final List<@Nullable ElemInfo> elems = new ArrayList<>();
 	private final List<WasmExportRealization> exports = new ArrayList<>();
 	private byte @Nullable[] cachedBytecode = null;
-
-	private int memCount = 0;
 
 	@Override
 	public ClassDesc className() {
@@ -188,9 +188,9 @@ class ModuleClassGenerator extends WasmClassGenerator {
 						cb.putfield(className, localName, containerType);
 					});
 				}
-				case ImportDesc.Mem _ -> {
-					localName = "mem" + memCount;
-					++memCount;
+				case ImportDesc.Mem mem -> {
+					localName = "mem" + mems.size();
+					mems.add(new MemInfo(localName, mem.type()));
 
 					clb.withField(localName, wasmMemory, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
 
@@ -269,8 +269,8 @@ class ModuleClassGenerator extends WasmClassGenerator {
 		}
 
 		for(var memory : module.mems()) {
-			var name = "mem" + memCount;
-			++memCount;
+			var name = "mem" + mems.size();
+			mems.add(new MemInfo(name, memory.type()));
 
 			clb.withField(name, wasmMemory, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
 			constructorInits.add(cb -> {
@@ -307,36 +307,74 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			});
 		}
 
-		for(int i = 0; i < module.elems().size(); ++i) {
-			var elem = module.elems().get(i);
-			if(elem.mode() instanceof ElemMode.Passive) {
-				continue;
+		for(var elem : module.elems()) {
+			if(elem.mode() instanceof ElemMode.Declarative) {
+				elems.add(null);
 			}
 
-			var fieldName = "elem" + i;
+			var fieldName = "elem" + elems.size();
 
 			var elementType = compiler.getValType(elem.type()).type();
 			var arrayType = elementType.arrayType();
 
+			elems.add(new ElemInfo(fieldName, arrayType, elementType, elem));
+
 			clb.withField(fieldName, arrayType, ClassFile.ACC_PRIVATE);
 			constructorInits.add(cb -> {
 				cb.aload(0);
+				cb.loadConstant(elem.init().size());
 				cb.anewarray(elementType);
 				cb.putfield(className, fieldName, arrayType);
 
-				for(int j = 0; j < elem.init().size(); ++j) {
+				for(int i = 0; i < elem.init().size(); ++i) {
 					cb.aload(0);
 					cb.getfield(className, fieldName, arrayType);
-					cb.loadConstant(j);
+					cb.loadConstant(i);
 
 					var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[] {}, new ResultType(List.of(elem.type())), 0);
-					bytecodeGen.generateInstructionBlock(elem.init().get(j));
+					bytecodeGen.generateInstructionBlock(elem.init().get(i));
 
 					cb.aastore();
 				}
 
-				if(elem.mode() instanceof ElemMode.Active) {
-					throw new RuntimeException("Not implemented");
+				if(elem.mode() instanceof ElemMode.Active(var tableIdx, var offset)) {
+					var table = tables.get(tableIdx.index());
+					var at = addrDesc(table.tableType.addrType());
+
+					var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[] {}, new ResultType(List.of(addrValType(table.tableType.addrType()))), 0);
+					bytecodeGen.generateInstructionBlock(offset);
+
+
+					cb.iconst_0();
+
+					cb.aload(0);
+					cb.getfield(className, fieldName, arrayType);
+					cb.arraylength();
+
+					cb.aload(0);
+					cb.getfield(className, fieldName, arrayType);
+
+					cb.aload(0);
+					cb.getfield(className, table.fieldName, wasmTable);
+
+
+					cb.invokestatic(
+						wasmTable,
+						"copyFromArray",
+						MethodTypeDesc.of(
+							CD_void,
+							at,
+							at,
+							at,
+							CD_Object.arrayType(),
+							wasmTable
+						)
+					);
+
+					cb.aload(0);
+					cb.iconst_0();
+					cb.anewarray(elementType);
+					cb.putfield(className, fieldName, arrayType);
 				}
 			});
 		}
@@ -356,9 +394,44 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				cb.invokestatic(ClassDesc.of(RUNTIME_PACKAGE, "Util"), "readData", MethodTypeDesc.of(CD_byte.arrayType(), inputStream));
 				cb.putfield(className, fieldName, CD_byte.arrayType());
 
-				switch(data.mode()) {
-					case DataMode.Passive() -> {}
-					case DataMode.Active _ -> throw new RuntimeException("Not implemented");
+				if(data.mode() instanceof DataMode.Active(var memIdx, var offset)) {
+					var mem = mems.get(memIdx.index());
+					var at = addrDesc(mem.memType().addrType());
+
+					var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[]{}, new ResultType(List.of(addrValType(mem.memType().addrType()))), 0);
+					bytecodeGen.generateInstructionBlock(offset);
+
+
+					cb.iconst_0();
+
+					cb.aload(0);
+					cb.getfield(className, fieldName, CD_byte.arrayType());
+					cb.arraylength();
+
+					cb.aload(0);
+					cb.getfield(className, fieldName, CD_byte.arrayType());
+
+					cb.aload(0);
+					cb.getfield(className, mem.fieldName, wasmMemory);
+
+
+					cb.invokestatic(
+						wasmMemory,
+						"copyFromArray",
+						MethodTypeDesc.of(
+							CD_void,
+							at,
+							at,
+							at,
+							CD_byte.arrayType(),
+							wasmMemory
+						)
+					);
+
+					cb.aload(0);
+					cb.iconst_0();
+					cb.newarray(TypeKind.BYTE);
+					cb.putfield(className, fieldName, CD_byte.arrayType());
 				}
 			});
 			compiler.enqueueGenerator(new WasmResourceGenerator() {
@@ -470,7 +543,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					case FLOAT -> cb.fconst_0().fstore(slotOffset);
 					case DOUBLE -> cb.dconst_0().dstore(slotOffset);
 					case REFERENCE -> cb.aconst_null().astore(slotOffset);
-					case VOID -> throw new RuntimeException("Unexpected VOID type");
+					case VOID -> throw new RuntimeException("Unexpected VOID elementType");
 				}
 
 				slotOffset += slotSize(localType.type());
@@ -555,7 +628,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 		private void generateInstruction(Instr insn) {
 			switch(insn) {
 				case ControlInstr controlInstr -> generateControlInstr(controlInstr);
-				case MemoryInstr memoryInstr -> throw new RuntimeException("Not implemented");
+				case MemoryInstr memoryInstr -> generateMemoryInstr(memoryInstr);
 				case NumericInstr numericInstr -> generateNumericInstr(numericInstr);
 				case ParametricInstr parametricInstr -> generateParametricInstr(parametricInstr);
 				case ReferenceInstr referenceInstr -> generateReferenceInstr(referenceInstr);
@@ -677,6 +750,55 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					cb.invokestatic(resultType, "get", MethodTypeDesc.of(endResultType, resultType), true);
 					unpackResultType(funcInfo.funcType.results(), endResultType);
 				}
+				case ControlInstr.Call_Ref(var funcTypeIdx) -> {
+					var defType = types.get(funcTypeIdx.index());
+					var realizedType = (FuncTypeRealization)compiler.getDefType(defType);
+					var funcType = getFuncType(defType);
+
+					int tempVarSlot = this.tempVarSlot;
+					for(var paramType : realizedType.methodType().parameterList()) {
+						tempVarSlot += typeKind(paramType).slotSize();
+					}
+
+					int functionObjSlot = tempVarSlot;
+					cb.astore(functionObjSlot);
+					stackTypes.removeLast();
+
+					for(var paramType : realizedType.methodType().parameterList().reversed()) {
+						tempVarSlot -= typeKind(paramType).slotSize();
+						cb.storeLocal(typeKind(paramType), tempVarSlot);
+						stackTypes.removeLast();
+					}
+
+					cb.aload(functionObjSlot);
+
+					for(var paramType : realizedType.methodType().parameterList()) {
+						tempVarSlot += typeKind(paramType).slotSize();
+						cb.loadLocal(typeKind(paramType), tempVarSlot);
+					}
+
+					var resultType = realizedType.methodType().returnType();
+					var endResultType = resultType.nested("EndResult");
+
+					cb.invokeinterface(realizedType.classDesc(), realizedType.methodName(), realizedType.methodType());
+					cb.invokestatic(resultType, "get", MethodTypeDesc.of(endResultType, resultType), true);
+					unpackResultType(funcType.results(), endResultType);
+				}
+				case ControlInstr.Call_Indirect(var tableIdx, var funcTypeIdx) -> {
+					var tableInfo = tables.get(tableIdx.index());
+					cb.aload(0);
+					cb.getfield(className, tableInfo.fieldName, wasmTable);
+					cb.invokestatic(wasmTable, "table_get", MethodTypeDesc.of(CD_Object, addrDesc(tableInfo.tableType.addrType()), wasmTable));
+
+					var defType = types.get(funcTypeIdx.index());
+					var realizedType = compiler.getDefType(defType);
+					cb.checkcast(realizedType.classDesc());
+
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+
+					generateControlInstr(new ControlInstr.Call_Ref(funcTypeIdx));
+				}
 
 //				case ControlInstr.Br_OnCast brOnCast -> {
 //				}
@@ -687,10 +809,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 //				case ControlInstr.Br_OnNull brOnNull -> {
 //				}
 //				case ControlInstr.Br_Table brTable -> {
-//				}
-//				case ControlInstr.Call_Indirect callIndirect -> {
-//				}
-//				case ControlInstr.Call_Ref callRef -> {
 //				}
 //				case ControlInstr.Loop loop -> {
 //				}
@@ -707,6 +825,187 @@ class ModuleClassGenerator extends WasmClassGenerator {
 //				case ControlInstr.Try_Table tryTable -> {
 //				}
 //				case ControlInstr.Unreachable unreachable -> {
+//				}
+
+				default -> throw new RuntimeException("Not implemented: " + instr);
+			}
+		}
+
+		private void generateMemoryInstr(MemoryInstr instr) {
+			switch(instr) {
+				case MemoryInstr.Inn_Load(var numSize, var memArg) -> {
+					doLoad(numSizeDesc(numSize), memArg);
+				}
+
+				case MemoryInstr.Inn_Load8_S(var numSize, var memArg) -> {
+					doLoad(CD_byte, memArg);
+					switch(numSize) {
+						case _32 -> {}
+						case _64 -> {
+							cb.i2l();
+							stackTypes.removeLast();
+							stackTypes.add(TypeKind.LONG);
+						}
+					}
+				}
+				case MemoryInstr.Inn_Load8_U(var numSize, var memArg) -> {
+					doLoad(CD_byte, memArg);
+					switch(numSize) {
+						case _32 -> {
+							cb.invokestatic(CD_Byte, "toUnsignedInt", MethodTypeDesc.ofDescriptor("(B)I"));
+						}
+						case _64 -> {
+							cb.invokestatic(CD_Byte, "toUnsignedLong", MethodTypeDesc.ofDescriptor("(B)J"));
+							stackTypes.removeLast();
+							stackTypes.add(TypeKind.LONG);
+						}
+					}
+				}
+
+				case MemoryInstr.Memory_Fill(var memIdx) -> {
+					var mem = mems.get(memIdx.index());
+					var at = addrDesc(mem.memType.addrType());
+					cb.aload(0);
+					cb.getfield(className, mem.fieldName, wasmMemory);
+					cb.invokestatic(
+						wasmMemory,
+						"fill",
+						MethodTypeDesc.of(
+							CD_void,
+							at,
+							CD_byte,
+							at,
+							wasmMemory
+						)
+					);
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+				}
+				case MemoryInstr.Memory_Copy(var destMemIdx, var srcMemIdx) -> {
+					var dstMem = mems.get(destMemIdx.index());
+					var srcMem = mems.get(srcMemIdx.index());
+					var at = addrDesc(dstMem.memType.addrType());
+					cb.aload(0);
+					cb.getfield(className, dstMem.fieldName, wasmMemory);
+					cb.aload(0);
+					cb.getfield(className, srcMem.fieldName, wasmMemory);
+					cb.invokestatic(
+						wasmMemory,
+						"copy",
+						MethodTypeDesc.of(
+							CD_void,
+							at,
+							at,
+							at,
+							wasmMemory,
+							wasmMemory
+						)
+					);
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+				}
+				case MemoryInstr.Memory_Init(var memIdx, var dataIdx) -> {
+					var mem = mems.get(memIdx.index());
+					var at = addrDesc(mem.memType.addrType());
+
+					cb.aload(0);
+					cb.getfield(className, "data" + dataIdx.index(), CD_byte.arrayType());
+
+					cb.aload(0);
+					cb.getfield(className, mem.fieldName, wasmMemory);
+
+					cb.invokestatic(
+						wasmMemory,
+						"copyFromArray",
+						MethodTypeDesc.of(
+							CD_void,
+							at,
+							CD_int,
+							CD_int,
+							CD_byte.arrayType(),
+							wasmMemory
+						)
+					);
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+				}
+				case MemoryInstr.Data_Drop(var dataIdx) -> {
+					cb.aload(0);
+					cb.iconst_0();
+					cb.newarray(TypeKind.BYTE);
+					cb.putfield(className, "data" + dataIdx.index(), CD_byte.arrayType());
+				}
+
+//				case MemoryInstr.Fnn_Load fnnLoad -> {
+//				}
+//				case MemoryInstr.Fnn_Store fnnStore -> {
+//				}
+//				case MemoryInstr.I64_Load32_S i64Load32S -> {
+//				}
+//				case MemoryInstr.I64_Load32_U i64Load32U -> {
+//				}
+//				case MemoryInstr.I64_Store32 i64Store32 -> {
+//				}
+//				case MemoryInstr.Inn_Load16_S innLoad16S -> {
+//				}
+//				case MemoryInstr.Inn_Load16_U innLoad16U -> {
+//				}
+//				case MemoryInstr.Inn_Store innStore -> {
+//				}
+//				case MemoryInstr.Inn_Store16 innStore16 -> {
+//				}
+//				case MemoryInstr.Inn_Store8 innStore8 -> {
+//				}
+//				case MemoryInstr.Memory_Grow memoryGrow -> {
+//				}
+//				case MemoryInstr.Memory_Size memorySize -> {
+//				}
+//				case MemoryInstr.V128_Load v128Load -> {
+//				}
+//				case MemoryInstr.V128_Load16_Lane v128Load16Lane -> {
+//				}
+//				case MemoryInstr.V128_Load16_Splat v128Load16Splat -> {
+//				}
+//				case MemoryInstr.V128_Load16x4_S v128Load16x4S -> {
+//				}
+//				case MemoryInstr.V128_Load16x4_U v128Load16x4U -> {
+//				}
+//				case MemoryInstr.V128_Load32_Lane v128Load32Lane -> {
+//				}
+//				case MemoryInstr.V128_Load32_Splat v128Load32Splat -> {
+//				}
+//				case MemoryInstr.V128_Load32_Zero v128Load32Zero -> {
+//				}
+//				case MemoryInstr.V128_Load32x2_S v128Load32x2S -> {
+//				}
+//				case MemoryInstr.V128_Load32x2_U v128Load32x2U -> {
+//				}
+//				case MemoryInstr.V128_Load64_Lane v128Load64Lane -> {
+//				}
+//				case MemoryInstr.V128_Load64_Splat v128Load64Splat -> {
+//				}
+//				case MemoryInstr.V128_Load64_Zero v128Load64Zero -> {
+//				}
+//				case MemoryInstr.V128_Load8_Lane v128Load8Lane -> {
+//				}
+//				case MemoryInstr.V128_Load8_Splat v128Load8Splat -> {
+//				}
+//				case MemoryInstr.V128_Load8x8_S v128Load8x8S -> {
+//				}
+//				case MemoryInstr.V128_Load8x8_U v128Load8x8U -> {
+//				}
+//				case MemoryInstr.V128_Store v128Store -> {
+//				}
+//				case MemoryInstr.V128_Store16_Lane v128Store16Lane -> {
+//				}
+//				case MemoryInstr.V128_Store32_Lane v128Store32Lane -> {
+//				}
+//				case MemoryInstr.V128_Store64_Lane v128Store64Lane -> {
+//				}
+//				case MemoryInstr.V128_Store8_Lane v128Store8Lane -> {
 //				}
 
 				default -> throw new RuntimeException("Not implemented: " + instr);
@@ -1074,7 +1373,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				case ReferenceInstr.Ref_Func(var funcIdx) -> {
 					var funcInfo = funcs.get(funcIdx.index());
 					if(!(compiler.getDefType(funcInfo.defType) instanceof FuncTypeRealization realizedFuncType)) {
-						throw new RuntimeException("Function type realization");
+						throw new RuntimeException("Function elementType realization");
 					}
 
 					var callSite = DynamicCallSiteDesc.of(
@@ -1154,15 +1453,77 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					stackTypes.add(TypeKind.REFERENCE);
 				}
 
-//				case TableInstr.Elem_Drop elemDrop -> {
-//				}
-//				case TableInstr.Table_Copy tableCopy -> {
-//				}
+				case TableInstr.Table_Copy(var destTableIdx, var srcTableIdx) -> {
+					var destTable = tables.get(destTableIdx.index());
+					var srcTable = tables.get(srcTableIdx.index());
+
+					var at = addrDesc(destTable.tableType.addrType());
+
+					cb.aload(0);
+					cb.getfield(className, destTable.fieldName, wasmTable);
+
+					cb.aload(0);
+					cb.getfield(className, srcTable.fieldName, wasmTable);
+
+					cb.invokestatic(
+						wasmTable,
+						"copy",
+						MethodTypeDesc.of(
+							CD_void,
+							at,
+							at,
+							at,
+							wasmTable,
+							wasmTable
+						)
+					);
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+				}
+
+				case TableInstr.Table_Init(var tableIdx, var elemIdx) -> {
+					var table = tables.get(tableIdx.index());
+					var elem = elems.get(elemIdx.index());
+					Objects.requireNonNull(elem);
+
+					var at = addrDesc(table.tableType.addrType());
+
+					cb.aload(0);
+					cb.getfield(className, elem.fieldName, elem.fieldType);
+
+					cb.aload(0);
+					cb.getfield(className, table.fieldName, wasmTable);
+
+					cb.invokestatic(
+						wasmTable,
+						"copyFromArray",
+						MethodTypeDesc.of(
+							CD_void,
+							at,
+							CD_int,
+							CD_int,
+							CD_Object.arrayType(),
+							wasmTable
+						)
+					);
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+				}
+
+				case TableInstr.Elem_Drop(var elemIdx) -> {
+					var elem = elems.get(elemIdx.index());
+					Objects.requireNonNull(elem);
+					cb.aload(0);
+					cb.iconst_0();
+					cb.anewarray(elem.elementType);
+					cb.putfield(className, elem.fieldName, elem.fieldType);
+				}
+
 //				case TableInstr.Table_Fill tableFill -> {
 //				}
 //				case TableInstr.Table_Grow tableGrow -> {
-//				}
-//				case TableInstr.Table_Init tableInit -> {
 //				}
 //				case TableInstr.Table_Set tableSet -> {
 //				}
@@ -1398,7 +1759,72 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			cb.goto_(label);
 
 			cb.labelBinding(afterJumpLabel);
+		}
 
+		private void loadMem(MemoryInstr.MemArg memArg) {
+			cb.aload(0);
+			cb.getfield(className, mems.get(memArg.memIdx().index()).fieldName, wasmMemory);
+		}
+
+		private void doLoad(ClassDesc t, MemoryInstr.MemArg memArg) {
+			doLoadStore("load", t, memArg);
+			stackTypes.removeLast();
+			stackTypes.add(typeKind(t).asLoadable());
+		}
+
+		private void doStore(ClassDesc t, MemoryInstr.MemArg memArg) {
+			doLoadStore("store", t, memArg);
+			stackTypes.removeLast();
+			stackTypes.removeLast();
+		}
+
+		private void doLoadStore(String prefix, ClassDesc t, MemoryInstr.MemArg memArg) {
+			String suffix;
+			if(t == CD_byte) {
+				suffix = "I8";
+			}
+			else if(t == CD_short) {
+				suffix = "I16";
+			}
+			else if(t == CD_int) {
+				suffix = "I32";
+			}
+			else if(t == CD_long) {
+				suffix = "I64";
+			}
+			else if(t == CD_float) {
+				suffix = "F32";
+			}
+			else if(t == CD_double) {
+				suffix = "F64";
+			}
+			else if(t.equals(ClassDesc.of(RUNTIME_PACKAGE, "V128"))) {
+				suffix = "V128";
+			}
+			else {
+				throw new RuntimeException("Unexpected elementType for memory load");
+			}
+
+			var mem = mems.get(memArg.memIdx().index());
+			var at = addrDesc(mem.memType.addrType());
+
+			switch(mem.memType.addrType()) {
+				case I32 -> cb.loadConstant((int)memArg.offset());
+				case I64 -> cb.loadConstant(memArg.offset());
+			}
+
+			loadMem(memArg);
+
+			cb.invokestatic(
+				wasmMemory,
+				prefix + suffix,
+				MethodTypeDesc.of(
+					t,
+					at,
+					at,
+					wasmMemory
+				)
+			);
 		}
 	}
 
@@ -1413,7 +1839,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 	private FuncType getFuncType(DefType t) {
 		var subtype = t.recursiveType().subtypes().get(t.index());
 		return switch(subtype.compositeType()) {
-			case AggregateType _ -> throw new RuntimeException("Unexpected aggregate type");
+			case AggregateType _ -> throw new RuntimeException("Unexpected aggregate elementType");
 			case FuncType ft -> ft;
 		};
 	}
@@ -1457,10 +1883,24 @@ class ModuleClassGenerator extends WasmClassGenerator {
 		}
 	}
 
+	private NumType addrValType(AddrType addrType) {
+		return switch(addrType) {
+			case I32 -> NumType.I32;
+			case I64 -> NumType.I64;
+		};
+	}
+
 	private ClassDesc addrDesc(AddrType addrType) {
 		return switch(addrType) {
 			case I32 -> CD_int;
 			case I64 -> CD_long;
+		};
+	}
+
+	private ClassDesc numSizeDesc(NumericInstr.NumSize numSize) {
+		return switch(numSize) {
+			case _32 -> CD_int;
+			case _64 -> CD_long;
 		};
 	}
 
@@ -1473,9 +1913,9 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 	private record GlobalInfo(String fieldName, ClassDesc containerType, ClassDesc elementType, GlobalType globalType) {}
 
-	private record Info(String fieldName, ClassDesc type, Elem elem) {}
+	private record MemInfo(String fieldName, MemType memType) {}
 
-	private record ElemInfo(String fieldName, ClassDesc type, Elem elem) {}
+	private record ElemInfo(String fieldName, ClassDesc fieldType, ClassDesc elementType, Elem elem) {}
 
 	private record LocalInfo(int slotIndex, ClassDesc type) {}
 }
