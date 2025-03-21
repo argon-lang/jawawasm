@@ -1,5 +1,9 @@
 package dev.argon.jawawasm.runtime;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
@@ -941,5 +945,29 @@ public final class Util {
 	 */
 	public static boolean numGreaterThanOrEqualUnsigned(long a, long b) {
 		return Long.compareUnsigned(a, b) >= 0;
+	}
+
+	/**
+	 * Reads data from an InputStream. Intended to be used to read data segment content from resources.
+	 * @param is The input stream.
+	 * @return The byte data.
+	 */
+	public static byte[] readData(InputStream is) {
+		try {
+			var os = new ByteArrayOutputStream();
+			byte[] buff = new byte[4096];
+			for(;;) {
+				int bytesRead = is.read(buff);
+				if(bytesRead < 0) {
+					break;
+				}
+
+				os.write(buff, 0, bytesRead);
+			}
+			return os.toByteArray();
+		}
+		catch(IOException ex) {
+			throw new UncheckedIOException(ex);
+		}
 	}
 }

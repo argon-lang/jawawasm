@@ -5,7 +5,7 @@ import java.lang.foreign.ValueLayout;
 
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
 
-class WasmMemoryImpl implements WasmMemoryNoResize {
+class WasmMemoryImpl extends WasmMemoryNoResize {
 
 	WasmMemoryImpl(AddrType addrType, MemorySegment mem) {
 		this.addrType = addrType;
@@ -83,6 +83,16 @@ class WasmMemoryImpl implements WasmMemoryNoResize {
 	}
 
 	@Override
+	public void fill(long d, byte val, long n) {
+		mem.asSlice(d, n).fill(val);
+	}
+
+	@Override
+	public void copy(long d, long s, long n) {
+		mem.asSlice(d, n).copyFrom(mem.asSlice(s, n));
+	}
+
+	@Override
 	public void copyFromArray(long address, int offset, int length, byte[] data) {
 		var source = MemorySegment.ofArray(data);
 		mem.asSlice(address, length).copyFrom(source.asSlice(offset, length));
@@ -93,4 +103,21 @@ class WasmMemoryImpl implements WasmMemoryNoResize {
 		var dest = MemorySegment.ofArray(data);
 		dest.asSlice(offset, length).copyFrom(mem.asSlice(address, length));
 	}
+
+	@Override
+	public void copyFrom(WasmMemoryNoResize other) {
+		var other2 = other;
+		if(other instanceof WasmMemoryMeta metaMem) {
+			other2 = metaMem.underlying();
+		}
+
+		if(!(other2 instanceof WasmMemoryImpl other3)) {
+			super.copyFrom(other);
+			return;
+		}
+
+		mem.copyFrom(other3.mem);
+	}
+
+
 }

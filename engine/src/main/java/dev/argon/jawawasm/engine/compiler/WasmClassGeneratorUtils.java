@@ -11,7 +11,8 @@ final class WasmClassGeneratorUtils {
 
 	public static final ClassDesc mathClass = ClassDesc.of("java.lang.Math");
 	public static final ClassDesc utilClass = ClassDesc.of(RUNTIME_PACKAGE, "Util");
-	public static final ClassDesc wasmTable = ClassDesc.of(RUNTIME_PACKAGE, "WasmTable");;
+	public static final ClassDesc wasmTable = ClassDesc.of(RUNTIME_PACKAGE, "WasmTable");
+	public static final ClassDesc wasmMemory = ClassDesc.of(RUNTIME_PACKAGE, "WasmMemory");
 
 
 	public static TypeKind typeKind(ClassDesc t) {

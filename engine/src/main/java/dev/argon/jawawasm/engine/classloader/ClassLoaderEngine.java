@@ -1,19 +1,21 @@
 package dev.argon.jawawasm.engine.classloader;
 
 import dev.argon.jawawasm.engine.ModuleResolver;
-import dev.argon.jawawasm.engine.compiler.CompilerOptions;
-import dev.argon.jawawasm.engine.compiler.ModuleCompiler;
-import dev.argon.jawawasm.engine.compiler.ReflectionModuleLoader;
-import dev.argon.jawawasm.engine.compiler.WasmModuleRealization;
+import dev.argon.jawawasm.engine.compiler.*;
 import dev.argon.jawawasm.format.ModuleFormatException;
 import dev.argon.jawawasm.format.modules.Module;
 import dev.argon.jawawasm.runtime.*;
+import org.jspecify.annotations.Nullable;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassHierarchyResolver;
 import java.lang.constant.ClassDesc;
 import java.lang.reflect.AccessFlag;
 import java.lang.reflect.InvocationTargetException;
+import java.net.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -51,7 +53,7 @@ public class ClassLoaderEngine {
 	private final ClassLoader classLoader = new EngineClassLoaderImpl();
 	private final AtomicInteger moduleIndex = new AtomicInteger(0);
 
-	private final Map<String, byte[]> generatedClasses = new ConcurrentHashMap<>();
+	private final Map<String, byte[]> generatedFiles = new ConcurrentHashMap<>();
 	private final Map<WasmModule, WasmModuleRealization> instanceToRealization = new ConcurrentHashMap<>();
 
 	/**
@@ -68,19 +70,29 @@ public class ClassLoaderEngine {
 			var classRealization = compiler.enqueueModule(module, "Module" + currentIndex, new MappedResolver(resolver));
 			List<byte[]> newClassBytecode = new ArrayList<>();
 
+			genLoop:
 			for(;;) {
-				var cg = compiler.dequeueGenerator();
+				var gen = compiler.dequeueGenerator();
 
-				if(cg == null) {
-					break;
+				String name;
+				byte[] content;
+
+				switch(gen) {
+					case null -> {
+						break genLoop;
+					}
+					case WasmClassGenerator cg -> {
+						content = cg.generate();
+						name = getInternalName(cg.className()) + ".class";
+						newClassBytecode.add(content);
+					}
+					case WasmResourceGenerator rg -> {
+						content = rg.generate();
+						name = rg.resourceName();
+					}
 				}
 
-				var content = cg.generate();
-
-				var binaryName = getBinaryName(cg.className());
-
-				generatedClasses.put(binaryName, content);
-				newClassBytecode.add(content);
+				generatedFiles.put(name, content);
 			}
 
 			for(var ncb : newClassBytecode) {
@@ -94,10 +106,6 @@ public class ClassLoaderEngine {
 						System.err.println(method);
 						method.code().ifPresent(code -> code.elementList().forEach(System.err::println));
 
-					}
-
-					for(var e : errors) {
-						e.printStackTrace();
 					}
 
 					throw new RuntimeException("Verification errors for " + classModel.thisClass() + ":\n" + errors.stream().map(VerifyError::toString).collect(Collectors.joining(",")));
@@ -152,8 +160,12 @@ public class ClassLoaderEngine {
 	}
 
 	private static String getBinaryName(ClassDesc classDesc) {
+		return getInternalName(classDesc).replace('/', '.');
+	}
+
+	private static String getInternalName(ClassDesc classDesc) {
 		var desc = classDesc.descriptorString();
-		return desc.substring(1, desc.length() - 1).replace('/', '.');
+		return desc.substring(1, desc.length() - 1);
 	}
 
 	private final class MappedResolver implements ModuleResolver<WasmModuleRealization> {
@@ -206,20 +218,60 @@ public class ClassLoaderEngine {
 
 		@Override
 		protected Class<?> findClass(String name) throws ClassNotFoundException {
-			byte[] data = generatedClasses.get(name);
+			byte[] data = generatedFiles.get(name.replace('.', '/') + ".class");
 			if(data == null) {
 				throw new ClassNotFoundException();
 			}
 
 			return defineClass(name, data, 0, data.length);
 		}
+
+		@Override
+		protected @Nullable URL findResource(String name) {
+			if(generatedFiles.containsKey(name)) {
+				var uri = URI.create("memory:///" + name);
+				try {
+					return URL.of(uri, new EngineResourceURLStreamLoader());
+				} catch(MalformedURLException e) {
+					return null;
+				}
+			}
+			else {
+				return null;
+			}
+		}
+	}
+
+	private final class EngineResourceURLStreamLoader extends URLStreamHandler {
+		@Override
+		protected URLConnection openConnection(URL url) throws IOException {
+			return new EngineResourceURLConnection(url);
+		}
+	}
+
+	private class EngineResourceURLConnection extends URLConnection {
+		public EngineResourceURLConnection(URL url) {
+			super(url);
+		}
+
+		@Override
+		public void connect() throws IOException {
+		}
+
+		@Override
+		public InputStream getInputStream() throws IOException {
+			var path = getURL().getPath();
+			if(path.startsWith("/")) path = path.substring(1);
+			var data = generatedFiles.get(path);
+			Objects.requireNonNull(data);
+			return new ByteArrayInputStream(data);
+		}
 	}
 
 	private final class LoaderHierarchyResolver implements ClassHierarchyResolver {
 		@Override
 		public ClassHierarchyInfo getClassInfo(ClassDesc classDesc) {
-			var binaryName = getBinaryName(classDesc);
-			var bytecode = generatedClasses.get(binaryName);
+			var bytecode = generatedFiles.get(getInternalName(classDesc) + ".class");
 
 			if(bytecode != null) {
 				var classModel = classFile.parse(bytecode);
@@ -239,7 +291,7 @@ public class ClassLoaderEngine {
 			// Not a generated class, fallback to reflection.
 			Class<?> cls;
 			try {
-				cls = Class.forName(binaryName);
+				cls = Class.forName(getBinaryName(classDesc));
 
 			} catch(ClassNotFoundException e) {
 				throw new RuntimeException(e);

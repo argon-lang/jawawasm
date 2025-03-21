@@ -33,7 +33,7 @@ public class ModuleCompiler {
 
 	private final CompilerOptions options;
 
-	private final Queue<WasmClassGenerator> generatorQueue = new ConcurrentLinkedQueue<>();
+	private final Queue<WasmOutputGenerator> generatorQueue = new ConcurrentLinkedQueue<>();
 
 
 	private final Map<DefType, DefTypeRealization> typeCache = new ConcurrentHashMap<>();
@@ -56,7 +56,7 @@ public class ModuleCompiler {
 		return gen.realization();
 	}
 
-	void enqueueGenerator(WasmClassGenerator generator) {
+	void enqueueGenerator(WasmOutputGenerator generator) {
 		generatorQueue.offer(generator);
 	}
 
@@ -64,7 +64,7 @@ public class ModuleCompiler {
 	 * Dequeue a generator.
 	 * @return The generator or null if none currently remain.
 	 */
-	public @Nullable WasmClassGenerator dequeueGenerator() {
+	public @Nullable WasmOutputGenerator dequeueGenerator() {
 		return generatorQueue.poll();
 	}
 

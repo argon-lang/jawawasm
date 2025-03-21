@@ -2,7 +2,7 @@ package dev.argon.jawawasm.runtime;
 
 import org.jspecify.annotations.Nullable;
 
-final class WasmMemoryMeta implements WasmMemory {
+final class WasmMemoryMeta extends WasmMemory {
 
 	public WasmMemoryMeta(MemoryAllocator allocator, @Nullable Long maxSize, WasmMemoryNoResize mem) {
 		this.allocator = allocator;
@@ -13,6 +13,10 @@ final class WasmMemoryMeta implements WasmMemory {
 	private final MemoryAllocator allocator;
 	private final @Nullable Long maxSize;
 	private WasmMemoryNoResize mem;
+
+	WasmMemoryNoResize underlying() {
+		return mem;
+	}
 
 	@Override
 	public AddrType addressType() {

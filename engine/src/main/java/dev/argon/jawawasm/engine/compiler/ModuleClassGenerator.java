@@ -25,11 +25,13 @@ class ModuleClassGenerator extends WasmClassGenerator {
 	ModuleClassGenerator(ModuleCompiler compiler, Module module, String className, ModuleResolver<WasmModuleRealization> resolver) {
 		super(compiler);
 		this.module = module;
+		this.simpleClassName = className;
 		this.className = ClassDesc.of(compiler.getOptions().javaPackage(), className);
 		this.resolver = resolver;
 	}
 
 	private final Module module;
+	private final String simpleClassName;
 	private final ClassDesc className;
 	private final ModuleResolver<WasmModuleRealization> resolver;
 
@@ -187,10 +189,17 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					});
 				}
 				case ImportDesc.Mem _ -> {
-					throw new RuntimeException("ot implemented");
-//					localName = "mem" + memCount;
-//					++memCount;
-//					clb.withField(localName, memoryType, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
+					localName = "mem" + memCount;
+					++memCount;
+
+					clb.withField(localName, wasmMemory, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
+
+					constructorInits.add(cb -> {
+						cb.aload(0);
+						cb.getfield(className, importModuleInfo.fieldName, importModuleInfo.realization().classDesc());
+						cb.invokevirtual(importModuleInfo.realization().classDesc(), exportRealization.methodName(), exportRealization.methodType());
+						cb.putfield(className, localName, wasmMemory);
+					});
 				}
 				case ImportDesc.Tag tag -> {
 					throw new RuntimeException("Not implemented");
@@ -208,36 +217,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			var type = compiler.getMethodType(defType);
 			funcs.add(new FunctionInfo(name, type, getFuncType(defType), defType));
 			functionCodegens.add(() -> generateFunction(clb, name, type, func));
-		}
-
-		for(var table : module.tables()) {
-			var name = "table" + tables.size();
-
-			var tableType = closure.resolveTableType(table.type());
-			var elementType = compiler.getValType(tableType.elementType()).type();
-
-			tables.add(new TableInfo(name, elementType, tableType));
-			clb.withField(name, wasmTable, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
-
-			constructorInits.add(cb -> {
-				cb.aload(0);
-				cb.loadConstant(tableType.limits().min());
-
-				var maxSize = tableType.limits().max();
-				if(maxSize == null) {
-					cb.aconst_null();
-				}
-				else {
-					cb.loadConstant(maxSize);
-					cb.invokestatic(CD_Long, "valueOf", MethodTypeDesc.of(CD_Long, CD_long));
-				}
-
-				var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[] {}, new ResultType(List.of(table.type().elementType())), 0);
-				bytecodeGen.generateInstructionBlock(table.init());
-
-				cb.invokestatic(wasmTable, "create", MethodTypeDesc.of(wasmTable, CD_long, CD_Long, CD_Object));
-				cb.putfield(className, name, wasmTable);
-			});
 		}
 
 		for(var global : module.globals()) {
@@ -268,12 +247,132 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			globals.add(new GlobalInfo(name, containerType, elementType, globalType));
 		}
 
-		for(var elem : module.elems()) {
-			throw new RuntimeException("Not implemented");
+		for(var table : module.tables()) {
+			var name = "table" + tables.size();
+
+			var tableType = closure.resolveTableType(table.type());
+			var elementType = compiler.getValType(tableType.elementType()).type();
+
+			tables.add(new TableInfo(name, elementType, tableType));
+			clb.withField(name, wasmTable, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
+
+			constructorInits.add(cb -> {
+				cb.aload(0);
+				loadLimits(cb, tableType.limits());
+
+				var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[] {}, new ResultType(List.of(table.type().elementType())), 0);
+				bytecodeGen.generateInstructionBlock(table.init());
+
+				cb.invokestatic(wasmTable, "create", MethodTypeDesc.of(wasmTable, CD_long, CD_Long, CD_Object));
+				cb.putfield(className, name, wasmTable);
+			});
 		}
 
-		for(var data : module.datas()) {
-			throw new RuntimeException("Not implemented");
+		for(var memory : module.mems()) {
+			var name = "mem" + memCount;
+			++memCount;
+
+			clb.withField(name, wasmMemory, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
+			constructorInits.add(cb -> {
+				var memAlloc = ClassDesc.of(RUNTIME_PACKAGE, "MemoryAllocator");
+				var addrType = ClassDesc.of(RUNTIME_PACKAGE, "AddrType");
+
+				cb.aload(0);
+
+
+				cb.aload(1);
+				cb.invokeinterface(
+					ClassDesc.of(RUNTIME_PACKAGE, "RuntimeContext"),
+					"allocator",
+					MethodTypeDesc.of(memAlloc)
+				);
+
+				cb.getstatic(addrType, memory.type().addrType().name(), addrType);
+
+				loadLimits(cb, memory.type().limits());
+
+				cb.invokestatic(
+					wasmMemory,
+					"create",
+					MethodTypeDesc.of(
+						wasmMemory,
+						memAlloc,
+						addrType,
+						CD_long,
+						CD_Long
+					)
+				);
+
+				cb.putfield(className, name, wasmMemory);
+			});
+		}
+
+		for(int i = 0; i < module.elems().size(); ++i) {
+			var elem = module.elems().get(i);
+			if(elem.mode() instanceof ElemMode.Passive) {
+				continue;
+			}
+
+			var fieldName = "elem" + i;
+
+			var elementType = compiler.getValType(elem.type()).type();
+			var arrayType = elementType.arrayType();
+
+			clb.withField(fieldName, arrayType, ClassFile.ACC_PRIVATE);
+			constructorInits.add(cb -> {
+				cb.aload(0);
+				cb.anewarray(elementType);
+				cb.putfield(className, fieldName, arrayType);
+
+				for(int j = 0; j < elem.init().size(); ++j) {
+					cb.aload(0);
+					cb.getfield(className, fieldName, arrayType);
+					cb.loadConstant(j);
+
+					var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[] {}, new ResultType(List.of(elem.type())), 0);
+					bytecodeGen.generateInstructionBlock(elem.init().get(j));
+
+					cb.aastore();
+				}
+
+				if(elem.mode() instanceof ElemMode.Active) {
+					throw new RuntimeException("Not implemented");
+				}
+			});
+		}
+
+		for(int i = 0; i < module.datas().size(); ++i) {
+			int index = i;
+			var data = module.datas().get(i);
+			var fieldName = "data" + i;
+			clb.withField(fieldName, CD_byte.arrayType(), ClassFile.ACC_PRIVATE);
+			constructorInits.add(cb -> {
+				var inputStream = ClassDesc.of("java.io.InputStream");
+
+				cb.aload(0);
+				cb.loadConstant(className);
+				cb.loadConstant(simpleClassName + ".data" + index + ".dat");
+				cb.invokevirtual(CD_Class, "getResourceAsStream", MethodTypeDesc.of(inputStream, CD_String));
+				cb.invokestatic(ClassDesc.of(RUNTIME_PACKAGE, "Util"), "readData", MethodTypeDesc.of(CD_byte.arrayType(), inputStream));
+				cb.putfield(className, fieldName, CD_byte.arrayType());
+
+				switch(data.mode()) {
+					case DataMode.Passive() -> {}
+					case DataMode.Active _ -> throw new RuntimeException("Not implemented");
+				}
+			});
+			compiler.enqueueGenerator(new WasmResourceGenerator() {
+				@Override
+				public String resourceName() {
+					var desc = className.descriptorString();
+					return desc.substring(1, desc.length() - 1) + ".data" + index + ".dat";
+				}
+
+				@Override
+				public byte[] generate() {
+					return data.init().clone();
+				}
+			});
 		}
 
 		generateConstructor(clb, constructorInits, constructorParams);
@@ -444,9 +543,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 		public void generateInstructionBlock(Expr body) {
 			for(var insn : body.body()) {
-				System.err.println("Stack: " + stackTypes);
-				System.err.println("Instruction: " + insn);
-
 				generateInstruction(insn);
 
 				if(isUnreachable) {
@@ -1346,6 +1442,19 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				}
 			);
 		};
+	}
+
+	private void loadLimits(CodeBuilder cb, Limits limits) {
+		cb.loadConstant(limits.min());
+
+		var maxSize = limits.max();
+		if(maxSize == null) {
+			cb.aconst_null();
+		}
+		else {
+			cb.loadConstant(maxSize);
+			cb.invokestatic(CD_Long, "valueOf", MethodTypeDesc.of(CD_Long, CD_long));
+		}
 	}
 
 	private ClassDesc addrDesc(AddrType addrType) {

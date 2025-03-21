@@ -5,20 +5,20 @@ import org.jspecify.annotations.Nullable;
 /**
  * A WebAssembly memory space.
  */
-public sealed interface WasmMemory extends WasmMemoryNoResize permits WasmMemoryMeta {
+public sealed abstract class WasmMemory extends WasmMemoryNoResize permits WasmMemoryMeta {
 
 	/**
 	 * Gets the maximum size of the memory in pages.
 	 * @return The maximum size of the memory or null if no maximum.
 	 */
-	@Nullable Long maxPageSize();
+	public abstract @Nullable Long maxPageSize();
 
 	/**
 	 * Grow the memory.
 	 * @param pages The number of pages by which to grow the memory.
 	 * @return The old number of pages.
 	 */
-	long grow(long pages);
+	public abstract long grow(long pages);
 
 	/**
 	 * Creates a WasmMemory
@@ -40,15 +40,7 @@ public sealed interface WasmMemory extends WasmMemoryNoResize permits WasmMemory
 	 * @param memory The memory to fill.
 	 */
 	public static void fill(long d, byte val, long n, WasmMemory memory) {
-		if(!Util.sumInRange(d, n, memory.byteSize())) {
-			throw new IndexOutOfBoundsException();
-		}
-
-		while(n != 0) {
-			memory.storeI8(d, val);
-			++d;
-			--n;
-		}
+		memory.fill(d, val, n);
 	}
 
 	/**

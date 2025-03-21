@@ -7,7 +7,7 @@ import java.lang.constant.ClassDesc;
 /**
  * Generator for a class from WebAssembly input.
  */
-public abstract class WasmClassGenerator {
+public abstract non-sealed class WasmClassGenerator implements WasmOutputGenerator {
 	WasmClassGenerator(ModuleCompiler compiler) {
 		this.compiler = compiler;
 	}
