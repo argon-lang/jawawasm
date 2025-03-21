@@ -10,6 +10,8 @@ import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.util.ArrayList;
 
+import static dev.argon.jawawasm.engine.compiler.Constants.RUNTIME_PACKAGE;
+
 class FuncClassGenerator extends WasmClassGenerator {
 	public FuncClassGenerator(ModuleCompiler compiler, SubType subtype, FuncType funcType, String className) {
 		super(compiler);
@@ -40,6 +42,10 @@ class FuncClassGenerator extends WasmClassGenerator {
 			.build(
 				className,
 				clb -> clb
+					.withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_INTERFACE | ClassFile.ACC_ABSTRACT)
+					.withInterfaceSymbols(
+						ClassDesc.of(RUNTIME_PACKAGE, "WasmFunction")
+					)
 					.with(RuntimeVisibleAnnotationsAttribute.of(
 						Annotation.of(ClassDesc.of("java.lang.FunctionalInterface"))
 					))
@@ -50,5 +56,13 @@ class FuncClassGenerator extends WasmClassGenerator {
 						mb -> {}
 					)
 			);
+	}
+
+	public FuncTypeRealization realization() {
+		return new FuncTypeRealization(
+			className,
+			"invoke",
+			compiler.getMethodType(funcType)
+		);
 	}
 }

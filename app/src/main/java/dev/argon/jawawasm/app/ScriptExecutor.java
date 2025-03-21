@@ -51,7 +51,7 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 	private Map<String, Mod> namedModules = new HashMap<>();
 	private Map<Integer, Object> externRefs = new HashMap<>();
 
-	abstract Mod getSpecTestModule(PrintWriter output);
+	abstract Mod getSpecTestModule(PrintWriter output) throws ModuleFormatException;
 	abstract Mod instantiateModule(Module module, ModuleResolver<Mod> resolver) throws ModuleLinkException, ExecutionException;
 	abstract @Nullable Object[] invokeModuleExport(Mod mod, String name, @Nullable Object[] args) throws ExecutionException;
 	abstract @Nullable Object getGlobalExport(Mod mod, String name);
@@ -75,12 +75,6 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 
 	private static record EitherValue(List<Object> values) {}
 
-	private void ensureSpecTest(Module module) {
-		if(module.imports().stream().anyMatch(imp -> imp.module().equals("spectest"))) {
-			registeredModules.computeIfAbsent("spectest", _ -> getSpecTestModule(output));
-		}
-	}
-
 	private Mod getModuleByName(@Nullable String name) throws ScriptExecutionException {
 		Mod module;
 		if(name != null) {
@@ -101,6 +95,11 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 		return externRefs.computeIfAbsent(index, k -> new Object());
 	}
 
+
+	public void initialize() throws ModuleFormatException {
+		registeredModules.put("spectest", getSpecTestModule(output));
+	}
+
 	/**
 	 * Execute a script command.
 	 * @param command The command to execute.
@@ -117,8 +116,6 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 			case ScriptCommand.ScriptModule(var name, var moduleExpr) -> {
 				var convertedModule = getModuleAsBinary(moduleExpr);
 				ModuleValidator.validateModule(convertedModule);
-				ensureSpecTest(convertedModule);
-
 
 				var module = instantiateModule(convertedModule, resolver);
 				currentModule = module;
@@ -131,7 +128,6 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 			case ScriptCommand.ScriptModuleDefinition(var name, var moduleExpr) -> {
 				var convertedModule = getModuleAsBinary(moduleExpr);
 				ModuleValidator.validateModule(convertedModule);
-				ensureSpecTest(convertedModule);
 
 				if(name != null) {
 					definedModules.put(name, convertedModule);
@@ -141,7 +137,6 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 			case ScriptCommand.ScriptModuleInstance(var name, var definitionName) -> {
 				var convertedModule = definedModules.get(definitionName);
 				Objects.requireNonNull(convertedModule);
-				ensureSpecTest(convertedModule);
 
 				var module = instantiateModule(convertedModule, resolver);
 				currentModule = module;
@@ -274,7 +269,6 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 
 				var convertedModule = getModuleAsBinary(module);
 				ModuleValidator.validateModule(convertedModule);
-				ensureSpecTest(convertedModule);
 
 				try {
 					instantiateModule(convertedModule, resolver);
@@ -295,7 +289,6 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 			case ScriptCommand.Assertion.AssertTrapInstantiation(var module, var message) -> {
 				var convertedModule = getModuleAsBinary(module);
 				ModuleValidator.validateModule(convertedModule);
-				ensureSpecTest(convertedModule);
 				assertTrapIn(() -> instantiateModule(convertedModule, resolver), message);
 			}
 		}
@@ -360,7 +353,7 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 			return actual instanceof DynamicWasmEq;
 		}
 		else if(expected instanceof AnyFuncRef) {
-			return actual instanceof DynamicWasmFunction;
+			return actual instanceof DynamicWasmFunction || actual instanceof WasmFunction;
 		}
 		else if(expected instanceof AnyStructRef) {
 			return actual instanceof DynamicWasmStruct;
@@ -552,7 +545,7 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 
 	private final class ScriptResolver implements ModuleResolver<Mod> {
 		@Override
-		public Mod resolve(Mod importer, String name) throws ModuleResolutionException {
+		public Mod resolve(String name) throws ModuleResolutionException {
 			var module = registeredModules.get(name);
 			if(module == null) {
 				throw new ModuleResolutionException();

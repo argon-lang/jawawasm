@@ -3,8 +3,11 @@ package dev.argon.jawawasm.app;
 import dev.argon.jawawasm.engine.ModuleResolver;
 import dev.argon.jawawasm.engine.classloader.ClassLoaderEngine;
 import dev.argon.jawawasm.engine.compiler.NameMangling;
+import dev.argon.jawawasm.format.ModuleFormatException;
 import dev.argon.jawawasm.format.modules.Module;
+import dev.argon.jawawasm.runtime.MemoryAllocator;
 import dev.argon.jawawasm.runtime.ModuleLinkException;
+import dev.argon.jawawasm.runtime.RuntimeContext;
 import dev.argon.jawawasm.runtime.WasmModule;
 import org.jspecify.annotations.Nullable;
 
@@ -31,14 +34,23 @@ public final class ScriptClassLoaderExecutor extends ScriptExecutor<WasmModule> 
 	public ScriptClassLoaderExecutor(String packageName, Path wasmExecutable, PrintWriter output) {
 		super(wasmExecutable, output);
 
-		engine = new ClassLoaderEngine(packageName, allocator);
+		RuntimeContext context = new RuntimeContext() {
+			@Override
+			public MemoryAllocator allocator() {
+				return allocator;
+			}
+		};
+
+		engine = new ClassLoaderEngine(packageName, context);
 	}
 
 	private final ClassLoaderEngine engine;
 
 	@Override
-	WasmModule getSpecTestModule(PrintWriter output) {
-		throw new RuntimeException("Not implemented");
+	WasmModule getSpecTestModule(PrintWriter output) throws ModuleFormatException {
+		var specTest = new SpecTestModuleInstance(output);
+		engine.addHostModule(specTest);
+		return specTest;
 	}
 
 	@Override

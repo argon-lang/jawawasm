@@ -17,8 +17,9 @@ repositories {
 
 dependencies {
     api(project(":format"))
-    compileOnly(libs.jspecify)
+    api(libs.jspecify) // Not compile only because we may use reflection
     testImplementation(libs.junit.jupiter)
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     errorprone(libs.nullaway)
     errorprone(libs.errorprone)
@@ -39,11 +40,13 @@ tasks.withType<JavaCompile>().configureEach {
 
         option("NullAway:OnlyNullMarked", "true")
         option("NullAway:JSpecifyMode", "true")
+        error("NullAway")
     }
 }
 
-tasks.compileJava {
-    options.errorprone.error("NullAway")
+tasks.named<Test>("test") {
+    useJUnitPlatform()
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
 }
 
 tasks.javadoc {

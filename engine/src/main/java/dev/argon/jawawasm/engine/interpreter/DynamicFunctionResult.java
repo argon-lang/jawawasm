@@ -16,12 +16,17 @@ public sealed interface DynamicFunctionResult {
 		private final @Nullable Object[] values;
 
 		/**
+		 * Create a values result.
 		 * @param values The return values.
 		 */
 		public Values(@Nullable Object[] values) {
 			this.values = values;
 		}
 
+		/**
+		 * Get the values.
+		 * @return The values.
+		 */
 		public @Nullable Object[] values() {
 			return values;
 		}

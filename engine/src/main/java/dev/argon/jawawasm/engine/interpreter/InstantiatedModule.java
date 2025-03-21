@@ -132,7 +132,7 @@ public final class InstantiatedModule implements WasmModule {
 	private synchronized WasmModule getReference(String name) throws ModuleResolutionException {
 		WasmModule ref = referencedModules.get(name);
 		if(ref == null) {
-			ref = resolver.resolve(this, name);
+			ref = resolver.resolve(name);
 			referencedModules.put(name, ref);
 		}
 		return ref;

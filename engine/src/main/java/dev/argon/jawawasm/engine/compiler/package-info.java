@@ -1,3 +1,6 @@
+/**
+ * WebAssembly to Java Bytecode compiler.
+ */
 @NullMarked
 package dev.argon.jawawasm.engine.compiler;
 

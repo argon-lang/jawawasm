@@ -27,9 +27,6 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(24)
     }
-
-    withSourcesJar()
-    withJavadocJar()
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -38,11 +35,8 @@ tasks.withType<JavaCompile>().configureEach {
 
         option("NullAway:OnlyNullMarked", "true")
         option("NullAway:JSpecifyMode", "true")
+        error("NullAway")
     }
-}
-
-tasks.compileJava {
-    options.errorprone.error("NullAway")
 }
 
 application {

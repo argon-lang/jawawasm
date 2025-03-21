@@ -43,6 +43,7 @@ public class App {
 		var output = new PrintWriter(System.out);
 
 		try(var interpreter = new ScriptInterpreter(wasmExecutable, output)) {
+			interpreter.initialize();
 			interpreter.executeScript(scriptFile, commands);
 		}
     }

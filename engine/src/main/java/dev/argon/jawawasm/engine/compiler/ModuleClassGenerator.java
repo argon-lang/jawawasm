@@ -1,39 +1,48 @@
 package dev.argon.jawawasm.engine.compiler;
 
+import dev.argon.jawawasm.engine.ModuleResolver;
+import dev.argon.jawawasm.engine.internal.TypeClosure;
 import dev.argon.jawawasm.engine.internal.TypeRoll;
 import dev.argon.jawawasm.format.instructions.*;
 import dev.argon.jawawasm.format.modules.*;
 import dev.argon.jawawasm.format.modules.Module;
-import dev.argon.jawawasm.format.types.AggregateType;
-import dev.argon.jawawasm.format.types.DefType;
-import dev.argon.jawawasm.format.types.FuncType;
-import dev.argon.jawawasm.format.types.ResultType;
+import dev.argon.jawawasm.format.types.*;
+import dev.argon.jawawasm.runtime.AddrType;
+import dev.argon.jawawasm.runtime.ModuleResolutionException;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.classfile.*;
-import java.lang.constant.ClassDesc;
-import java.lang.constant.MethodTypeDesc;
-import java.util.ArrayList;
-import java.util.List;
+import java.lang.constant.*;
+import java.util.*;
+import java.util.function.Consumer;
 
 import static dev.argon.jawawasm.engine.compiler.Constants.*;
 import static dev.argon.jawawasm.engine.compiler.NameMangling.escapeName;
+import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.*;
 import static java.lang.constant.ConstantDescs.*;
 
-public class ModuleClassGenerator extends WasmClassGenerator {
-	ModuleClassGenerator(ModuleCompiler compiler, Module module, String className) {
+class ModuleClassGenerator extends WasmClassGenerator {
+	ModuleClassGenerator(ModuleCompiler compiler, Module module, String className, ModuleResolver<WasmModuleRealization> resolver) {
 		super(compiler);
 		this.module = module;
 		this.className = ClassDesc.of(compiler.getOptions().javaPackage(), className);
+		this.resolver = resolver;
 	}
 
 	private final Module module;
 	private final ClassDesc className;
+	private final ModuleResolver<WasmModuleRealization> resolver;
 
 	private final List<DefType> types = new ArrayList<>();
+	private final List<String> importModules = new ArrayList<>();
+	private final Map<String, ImportModuleInfo> importModuleInfos = new HashMap<>();
 	private final List<ImportInfo> imports = new ArrayList<>();
 	private final List<FunctionInfo> funcs = new ArrayList<>();
 	private final List<TableInfo> tables = new ArrayList<>();
 	private final List<GlobalInfo> globals = new ArrayList<>();
+	private final List<WasmExportRealization> exports = new ArrayList<>();
+	private byte @Nullable[] cachedBytecode = null;
+
 	private int memCount = 0;
 
 	@Override
@@ -41,10 +50,34 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 		return className;
 	}
 
-	@Override
-	protected byte[] generateImpl() {
-		return compiler.getOptions().classFile().build(className(), this::buildClass);
+	WasmModuleRealization realization() {
+		return new WasmModuleRealization(
+			className,
+			List.copyOf(exports)
+		);
 	}
+
+	@Override
+	protected byte[] generateImpl() throws ModuleResolutionException {
+		if(cachedBytecode == null) {
+			try {
+				cachedBytecode = compiler.getOptions().classFile().build(className(), this::buildClass);
+			}
+			catch(UncheckedModuleResolutionException e) {
+				throw e.getCause();
+			}
+		}
+		return cachedBytecode;
+	}
+
+
+	private final TypeClosure closure = new TypeClosure() {
+		@Override
+		public HeapType resolveTypeIdx(TypeIdx idx) {
+			return resolveHeapType(types.get(idx.index()));
+		}
+	};
+
 
 	private void buildClass(ClassBuilder clb) {
 		types.clear();
@@ -63,32 +96,101 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 			}
 		}
 
+		List<Consumer<CodeBuilder>> constructorInits = new ArrayList<>();
+		List<ClassDesc> constructorParams = new ArrayList<>();
+
+		constructorParams.add(ClassDesc.of(RUNTIME_PACKAGE, "RuntimeContext"));
+
+		int constructorParamSlot = 2;
+
+
 		for(var imp : module.imports()) {
+			int importIndex0 = importModules.indexOf(imp.module());
+			ImportModuleInfo importModuleInfo;
+			if(importIndex0 < 0) {
+				importIndex0 = importModules.size();
+				importModules.add(imp.module());
+
+				WasmModuleRealization importRealization;
+				try {
+					importRealization = resolver.resolve(imp.module());
+				} catch(ModuleResolutionException e) {
+					throw new UncheckedModuleResolutionException(e);
+				}
+				importModuleInfo = new ImportModuleInfo(imp.module(), "import" + importIndex0, importRealization);
+				importModuleInfos.put(imp.module(), importModuleInfo);
+
+				clb.withField(importModuleInfo.fieldName, importRealization.classDesc(), ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
+
+				int slot = constructorParamSlot;
+				++constructorParamSlot;
+				constructorParams.add(importRealization.classDesc());
+				constructorInits.add(cb -> {
+					cb.aload(0);
+					cb.aload(slot);
+					cb.putfield(className, importModuleInfo.fieldName, importRealization.classDesc());
+				});
+			}
+			else {
+				importModuleInfo = importModuleInfos.get(imp.module());
+				Objects.requireNonNull(importModuleInfo);
+			}
+			int importIndex = importIndex0;
+
 			String localName;
+
+			var exportRealization = importModuleInfo.realization.exports().stream()
+				.filter(e -> e.exportName().equals(imp.name()))
+				.findFirst()
+				.get();
 
 			switch(imp.desc()) {
 				case ImportDesc.Func func -> {
 					localName = "func" + funcs.size();
 					var defType = types.get(func.type().index());
 					var type = compiler.getMethodType(defType);
-					funcs.add(new FunctionInfo(localName, type, getFuncType(defType)));
-					generateFunctionImport(clb, imp, func, localName, type);
+					funcs.add(new FunctionInfo(localName, type, getFuncType(defType), defType));
+					generateFunctionImport(clb, imp, func, localName, type, exportRealization);
 				}
 				case ImportDesc.Table table -> {
 					localName = "table" + tables.size();
-					var type = compiler.getTableType(table.type().elementType());
-					tables.add(new TableInfo(localName, type));
-					clb.withField(localName, type, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
+					var tableType = closure.resolveTableType(table.type());
+					var elementType = compiler.getValType(tableType.elementType()).type();
+
+					tables.add(new TableInfo(localName, elementType, tableType));
+					clb.withField(localName, wasmTable, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
+
+					constructorInits.add(cb -> {
+						cb.aload(0);
+						cb.aload(0);
+						cb.getfield(className, importModuleInfo.fieldName, importModuleInfo.realization().classDesc());
+						cb.invokevirtual(importModuleInfo.realization().classDesc(), exportRealization.methodName(), exportRealization.methodType());
+						cb.putfield(className, localName, wasmTable);
+					});
 				}
 				case ImportDesc.Global global -> {
 					localName = "global" + globals.size();
-					var type = compiler.getTableType(global.type().type());
-					clb.withField(localName, type, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
+
+					var globalType = closure.resolveGlobalType(global.type());
+					ClassDesc elementType = compiler.getValType(globalType.type()).type();
+					ClassDesc containerType = getGlobalContainerType(globalType, elementType);
+					globals.add(new GlobalInfo(localName, containerType, elementType, globalType));
+
+					clb.withField(localName, containerType, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
+
+					constructorInits.add(cb -> {
+						cb.aload(0);
+						cb.aload(0);
+						cb.getfield(className, importModuleInfo.fieldName, importModuleInfo.realization().classDesc());
+						cb.invokevirtual(importModuleInfo.realization().classDesc(), exportRealization.methodName(), exportRealization.methodType());
+						cb.putfield(className, localName, containerType);
+					});
 				}
 				case ImportDesc.Mem _ -> {
-					localName = "mem" + memCount;
-					++memCount;
-					clb.withField(localName, memoryType, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
+					throw new RuntimeException("ot implemented");
+//					localName = "mem" + memCount;
+//					++memCount;
+//					clb.withField(localName, memoryType, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
 				}
 				case ImportDesc.Tag tag -> {
 					throw new RuntimeException("Not implemented");
@@ -104,12 +206,66 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 			var name = "func" + funcs.size();
 			var defType = types.get(func.type().index());
 			var type = compiler.getMethodType(defType);
-			funcs.add(new FunctionInfo(name, type, getFuncType(defType)));
+			funcs.add(new FunctionInfo(name, type, getFuncType(defType), defType));
 			functionCodegens.add(() -> generateFunction(clb, name, type, func));
 		}
 
-		for(var elem : module.tables()) {
-			throw new RuntimeException("Not implemented");
+		for(var table : module.tables()) {
+			var name = "table" + tables.size();
+
+			var tableType = closure.resolveTableType(table.type());
+			var elementType = compiler.getValType(tableType.elementType()).type();
+
+			tables.add(new TableInfo(name, elementType, tableType));
+			clb.withField(name, wasmTable, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
+
+			constructorInits.add(cb -> {
+				cb.aload(0);
+				cb.loadConstant(tableType.limits().min());
+
+				var maxSize = tableType.limits().max();
+				if(maxSize == null) {
+					cb.aconst_null();
+				}
+				else {
+					cb.loadConstant(maxSize);
+					cb.invokestatic(CD_Long, "valueOf", MethodTypeDesc.of(CD_Long, CD_long));
+				}
+
+				var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[] {}, new ResultType(List.of(table.type().elementType())), 0);
+				bytecodeGen.generateInstructionBlock(table.init());
+
+				cb.invokestatic(wasmTable, "create", MethodTypeDesc.of(wasmTable, CD_long, CD_Long, CD_Object));
+				cb.putfield(className, name, wasmTable);
+			});
+		}
+
+		for(var global : module.globals()) {
+			var name = "global" + globals.size();
+			var globalType = closure.resolveGlobalType(global.type());
+			ClassDesc elementType = compiler.getValType(globalType.type()).type();
+			ClassDesc containerType = getGlobalContainerType(globalType, elementType);
+
+			clb.withField(name, containerType, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
+
+			constructorInits.add(cb -> {
+				cb.aload(0);
+
+				if(globalType.mutability() == Mut.Var) {
+					cb.new_(containerType);
+				}
+
+				var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[] {}, new ResultType(List.of(globalType.type())), 0);
+				bytecodeGen.generateInstructionBlock(global.init());
+
+				if(globalType.mutability() == Mut.Var) {
+					cb.invokespecial(containerType, "<init>", MethodTypeDesc.of(CD_void, elementType));
+				}
+
+				cb.putfield(className, name, containerType);
+			});
+
+			globals.add(new GlobalInfo(name, containerType, elementType, globalType));
 		}
 
 		for(var elem : module.elems()) {
@@ -120,11 +276,7 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 			throw new RuntimeException("Not implemented");
 		}
 
-		clb.withMethodBody("<init>", MethodTypeDesc.ofDescriptor("()V"), ClassFile.ACC_PUBLIC, mb ->
-			mb.aload(0)
-				.invokespecial(wasmModuleClass, "<init>", MethodTypeDesc.ofDescriptor("()V"))
-				.return_()
-		);
+		generateConstructor(clb, constructorInits, constructorParams);
 
 		for(var funcCodegen : functionCodegens) {
 			funcCodegen.run();
@@ -134,9 +286,10 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 			switch(export.desc()) {
 				case ExportDesc.Func func -> {
 					var funcInfo = funcs.get(func.func().index());
+					var methodName = escapeName(export.name());
 					var methodType = funcInfo.type();
 					clb.withMethodBody(
-						escapeName(export.name()),
+						methodName,
 						methodType,
 						ClassFile.ACC_PUBLIC,
 						cb -> {
@@ -152,13 +305,44 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 							cb.areturn();
 						}
 					);
+					exports.add(new WasmExportRealization(export.name(), methodName, methodType, funcInfo.defType));
 				}
-				case ExportDesc.Global global -> throw new RuntimeException("Not implemented");
+				case ExportDesc.Global global -> {
+					var globalInfo = globals.get(global.global().index());
+					var methodName = escapeName(export.name());
+					var globalType = globalInfo.containerType();
+					var methodType = MethodTypeDesc.of(globalType);
+					clb.withMethodBody(
+						methodName,
+						methodType,
+						ClassFile.ACC_PUBLIC,
+						cb -> {
+							cb.aload(0);
+							cb.getfield(className, globalInfo.fieldName, globalType);
+							cb.areturn();
+						}
+					);
+					exports.add(new WasmExportRealization(export.name(), methodName, methodType, globalInfo.globalType()));
+				}
 				case ExportDesc.Mem mem -> throw new RuntimeException("Not implemented");
 				case ExportDesc.Table table -> throw new RuntimeException("Not implemented");
 				case ExportDesc.Tag tag -> throw new RuntimeException("Not implemented");
 			}
 		}
+	}
+
+	private static void generateConstructor(ClassBuilder clb, List<Consumer<CodeBuilder>> constructorInits, List<ClassDesc> constructorParams) {
+		var ctorType = MethodTypeDesc.of(CD_void, constructorParams);
+
+		clb.withMethodBody("<init>", ctorType, ClassFile.ACC_PUBLIC, cb -> {
+			cb.aload(0).invokespecial(wasmModuleClass, "<init>", MethodTypeDesc.ofDescriptor("()V"));
+
+			for(var ctorInit : constructorInits) {
+				ctorInit.accept(cb);
+			}
+
+			cb.return_();
+		});
 	}
 
 	private void generateFunction(ClassBuilder clb, String name, MethodTypeDesc type, Func func) {
@@ -229,7 +413,7 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 		return staticType;
 	}
 
-	private final class BytecodeGenerator {
+	private class BytecodeGenerator {
 		public BytecodeGenerator(CodeBuilder cb, LocalInfo[] locals, ResultType returnType, int tempVarSlot) {
 			this.cb = cb;
 			this.locals = locals;
@@ -278,8 +462,8 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 				case MemoryInstr memoryInstr -> throw new RuntimeException("Not implemented");
 				case NumericInstr numericInstr -> generateNumericInstr(numericInstr);
 				case ParametricInstr parametricInstr -> generateParametricInstr(parametricInstr);
-				case ReferenceInstr referenceInstr -> throw new RuntimeException("Not implemented");
-				case TableInstr tableInstr -> throw new RuntimeException("Not implemented");
+				case ReferenceInstr referenceInstr -> generateReferenceInstr(referenceInstr);
+				case TableInstr tableInstr -> generateTableInstr(tableInstr);
 				case VariableInstr variableInstr -> generateVaiableInstr(variableInstr);
 				case VectorInstr vectorInstr -> throw new RuntimeException("Not implemented");
 			}
@@ -784,6 +968,115 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 			}
 		}
 
+		private void generateReferenceInstr(ReferenceInstr instr) {
+			switch(instr) {
+				case ReferenceInstr.Ref_Null _ -> {
+					cb.aconst_null();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+
+				case ReferenceInstr.Ref_Func(var funcIdx) -> {
+					var funcInfo = funcs.get(funcIdx.index());
+					if(!(compiler.getDefType(funcInfo.defType) instanceof FuncTypeRealization realizedFuncType)) {
+						throw new RuntimeException("Function type realization");
+					}
+
+					var callSite = DynamicCallSiteDesc.of(
+						MethodHandleDesc.ofMethod(
+							DirectMethodHandleDesc.Kind.STATIC,
+							ClassDesc.of("java.lang.invoke.LambdaMetafactory"),
+							"metafactory",
+							MethodTypeDesc.of(
+								ClassDesc.of("java.lang.invoke.CallSite"),
+								ClassDesc.of("java.lang.invoke.MethodHandles$Lookup"),
+								CD_String,
+								ClassDesc.of("java.lang.invoke.MethodType"),
+								ClassDesc.of("java.lang.invoke.MethodType"),
+								ClassDesc.of("java.lang.invoke.MethodHandle"),
+								ClassDesc.of("java.lang.invoke.MethodType")
+							)
+						),
+						realizedFuncType.methodName(),
+						MethodTypeDesc.of(realizedFuncType.classDesc(), className),
+
+						realizedFuncType.methodType(),
+						MethodHandleDesc.ofMethod(
+							DirectMethodHandleDesc.Kind.VIRTUAL,
+							className,
+							funcInfo.name,
+							funcInfo.type
+						),
+						realizedFuncType.methodType()
+					);
+
+					cb.aload(0);
+					cb.invokedynamic(callSite);
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+
+//				case ReferenceInstr.Any_Convert_Extern anyConvertExtern -> {
+//				}
+//				case ReferenceInstr.ArrayInstr arrayInstr -> {
+//				}
+//				case ReferenceInstr.Extern_Convert_Any externConvertAny -> {
+//				}
+//				case ReferenceInstr.I31_Get_S i31GetS -> {
+//				}
+//				case ReferenceInstr.I31_Get_U i31GetU -> {
+//				}
+//				case ReferenceInstr.Ref_AsNonNull refAsNonNull -> {
+//				}
+//				case ReferenceInstr.Ref_Cast refCast -> {
+//				}
+//				case ReferenceInstr.Ref_Eq refEq -> {
+//				}
+//				case ReferenceInstr.Ref_I31 refI31 -> {
+//				}
+//				case ReferenceInstr.Ref_IsNull refIsNull -> {
+//				}
+//				case ReferenceInstr.Ref_Test refTest -> {
+//				}
+//				case ReferenceInstr.StructInstr structInstr -> {
+//				}
+
+				default -> throw new RuntimeException("Not implemented: " + instr);
+			}
+		}
+
+		private void generateTableInstr(TableInstr instr) {
+			switch(instr) {
+
+				case TableInstr.Table_Get(var tableIdx) -> {
+					var tableInfo = tables.get(tableIdx.index());
+					cb.aload(0);
+					cb.getfield(className, tableInfo.fieldName, wasmTable);
+					cb.invokestatic(wasmTable, "table_get", MethodTypeDesc.of(CD_Object, addrDesc(tableInfo.tableType.addrType()), wasmTable));
+					if(!tableInfo.elementType.equals(CD_Object)) {
+						cb.checkcast(tableInfo.elementType);
+					}
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+
+//				case TableInstr.Elem_Drop elemDrop -> {
+//				}
+//				case TableInstr.Table_Copy tableCopy -> {
+//				}
+//				case TableInstr.Table_Fill tableFill -> {
+//				}
+//				case TableInstr.Table_Grow tableGrow -> {
+//				}
+//				case TableInstr.Table_Init tableInit -> {
+//				}
+//				case TableInstr.Table_Set tableSet -> {
+//				}
+//				case TableInstr.Table_Size tableSize -> {
+//				}
+
+				default -> throw new RuntimeException("Not implemented: " + instr);
+			}
+		}
+
 		private void generateVaiableInstr(VariableInstr instr) {
 			switch(instr) {
 				case VariableInstr.Local_Get(var localIdx) -> {
@@ -802,7 +1095,34 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 					cb.dup();
 					cb.storeLocal(typeKind(localInfo.type()), localInfo.slotIndex());
 				}
-				case VariableInstr.Global_Get globalGet -> throw new RuntimeException("Not implemented");
+				case VariableInstr.Global_Get(var globalIdx) -> {
+					var globalInfo = globals.get(globalIdx.index());
+
+
+					cb.aload(0);
+					cb.getfield(className, globalInfo.fieldName, globalInfo.containerType);
+
+					if(globalInfo.globalType.mutability() == Mut.Var) {
+						if(globalInfo.globalType.type() instanceof NumType numType) {
+							var getDesc = switch(numType) {
+								case I32 -> MethodTypeDesc.of(CD_int);
+								case I64 -> MethodTypeDesc.of(CD_long);
+								case F32 -> MethodTypeDesc.of(CD_float);
+								case F64 -> MethodTypeDesc.of(CD_double);
+							};
+
+							cb.invokevirtual(globalInfo.containerType, "get", getDesc);
+						}
+						else {
+							cb.invokevirtual(globalInfo.containerType, "get", MethodTypeDesc.of(CD_Object));
+							if(!globalInfo.elementType.equals(CD_Object)) {
+								cb.checkcast(globalInfo.elementType);
+							}
+						}
+					}
+
+					stackTypes.add(typeKind(globalInfo.elementType));
+				}
 				case VariableInstr.Global_Set globalSet -> throw new RuntimeException("Not implemented");
 			}
 		}
@@ -988,7 +1308,7 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 
 
 
-	private void generateFunctionImport(ClassBuilder clb, Import imp, ImportDesc.Func func, String localName, MethodTypeDesc type) {
+	private void generateFunctionImport(ClassBuilder clb, Import imp, ImportDesc.Func func, String localName, MethodTypeDesc type, WasmExportRealization exportRealization) {
 		clb.withMethodBody(localName, type, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL, cb -> {
 			throw new RuntimeException("Not implemented");
 		});
@@ -1010,13 +1330,39 @@ public class ModuleClassGenerator extends WasmClassGenerator {
 		};
 	}
 
+	private ClassDesc getGlobalContainerType(GlobalType globalType, ClassDesc elementType) {
+		return switch(globalType.mutability()) {
+			case Const -> elementType;
+			case Var -> ClassDesc.of(
+				RUNTIME_PACKAGE,
+				switch(globalType.type()) {
+					case NumType numType -> switch(numType) {
+						case I32 -> "GlobalI32";
+						case I64 -> "GlobalI64";
+						case F32 -> "GlobalF32";
+						case F64 -> "GlobalF64";
+					};
+					default -> "GlobalRef";
+				}
+			);
+		};
+	}
+
+	private ClassDesc addrDesc(AddrType addrType) {
+		return switch(addrType) {
+			case I32 -> CD_int;
+			case I64 -> CD_long;
+		};
+	}
+
+	private record ImportModuleInfo(String module, String fieldName, WasmModuleRealization realization) {}
 	private record ImportInfo(String module, String importedName, String localName, ImportDesc desc) {}
 
-	private record FunctionInfo(String name, MethodTypeDesc type, FuncType funcType) {}
+	private record FunctionInfo(String name, MethodTypeDesc type, FuncType funcType, DefType defType) {}
 
-	private record TableInfo(String fieldName, ClassDesc type) {}
+	private record TableInfo(String fieldName, ClassDesc elementType, TableType tableType) {}
 
-	private record GlobalInfo(String fieldName, ClassDesc type) {}
+	private record GlobalInfo(String fieldName, ClassDesc containerType, ClassDesc elementType, GlobalType globalType) {}
 
 	private record Info(String fieldName, ClassDesc type, Elem elem) {}
 

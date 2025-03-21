@@ -1,3 +1,6 @@
+/**
+ * JVM WebAssembly engine.
+ */
 @NullMarked
 package dev.argon.jawawasm.engine;
 

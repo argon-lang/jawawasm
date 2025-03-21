@@ -703,92 +703,243 @@ public final class Util {
 		}
 	}
 
-
+	/**
+	 * Checks if the given integer value equals zero.
+	 *
+	 * @param value the integer value to check
+	 * @return true if the value is zero, false otherwise
+	 */
 	public static boolean equalsZero(int value) {
 		return value == 0;
 	}
 
+	/**
+	 * Checks if the given long value equals zero.
+	 *
+	 * @param value the long value to check
+	 * @return true if the value is zero, false otherwise
+	 */
 	public static boolean equalsZero(long value) {
 		return value == 0;
 	}
 
+	/**
+	 * Compares two integers for equality.
+	 *
+	 * @param a first integer to compare
+	 * @param b second integer to compare
+	 * @return true if the integers are equal, false otherwise
+	 */
 	public static boolean numEquals(int a, int b) {
 		return a == b;
 	}
 
+	/**
+	 * Checks if two integers are not equal.
+	 *
+	 * @param a first integer to compare
+	 * @param b second integer to compare
+	 * @return true if the integers are not equal, false otherwise
+	 */
 	public static boolean numNotEquals(int a, int b) {
 		return a != b;
 	}
 
+	/**
+	 * Compares two integers using signed less than comparison.
+	 *
+	 * @param a first integer to compare
+	 * @param b second integer to compare
+	 * @return true if a is less than b, false otherwise
+	 */
 	public static boolean numLessThanSigned(int a, int b) {
 		return a < b;
 	}
 
+	/**
+	 * Compares two integers using unsigned less than comparison.
+	 *
+	 * @param a first integer to compare
+	 * @param b second integer to compare
+	 * @return true if a is less than b when treated as unsigned values, false otherwise
+	 */
 	public static boolean numLessThanUnsigned(int a, int b) {
 		return Integer.compareUnsigned(a, b) < 0;
 	}
+
+	/**
+	 * Compares two integers using signed greater than comparison.
+	 *
+	 * @param a first integer to compare
+	 * @param b second integer to compare
+	 * @return true if a is greater than b, false otherwise
+	 */
 	public static boolean numGreaterThanSigned(int a, int b) {
 		return a > b;
 	}
 
+	/**
+	 * Compares two integers using unsigned greater than comparison.
+	 *
+	 * @param a first integer to compare
+	 * @param b second integer to compare
+	 * @return true if a is greater than b when treated as unsigned values, false otherwise
+	 */
 	public static boolean numGreaterThanUnsigned(int a, int b) {
 		return Integer.compareUnsigned(a, b) > 0;
 	}
 
+	/**
+	 * Compares two integers using signed less than or equal comparison.
+	 *
+	 * @param a first integer to compare
+	 * @param b second integer to compare
+	 * @return true if a is less than or equal to b, false otherwise
+	 */
 	public static boolean numLessThanOrEqualSigned(int a, int b) {
 		return a <= b;
 	}
 
+	/**
+	 * Compares two integers using unsigned less than or equal comparison.
+	 *
+	 * @param a first integer to compare
+	 * @param b second integer to compare
+	 * @return true if a is less than or equal to b when treated as unsigned values, false otherwise
+	 */
 	public static boolean numLessThanOrEqualUnsigned(int a, int b) {
 		return Integer.compareUnsigned(a, b) <= 0;
 	}
 
+	/**
+	 * Compares two integers using signed greater than or equal comparison.
+	 *
+	 * @param a first integer to compare
+	 * @param b second integer to compare
+	 * @return true if a is greater than or equal to b, false otherwise
+	 */
 	public static boolean numGreaterThanOrEqualSigned(int a, int b) {
 		return a >= b;
 	}
 
+	/**
+	 * Compares two integers using unsigned greater than or equal comparison.
+	 *
+	 * @param a first integer to compare
+	 * @param b second integer to compare
+	 * @return true if a is greater than or equal to b when treated as unsigned values, false otherwise
+	 */
 	public static boolean numGreaterThanOrEqualUnsigned(int a, int b) {
 		return Integer.compareUnsigned(a, b) >= 0;
 	}
 
+	/**
+	 * Compares two long values for equality.
+	 *
+	 * @param a first long value to compare
+	 * @param b second long value to compare
+	 * @return true if the long values are equal, false otherwise
+	 */
 	public static boolean numEquals(long a, long b) {
 		return a == b;
 	}
 
+	/**
+	 * Checks if two long values are not equal.
+	 *
+	 * @param a first long value to compare
+	 * @param b second long value to compare
+	 * @return true if the long values are not equal, false otherwise
+	 */
 	public static boolean numNotEquals(long a, long b) {
 		return a != b;
 	}
 
+	/**
+	 * Compares two long values using signed less than comparison.
+	 *
+	 * @param a first long value to compare
+	 * @param b second long value to compare
+	 * @return true if a is less than b, false otherwise
+	 */
 	public static boolean numLessThanSigned(long a, long b) {
 		return a < b;
 	}
 
+	/**
+	 * Compares two long values using unsigned less than comparison.
+	 *
+	 * @param a first long value to compare
+	 * @param b second long value to compare
+	 * @return true if a is less than b when treated as unsigned values, false otherwise
+	 */
 	public static boolean numLessThanUnsigned(long a, long b) {
 		return Long.compareUnsigned(a, b) < 0;
 	}
 
+	/**
+	 * Compares two long values using signed greater than comparison.
+	 *
+	 * @param a first long value to compare
+	 * @param b second long value to compare
+	 * @return true if a is greater than b, false otherwise
+	 */
 	public static boolean numGreaterThanSigned(long a, long b) {
 		return a > b;
 	}
 
+	/**
+	 * Compares two long values using unsigned greater than comparison.
+	 *
+	 * @param a first long value to compare
+	 * @param b second long value to compare
+	 * @return true if a is greater than b when treated as unsigned values, false otherwise
+	 */
 	public static boolean numGreaterThanUnsigned(long a, long b) {
 		return Long.compareUnsigned(a, b) > 0;
 	}
 
+	/**
+	 * Compares two long values using signed less than or equal comparison.
+	 *
+	 * @param a first long value to compare
+	 * @param b second long value to compare
+	 * @return true if a is less than or equal to b, false otherwise
+	 */
 	public static boolean numLessThanOrEqualSigned(long a, long b) {
 		return a <= b;
 	}
 
+	/**
+	 * Compares two long values using unsigned less than or equal comparison.
+	 *
+	 * @param a first long value to compare
+	 * @param b second long value to compare
+	 * @return true if a is less than or equal to b when treated as unsigned values, false otherwise
+	 */
 	public static boolean numLessThanOrEqualUnsigned(long a, long b) {
 		return Long.compareUnsigned(a, b) <= 0;
 	}
 
+	/**
+	 * Compares two long values using signed greater than or equal comparison.
+	 *
+	 * @param a first long value to compare
+	 * @param b second long value to compare
+	 * @return true if a is greater than or equal to b, false otherwise
+	 */
 	public static boolean numGreaterThanOrEqualSigned(long a, long b) {
 		return a >= b;
 	}
 
+	/**
+	 * Compares two long values using unsigned greater than or equal comparison.
+	 *
+	 * @param a first long value to compare
+	 * @param b second long value to compare
+	 * @return true if a is greater than or equal to b when treated as unsigned values, false otherwise
+	 */
 	public static boolean numGreaterThanOrEqualUnsigned(long a, long b) {
 		return Long.compareUnsigned(a, b) >= 0;
 	}
-
 }

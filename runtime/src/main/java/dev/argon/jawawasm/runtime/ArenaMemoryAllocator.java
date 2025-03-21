@@ -6,6 +6,10 @@ import java.lang.foreign.Arena;
  * An allocator that uses an Arena to allocate memory segments.
  */
 public class ArenaMemoryAllocator extends MemoryAllocator {
+	/**
+	 * Creates an allocator
+	 * @param arena The arena used to allocate memory
+	 */
 	public ArenaMemoryAllocator(Arena arena) {
 		this.arena = arena;
 	}

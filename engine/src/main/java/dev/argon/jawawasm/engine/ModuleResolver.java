@@ -5,6 +5,7 @@ import dev.argon.jawawasm.runtime.ModuleResolutionException;
 
 /**
  * Resolves modules by name.
+ * @param <Mod> The type of the module to be resolved.
  */
 public interface ModuleResolver<Mod> {
 	/**
@@ -13,5 +14,5 @@ public interface ModuleResolver<Mod> {
 	 * @return The module.
 	 * @throws ModuleResolutionException if the module could not be resolved.
 	 */
-	Mod resolve(Mod importer, String name) throws ModuleResolutionException;
+	Mod resolve(String name) throws ModuleResolutionException;
 }

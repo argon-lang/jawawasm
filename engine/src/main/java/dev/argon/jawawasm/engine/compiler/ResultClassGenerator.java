@@ -11,6 +11,8 @@ import java.lang.classfile.TypeKind;
 import java.lang.classfile.attribute.*;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
+
+import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.*;
 import static java.lang.constant.ConstantDescs.*;
 import java.util.ArrayList;
 import java.util.Optional;

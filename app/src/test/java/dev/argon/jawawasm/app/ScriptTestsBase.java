@@ -55,7 +55,7 @@ abstract class ScriptTestsBase {
 			}
 		}
 
-//		if(!path.toString().equals("fac.wast")) {
+//		if(!path.toString().equals("table.wast")) {
 //			return true;
 //		}
 
@@ -78,6 +78,7 @@ abstract class ScriptTestsBase {
 		}
 
 		try(var interpreter = createScriptExecutor(Path.of(wasmPathStr))) {
+			interpreter.initialize();
 			interpreter.executeScript(path.getFileName().toString(), commands);
 		}
 	}

@@ -1,6 +1,13 @@
 package dev.argon.jawawasm.runtime;
 
+/**
+ * A memory allocator for WebAssembly programs.
+ */
 public abstract class MemoryAllocator {
+	/**
+	 * Creates a memory allocator.
+	 */
+	public MemoryAllocator() {}
 
 	private long maxMemory = 0;
 

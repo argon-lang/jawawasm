@@ -1,3 +1,6 @@
+/**
+ * WebAssembly interpreter.
+ */
 @NullMarked
 package dev.argon.jawawasm.engine.interpreter;
 

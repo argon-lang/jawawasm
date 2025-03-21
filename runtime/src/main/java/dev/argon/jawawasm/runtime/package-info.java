@@ -1,3 +1,6 @@
+/**
+ * Runtime library for JawaWasm applications.
+ */
 @NullMarked
 package dev.argon.jawawasm.runtime;
 

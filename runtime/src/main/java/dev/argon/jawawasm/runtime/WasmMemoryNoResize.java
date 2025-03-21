@@ -174,6 +174,10 @@ public interface WasmMemoryNoResize {
 		}
 	}
 
+	/**
+	 * Copy data from another memory.
+	 * @param other The other memory.
+	 */
 	default void copyFrom(WasmMemoryNoResize other) {
 		long pagesToCopy = other.pageSize();
 

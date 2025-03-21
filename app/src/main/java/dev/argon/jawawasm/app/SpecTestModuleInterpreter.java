@@ -14,9 +14,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-class SpecTestModule implements WasmModule {
+final class SpecTestModuleInterpreter implements WasmModule {
 
-	public SpecTestModule(MemoryAllocator allocator, PrintWriter output) {
+	public SpecTestModuleInterpreter(MemoryAllocator allocator, PrintWriter output) {
 		this.output = output;
 		exports.put("global_i32", new WasmGlobal(new GlobalType(Mut.Const, NumType.I32), 666));
 		exports.put("global_i64", new WasmGlobal(new GlobalType(Mut.Const, NumType.I64), 666L));

@@ -39,11 +39,8 @@ tasks.withType<JavaCompile>().configureEach {
 
         option("NullAway:OnlyNullMarked", "true")
         option("NullAway:JSpecifyMode", "true")
+        error("NullAway")
     }
-}
-
-tasks.compileJava {
-    options.errorprone.error("NullAway")
 }
 
 publishing {
