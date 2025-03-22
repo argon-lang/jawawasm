@@ -1,0 +1,155 @@
+package dev.argon.jawawasm.engine.compiler;
+
+import dev.argon.jawawasm.format.types.Mut;
+import dev.argon.jawawasm.format.types.StructType;
+import dev.argon.jawawasm.format.types.SubType;
+import org.jspecify.annotations.Nullable;
+
+import java.lang.classfile.ClassBuilder;
+import java.lang.classfile.ClassFile;
+import java.lang.constant.ClassDesc;
+import java.lang.constant.MethodTypeDesc;
+import java.util.ArrayList;
+import java.util.List;
+
+import static dev.argon.jawawasm.engine.compiler.Constants.RUNTIME_PACKAGE;
+import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.typeKind;
+import static java.lang.constant.ConstantDescs.*;
+
+class StructClassGenerator extends WasmClassGenerator {
+	public StructClassGenerator(ModuleCompiler compiler, SubType subtype, StructType structType, String className) {
+		super(compiler);
+		this.subtype = subtype;
+		this.structType = structType;
+		this.className = ClassDesc.of(compiler.getOptions().javaPackage(), className);
+	}
+
+	private final SubType subtype;
+	private final StructType structType;
+	private final ClassDesc className;
+
+	@Override
+	public ClassDesc className() {
+		return className;
+	}
+
+	public StructTypeRealization realization() {
+		var fields = new StructTypeRealization.Field[structType.fields().size()];
+		for(int i = 0; i < fields.length; ++i) {
+			var fieldType = structType.fields().get(i);
+			var t = compiler.getStorageType(fieldType.storageType()).type();
+
+			new StructTypeRealization.Field(
+				t,
+				new StructTypeRealization.AccessMethod(
+					"get" + i,
+					MethodTypeDesc.of(t, CD_int)
+				),
+				switch(fieldType.mut()) {
+					case Const -> null;
+					case Var -> new StructTypeRealization.AccessMethod(
+						"set" + i,
+						MethodTypeDesc.of(CD_void, CD_int, t)
+					);
+				}
+			);
+		}
+
+		return new StructTypeRealization(
+			className,
+			!subtype.isFinal(),
+			List.of(fields)
+		);
+	}
+
+	@Override
+	protected byte[] generateImpl() {
+		if(!subtype.superTypes().isEmpty() || !subtype.isFinal()) {
+			throw new RuntimeException("Not implemented");
+		}
+
+		var superInterface = ClassDesc.of(RUNTIME_PACKAGE, "WasmArray");
+
+		return compiler.getOptions().classFile()
+			.build(className, clb -> generateFinalStruct(clb, className, superInterface));
+	}
+
+	private void generateFinalStruct(ClassBuilder clb, ClassDesc thisClass, @Nullable ClassDesc superInterface) {
+
+		var fields = structType.fields();
+
+		clb.withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT);
+		clb.withInterfaceSymbols(superInterface);
+
+		TypeRealization[] fieldTypes = new TypeRealization[fields.size()];
+		List<ClassDesc> constructorArgs = new ArrayList<>();
+
+		for(int i = 0; i < fields.size(); ++i) {
+			var fieldType = fields.get(i);
+			var t = compiler.getStorageType(fieldType.storageType());
+			var tk = typeKind(t.type());
+			fieldTypes[i] = t;
+			constructorArgs.add(t.type());
+
+			int flags = ClassFile.ACC_PRIVATE;
+			if(fieldType.mut() == Mut.Var) {
+				flags |= ClassFile.ACC_FINAL;
+			}
+
+			var fieldName = "field" + i;
+
+			clb.withField(fieldName, t.type(), flags);
+
+
+			clb.withMethodBody(
+				"get" + i,
+				MethodTypeDesc.of(t.type()),
+				ClassFile.ACC_PUBLIC,
+				cb -> {
+					cb.aload(0);
+					cb.getfield(thisClass, fieldName, t.type());
+					cb.return_(tk);
+				}
+			);
+
+			if(fieldType.mut() == Mut.Var) {
+				clb.withMethodBody(
+					"set" + i,
+					MethodTypeDesc.of(CD_void, t.type()),
+					ClassFile.ACC_PUBLIC,
+					cb -> {
+						cb.aload(0);
+						cb.loadLocal(tk, 2);
+						cb.putfield(thisClass, fieldName, t.type());
+						cb.return_();
+					}
+				);
+			}
+		}
+
+
+		clb.withMethodBody(
+			"<init>",
+			MethodTypeDesc.of(CD_void, constructorArgs),
+			ClassFile.ACC_PUBLIC,
+			cb -> {
+				int slot = 1;
+				for(int i = 0; i < fields.size(); ++i) {
+					var t = fieldTypes[i].type();
+					var tk = typeKind(t);
+
+					cb.aload(0);
+					cb.loadLocal(tk, slot);
+
+					cb.putfield(thisClass, "field" + i, t);
+				}
+
+				cb.aload(0);
+				cb.invokespecial(CD_Object, "<init>", MethodTypeDesc.of(CD_void));
+				cb.return_();
+			}
+		);
+
+
+	}
+}

@@ -1,9 +1,10 @@
-package dev.argon.jawawasm.engine.classloader;
+package dev.argon.jawawasm.engine.reflection;
 
 import dev.argon.jawawasm.engine.ModuleResolver;
 import dev.argon.jawawasm.engine.compiler.*;
 import dev.argon.jawawasm.format.ModuleFormatException;
 import dev.argon.jawawasm.format.modules.Module;
+import dev.argon.jawawasm.format.types.*;
 import dev.argon.jawawasm.runtime.*;
 import org.jspecify.annotations.Nullable;
 
@@ -22,16 +23,18 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static java.lang.constant.ConstantDescs.*;
+
 /**
- * WebAssembly engine using classloaders.
+ * WebAssembly engine using reflection and runtime class loading.
  */
-public class ClassLoaderEngine {
+public class ReflectionEngine {
 	/**
 	 * Create an engine.
 	 * @param packageName The name of the Java package used for generated classes.
 	 * @param context The runtime context.
 	 */
-	public ClassLoaderEngine(String packageName, RuntimeContext context) {
+	public ReflectionEngine(String packageName, RuntimeContext context) {
 		this.context = context;
 
 		classFile = ClassFile.of(
@@ -64,7 +67,7 @@ public class ClassLoaderEngine {
 	 * @throws ExecutionException when an error occurs executing WebAssembly code.
 	 * @throws ModuleLinkException when an error occurs while linking.
 	 */
-	public WasmModule instantiateModule(Module module, ModuleResolver<WasmModule> resolver) throws ExecutionException, ModuleLinkException {
+	public ReflectionModule instantiateModule(Module module, ModuleResolver<ReflectionModule> resolver) throws ExecutionException, ModuleLinkException {
 		try {
 			int currentIndex = moduleIndex.getAndIncrement();
 			var classRealization = compiler.enqueueModule(module, "Module" + currentIndex, new MappedResolver(resolver));
@@ -127,7 +130,7 @@ public class ClassLoaderEngine {
 					continue;
 				}
 
-				var impModule = resolver.resolve(imp.module());
+				var impModule = resolver.resolve(imp.module()).module();
 				methodParamTypes.add(impModule.getClass());
 				methodArgs.add(impModule);
 			}
@@ -142,7 +145,7 @@ public class ClassLoaderEngine {
 
 			instanceToRealization.put(instance, classRealization);
 
-			return instance;
+			return new ReflectionModule(instance, getExports(cls, classRealization));
 		}
 		catch(ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException e) {
 			throw new ModuleLinkException(e);
@@ -154,10 +157,86 @@ public class ClassLoaderEngine {
 	 * @param module The module to add.
 	 * @throws ModuleFormatException if the module is invalid
 	 */
-	public void addHostModule(WasmModule module) throws ModuleFormatException {
-		var realization = new ReflectionModuleLoader(compiler).loadModule(module.getClass());
+	public ReflectionModule addHostModule(WasmModule module) throws ModuleFormatException, ModuleLinkException {
+		var cls = module.getClass();
+		var realization = new ReflectionModuleLoader(compiler).loadModule(cls);
 		instanceToRealization.put(module, realization);
+		Map<String, ReflectionExport> exports;
+		try {
+			exports = getExports(cls, realization);
+		}
+		catch(ClassNotFoundException | NoSuchMethodException e) {
+			throw new ModuleLinkException(e);
+		}
+
+		return new ReflectionModule(module, exports);
 	}
+
+	private Map<String, ReflectionExport> getExports(Class<?> cls, WasmModuleRealization classRealization) throws ClassNotFoundException, NoSuchMethodException {
+		Map<String, ReflectionExport> exports = new HashMap<>();
+		for(var exp : classRealization.exports()) {
+			ReflectionExport export;
+			switch(exp.externalType()) {
+				case DefType defType -> {
+					Class<?>[] paramTypes = new Class<?>[exp.methodType().parameterCount()];
+					for(int i = 0; i < exp.methodType().parameterCount(); ++i) {
+						paramTypes[i] = classDescToClass(exp.methodType().parameterType(i));
+					}
+					var method = cls.getMethod(exp.methodName(), paramTypes);
+					export = new ReflectionExport.FunctionExport(method);
+				}
+//				case GlobalType globalType -> throw new RuntimeException("Not implemented");
+//				case MemType memType -> throw new RuntimeException("Not implemented");
+//				case TableType tableType -> throw new RuntimeException("Not implemented");
+//				case TagType tagType -> throw new RuntimeException("Not implemented");
+				default -> {
+					continue;
+				}
+			};
+
+			exports.put(exp.exportName(), export);
+		}
+
+		return exports;
+	}
+
+	private Class<?> classDescToClass(ClassDesc classDesc) throws ClassNotFoundException {
+		if(classDesc == CD_byte) {
+			return byte.class;
+		}
+		else if(classDesc == CD_short) {
+			return short.class;
+		}
+		else if(classDesc == CD_int) {
+			return int.class;
+		}
+		else if(classDesc == CD_long) {
+			return long.class;
+		}
+		else if(classDesc == CD_float) {
+			return float.class;
+		}
+		else if(classDesc == CD_double) {
+			return double.class;
+		}
+		else if(classDesc == CD_char) {
+			return char.class;
+		}
+		else if(classDesc == CD_boolean) {
+			return boolean.class;
+		}
+		else if(classDesc == CD_void) {
+			return void.class;
+		}
+		else if(classDesc.isArray()) {
+			return classDescToClass(classDesc.componentType()).arrayType();
+		}
+		else {
+			return classLoader.loadClass(getBinaryName(classDesc));
+		}
+	}
+
+
 
 	private static String getBinaryName(ClassDesc classDesc) {
 		return getInternalName(classDesc).replace('/', '.');
@@ -169,15 +248,15 @@ public class ClassLoaderEngine {
 	}
 
 	private final class MappedResolver implements ModuleResolver<WasmModuleRealization> {
-		public MappedResolver(ModuleResolver<WasmModule> resolver) {
+		public MappedResolver(ModuleResolver<ReflectionModule> resolver) {
 			this.resolver = resolver;
 		}
 
-		private final ModuleResolver<WasmModule> resolver;
+		private final ModuleResolver<ReflectionModule> resolver;
 
 		@Override
 		public WasmModuleRealization resolve(String name) throws ModuleResolutionException {
-			WasmModule resolvedModule = resolver.resolve(name);
+			WasmModule resolvedModule = resolver.resolve(name).module();
 
 			var resolved = instanceToRealization.get(resolvedModule);
 			if(resolved == null) {

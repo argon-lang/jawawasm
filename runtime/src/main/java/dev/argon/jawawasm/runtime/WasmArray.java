@@ -1,11 +1,9 @@
 package dev.argon.jawawasm.runtime;
 
-/**
- * A WebAssembly array.
- */
-public non-sealed abstract class WasmArray implements WasmEq {
+public non-sealed interface WasmArray extends WasmEq {
 	/**
-	 * Creates a WasmArray.
+	 * Gets the length of the array.
+	 * @return The length.
 	 */
-	public WasmArray() {}
+	int length();
 }

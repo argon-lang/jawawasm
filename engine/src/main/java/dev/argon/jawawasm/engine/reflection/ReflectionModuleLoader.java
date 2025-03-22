@@ -1,5 +1,8 @@
-package dev.argon.jawawasm.engine.compiler;
+package dev.argon.jawawasm.engine.reflection;
 
+import dev.argon.jawawasm.engine.compiler.ModuleCompiler;
+import dev.argon.jawawasm.engine.compiler.WasmExportRealization;
+import dev.argon.jawawasm.engine.compiler.WasmModuleRealization;
 import dev.argon.jawawasm.format.ModuleFormatException;
 import dev.argon.jawawasm.format.types.*;
 import dev.argon.jawawasm.runtime.*;

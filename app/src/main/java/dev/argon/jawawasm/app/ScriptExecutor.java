@@ -28,7 +28,7 @@ import java.util.concurrent.ExecutionException;
 /**
  * An executor for WAST scripts.
  */
-public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permits ScriptClassLoaderExecutor, ScriptInterpreter {
+public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permits ScriptReflectionExecutor, ScriptInterpreter {
 	ScriptExecutor(Path wasmExecutable, PrintWriter output) {
 		arena = Arena.ofShared();
 		allocator = new ArenaMemoryAllocator(arena);
@@ -51,7 +51,7 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 	private Map<String, Mod> namedModules = new HashMap<>();
 	private Map<Integer, Object> externRefs = new HashMap<>();
 
-	abstract Mod getSpecTestModule(PrintWriter output) throws ModuleFormatException;
+	abstract Mod getSpecTestModule(PrintWriter output) throws ModuleFormatException, ModuleLinkException;
 	abstract Mod instantiateModule(Module module, ModuleResolver<Mod> resolver) throws ModuleLinkException, ExecutionException;
 	abstract @Nullable Object[] invokeModuleExport(Mod mod, String name, @Nullable Object[] args) throws ExecutionException;
 	abstract @Nullable Object getGlobalExport(Mod mod, String name);
@@ -96,7 +96,7 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 	}
 
 
-	public void initialize() throws ModuleFormatException {
+	public void initialize() throws ModuleFormatException, ModuleLinkException {
 		registeredModules.put("spectest", getSpecTestModule(output));
 	}
 

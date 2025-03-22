@@ -55,9 +55,9 @@ abstract class ScriptTestsBase {
 			}
 		}
 
-		if(!path.toString().equals("bulk.wast")) {
-			return true;
-		}
+//		if(!path.toString().equals("br_on_non_null.wast")) {
+//			return true;
+//		}
 
 		return false;
 	}

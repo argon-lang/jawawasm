@@ -1,8 +1,10 @@
 package dev.argon.jawawasm.app;
 
 import dev.argon.jawawasm.engine.ModuleResolver;
-import dev.argon.jawawasm.engine.classloader.ClassLoaderEngine;
+import dev.argon.jawawasm.engine.reflection.ReflectionEngine;
 import dev.argon.jawawasm.engine.compiler.NameMangling;
+import dev.argon.jawawasm.engine.reflection.ReflectionExport;
+import dev.argon.jawawasm.engine.reflection.ReflectionModule;
 import dev.argon.jawawasm.format.ModuleFormatException;
 import dev.argon.jawawasm.format.modules.Module;
 import dev.argon.jawawasm.runtime.MemoryAllocator;
@@ -12,26 +14,24 @@ import dev.argon.jawawasm.runtime.WasmModule;
 import org.jspecify.annotations.Nullable;
 
 import java.io.PrintWriter;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
 
 /**
  * An executor for WAST scripts that uses a class loader.
  */
-public final class ScriptClassLoaderExecutor extends ScriptExecutor<WasmModule> {
+public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionModule> {
 	/**
 	 * Create a ScriptInterpreter.
 	 * @param wasmExecutable Path to the reference interpreter.
 	 * @param output Writer to receive output.
 	 */
-	public ScriptClassLoaderExecutor(String packageName, Path wasmExecutable, PrintWriter output) {
+	public ScriptReflectionExecutor(String packageName, Path wasmExecutable, PrintWriter output) {
 		super(wasmExecutable, output);
 
 		RuntimeContext context = new RuntimeContext() {
@@ -41,34 +41,30 @@ public final class ScriptClassLoaderExecutor extends ScriptExecutor<WasmModule> 
 			}
 		};
 
-		engine = new ClassLoaderEngine(packageName, context);
+		engine = new ReflectionEngine(packageName, context);
 	}
 
-	private final ClassLoaderEngine engine;
+	private final ReflectionEngine engine;
 
 	@Override
-	WasmModule getSpecTestModule(PrintWriter output) throws ModuleFormatException {
+	ReflectionModule getSpecTestModule(PrintWriter output) throws ModuleFormatException, ModuleLinkException {
 		var specTest = new SpecTestModuleInstance(output);
-		engine.addHostModule(specTest);
-		return specTest;
+		return engine.addHostModule(specTest);
 	}
 
 	@Override
-	WasmModule instantiateModule(Module module, ModuleResolver<WasmModule> resolver) throws ModuleLinkException, ExecutionException {
+	ReflectionModule instantiateModule(Module module, ModuleResolver<ReflectionModule> resolver) throws ModuleLinkException, ExecutionException {
 		return engine.instantiateModule(module, resolver);
 	}
 
 	@Override
-	@Nullable Object[] invokeModuleExport(WasmModule module, String exportName, @Nullable Object[] args) throws ExecutionException {
+	@Nullable Object[] invokeModuleExport(ReflectionModule module, String exportName, @Nullable Object[] args) throws ExecutionException {
 		try {
-			String escapedExportName = NameMangling.escapeName(exportName);
+			if(!(module.exports().get(exportName) instanceof ReflectionExport.FunctionExport export)) {
+				throw new RuntimeException("Could not find function export");
+			}
 
-			Method method = Arrays.stream(module.getClass().getMethods())
-				.filter(m -> m.canAccess(module) && m.getName().equals(escapedExportName))
-				.findFirst()
-				.orElseThrow();
-
-			Object result = method.invoke(module, args);
+			Object result = export.method().invoke(module.module(), args);
 
 			for(;;) {
 				Method stepMethod;
@@ -104,7 +100,7 @@ public final class ScriptClassLoaderExecutor extends ScriptExecutor<WasmModule> 
 	}
 
 	@Override
-	@Nullable Object getGlobalExport(WasmModule module, String exportName) {
+	@Nullable Object getGlobalExport(ReflectionModule module, String exportName) {
 		throw new RuntimeException("Not implemented");
 	}
 }

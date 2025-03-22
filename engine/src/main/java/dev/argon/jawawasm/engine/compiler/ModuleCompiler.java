@@ -38,6 +38,8 @@ public class ModuleCompiler {
 
 	private final Map<DefType, DefTypeRealization> typeCache = new ConcurrentHashMap<>();
 	private final AtomicInteger funcTypeIndex = new AtomicInteger(0);
+	private final AtomicInteger arrayTypeIndex = new AtomicInteger(0);
+	private final AtomicInteger structTypeIndex = new AtomicInteger(0);
 
 	private final Map<ResultType, ClassDesc> resultTypeCache = new ConcurrentHashMap<>();
 
@@ -68,6 +70,19 @@ public class ModuleCompiler {
 		return generatorQueue.poll();
 	}
 
+	/**
+	 * Register a class type as a Result type
+	 * @param resultType The WebAssembly result type.
+	 * @param classDesc The class type.
+	 * @throws ModuleFormatException if there is already a known class for this result type.
+	 */
+	public void registerResultType(ResultType resultType, ClassDesc classDesc) throws ModuleFormatException {
+		var cachedClassDesc = resultTypeCache.putIfAbsent(resultType, classDesc);
+		if(cachedClassDesc != null && !classDesc.equals(cachedClassDesc)) {
+			throw new ModuleFormatException("Conflicting types for result type " + resultType + ": " + classDesc + " and " + cachedClassDesc);
+		}
+	}
+
 
 	CompilerOptions getOptions() {
 		return options;
@@ -78,7 +93,18 @@ public class ModuleCompiler {
 		return typeCache.computeIfAbsent(type, t -> {
 			var subtype = TypeUnroll.unroll(t);
 			return switch(subtype.compositeType()) {
-				case AggregateType aggregateType -> throw new RuntimeException("Not implemented");
+				case ArrayType arrayType -> {
+					var className = "Array" + arrayTypeIndex.getAndIncrement();
+					var generator = new ArrayClassGenerator(this, subtype, arrayType, className);
+					generatorQueue.offer(generator);
+					yield generator.realization();
+				}
+				case StructType structType -> {
+					var className = "Struct" + structTypeIndex.getAndIncrement();
+					var generator = new StructClassGenerator(this, subtype, structType, className);
+					generatorQueue.offer(generator);
+					yield generator.realization();
+				}
 				case FuncType funcType -> {
 					var className = "Func" + funcTypeIndex.getAndIncrement();
 					var generator = new FuncClassGenerator(this, subtype, funcType, className);
@@ -87,6 +113,19 @@ public class ModuleCompiler {
 				}
 			};
 		});
+	}
+
+	TypeRealization getStorageType(StorageType storageType) {
+		return switch(storageType) {
+			case PackedType packedType -> new TypeRealization(
+				switch(packedType) {
+					case I8 -> CD_byte;
+					case I16 -> CD_short;
+				},
+				false
+			);
+			case ValType valType -> getValType(valType);
+		};
 	}
 
 	TypeRealization getValType(ValType type) {
@@ -132,13 +171,6 @@ public class ModuleCompiler {
 
 			case RecTypeIdx recTypeIdx -> throw new RuntimeException("Not implemented");
 		};
-	}
-
-	void registerResultType(ResultType resultType, ClassDesc classDesc) throws ModuleFormatException {
-		var cachedClassDesc = resultTypeCache.putIfAbsent(resultType, classDesc);
-		if(cachedClassDesc != null && !classDesc.equals(cachedClassDesc)) {
-			throw new ModuleFormatException("Coflicting types for result type " + resultType + ": " + classDesc + " and " + cachedClassDesc);
-		}
 	}
 
 	ClassDesc getResultType(ResultType type) {
