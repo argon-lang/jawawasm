@@ -12,6 +12,7 @@ import dev.argon.jawawasm.runtime.ModuleResolutionException;
 import org.jspecify.annotations.Nullable;
 
 import java.lang.classfile.*;
+import java.lang.classfile.instruction.SwitchCase;
 import java.lang.constant.*;
 import java.util.*;
 import java.util.function.Consumer;
@@ -688,36 +689,83 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 				case ControlInstr.Br(var labelIdx) -> {
 					var label = getLabel(labelIdx);
-					doJump(label.label, label.labelType, Opcode.GOTO, Opcode.NOP);
+					jumpedLabels.add(label.label);
+
+					if(jumpNeedsStackFix(label.labelType)) {
+						fixJumpStack(label.labelType);
+					}
+					cb.goto_(label.label);
 
 					isUnreachable = true;
 					stackTypes.clear();
 				}
 				case ControlInstr.Br_If(var labelIdx) -> {
 					var label = getLabel(labelIdx);
+					jumpedLabels.add(label.label);
 					stackTypes.removeLast();
-					doJump(label.label, label.labelType, Opcode.IFNE, Opcode.IFEQ);
+
+					if(jumpNeedsStackFix(label.labelType)) {
+						var endLabel = cb.newLabel();
+						cb.ifeq(endLabel);
+						fixJumpStack(label.labelType);
+						cb.goto_(label.label);
+						cb.labelBinding(endLabel);
+					}
+					else {
+						cb.ifne(label.label);
+					}
 				}
 				case ControlInstr.Br_Table(var table, var fallbackIdx) -> {
 					if(table.isEmpty()) {
 						cb.pop();
+						stackTypes.removeLast();
 						generateControlInstr(new ControlInstr.Br(fallbackIdx));
 						return;
 					}
 
 					var fallbackLabel = getLabel(fallbackIdx);
+					jumpedLabels.add(fallbackLabel.label);
 
-					cb.tableswitch(0, table.size() - 1, fallbackLabel.label);
+					stackTypes.removeLast();
+
+					if(jumpNeedsStackFix(fallbackLabel.labelType)) {
+						int indexVarSlot = tempVarSlot;
+						tempVarSlot += 1;
+
+						cb.istore(indexVarSlot);
+						fixJumpStack(fallbackLabel.labelType);
+						cb.iload(indexVarSlot);
+
+						tempVarSlot = indexVarSlot;
+					}
+
+					List<SwitchCase> cases = new ArrayList<>();
+					for(int i = 0; i < table.size(); ++i) {
+						var label = getLabel(table.get(i));
+						jumpedLabels.add(label.label);
+						cases.add(SwitchCase.of(i, label.label));
+					}
+
+					cb.tableswitch(0, table.size() - 1, fallbackLabel.label, cases);
+					isUnreachable = true;
+					stackTypes.clear();
 				}
 				case ControlInstr.Br_OnNonNull(var labelIdx) -> {
 					var label = getLabel(labelIdx);
+					jumpedLabels.add(label.label);
 
-					var nullLabel = cb.newLabel();
 
 					cb.dup();
-					cb.ifnull(nullLabel);
-					doJump(label.label, label.labelType, Opcode.GOTO, Opcode.NOP);
-					cb.labelBinding(nullLabel);
+					if(jumpNeedsStackFix(label.labelType)) {
+						var nullLabel = cb.newLabel();
+						cb.ifnull(nullLabel);
+						fixJumpStack(label.labelType);
+						cb.goto_(label.label);
+						cb.labelBinding(nullLabel);
+					}
+					else {
+						cb.ifnonnull(label.label);
+					}
 					cb.pop();
 				}
 
@@ -1754,29 +1802,24 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 		}
 
-		private void doJump(Label label, ResultType labelType, Opcode jump, Opcode inverseJump) {
-			jumpedLabels.add(label);
+		private boolean jumpNeedsStackFix(ResultType labelType) {
+			return stackTypes.size() != labelType.types().size();
+		}
 
-			if(stackTypes.size() == labelType.types().size()) {
-				cb.branch(jump, label);
-				return;
-			}
+		private boolean jumpNeedsStackFix(int resultSize) {
+			return stackTypes.size() != resultSize;
+		}
 
+		private void fixJumpStack(ResultType labelType) {
+			fixJumpStack(labelType.types().size());
+		}
+
+		private void fixJumpStack(int resultSize) {
 			int oldTempVarSlot = tempVarSlot;
 			var stashedValues = new ArrayList<StashedStackValue>();
-			for(var resType : labelType.types()) {
-				var javaType = compiler.getValType(resType).type();
-				var t = typeKind(javaType);
+			for(var t : stackTypes.subList(stackTypes.size() - resultSize, stackTypes.size())) {
 				stashedValues.add(new StashedStackValue(tempVarSlot, t));
 				tempVarSlot += t.slotSize();
-			}
-
-			var isUnconditional = jump == Opcode.GOTO || jump == Opcode.GOTO_W;
-
-			var afterJumpLabel = cb.newLabel();
-
-			if(!isUnconditional) {
-				cb.branch(inverseJump, afterJumpLabel);
 			}
 
 			var localStackTypes = new ArrayList<>(stackTypes);
@@ -1804,10 +1847,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			}
 
 			tempVarSlot = oldTempVarSlot;
-
-			cb.goto_(label);
-
-			cb.labelBinding(afterJumpLabel);
 		}
 
 		private void loadMem(MemoryInstr.MemArg memArg) {
