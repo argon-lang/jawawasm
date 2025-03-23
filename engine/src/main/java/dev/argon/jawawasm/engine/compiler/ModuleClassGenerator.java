@@ -862,8 +862,65 @@ class ModuleClassGenerator extends WasmClassGenerator {
 						exitBlock(type, state, null);
 					}
 				}
+				case ControlInstr.If(var blockType, var thenBody, var elseBody) -> {
+					var type = closure.resolveFuncType(getBlockFuncType(blockType));
 
+					var exitThenLabel = cb.newLabel();
+					var elseLabel = cb.newLabel();
+					var exitElseLabel = cb.newLabel();
+					var endLabel = cb.newLabel();
 
+					stackTypes.removeLast();
+					cb.ifeq(elseLabel);
+
+					var stackTypesCopy = new ArrayList<>(stackTypes);
+
+					var state = enterBlock(type);
+					labels.add(new LabelInfo(exitThenLabel, type.results()));
+					generateInstructionBlock(new Expr(thenBody));
+					labels.removeLast();
+					cb.labelBinding(exitThenLabel);
+					exitBlock(type, state, exitThenLabel);
+					if(!isUnreachable) cb.goto_(endLabel);
+					boolean thenUnreachable = isUnreachable;
+
+					cb.labelBinding(elseLabel);
+					isUnreachable = false;
+					stackTypes.clear();
+					stackTypes.addAll(stackTypesCopy);
+
+					state = enterBlock(type);
+					labels.add(new LabelInfo(exitElseLabel, type.results()));
+					generateInstructionBlock(new Expr(elseBody));
+					labels.removeLast();
+					cb.labelBinding(exitElseLabel);
+					exitBlock(type, state, exitElseLabel);
+					isUnreachable &= thenUnreachable;
+
+					cb.labelBinding(endLabel);
+				}
+				case ControlInstr.Throw(var tagIdx) -> {
+					var tagInfo = tags.get(tagIdx.index());
+
+					saveStackTempRes(tagInfo.funcType.args());
+					cb.new_(tagInfo.realization.classDesc());
+					cb.dup();
+					restoreStackTempRes(tagInfo.funcType.args());
+					cb.invokespecial(
+						tagInfo.realization.classDesc(),
+						"<init>",
+						tagInfo.realization.constructorType()
+					);
+					cb.athrow();
+
+					stackTypes.clear();
+					isUnreachable = true;
+				}
+				case ControlInstr.Throw_Ref() -> {
+					cb.athrow();
+					stackTypes.clear();
+					isUnreachable = true;
+				}
 				case ControlInstr.Br(var labelIdx) -> {
 					var label = getLabel(labelIdx);
 					jumpedLabels.add(label.label);
@@ -969,61 +1026,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					}
 					cb.pop();
 					stackTypes.removeLast();
-				}
-
-				case ControlInstr.If(var blockType, var thenBody, var elseBody) -> {
-					var type = closure.resolveFuncType(getBlockFuncType(blockType));
-
-					var exitThenLabel = cb.newLabel();
-					var elseLabel = cb.newLabel();
-					var exitElseLabel = cb.newLabel();
-					var endLabel = cb.newLabel();
-
-					stackTypes.removeLast();
-					cb.ifeq(elseLabel);
-
-					var stackTypesCopy = new ArrayList<>(stackTypes);
-
-					var state = enterBlock(type);
-					labels.add(new LabelInfo(exitThenLabel, type.results()));
-					generateInstructionBlock(new Expr(thenBody));
-					labels.removeLast();
-					cb.labelBinding(exitThenLabel);
-					exitBlock(type, state, exitThenLabel);
-					if(!isUnreachable) cb.goto_(endLabel);
-					boolean thenUnreachable = isUnreachable;
-
-					cb.labelBinding(elseLabel);
-					isUnreachable = false;
-					stackTypes.clear();
-					stackTypes.addAll(stackTypesCopy);
-
-					state = enterBlock(type);
-					labels.add(new LabelInfo(exitElseLabel, type.results()));
-					generateInstructionBlock(new Expr(elseBody));
-					labels.removeLast();
-					cb.labelBinding(exitElseLabel);
-					exitBlock(type, state, exitElseLabel);
-					isUnreachable &= thenUnreachable;
-
-					cb.labelBinding(endLabel);
-				}
-				case ControlInstr.Throw(var tagIdx) -> {
-					var tagInfo = tags.get(tagIdx.index());
-
-					saveStackTempRes(tagInfo.funcType.args());
-					cb.new_(tagInfo.realization.classDesc());
-					cb.dup();
-					restoreStackTempRes(tagInfo.funcType.args());
-					cb.invokespecial(
-						tagInfo.realization.classDesc(),
-						"<init>",
-						tagInfo.realization.constructorType()
-					);
-					cb.athrow();
-
-					stackTypes.clear();
-					isUnreachable = true;
 				}
 
 				case ControlInstr.Return() -> generateReturn();
@@ -1333,12 +1335,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 //				case ControlInstr.Br_OnCast brOnCast -> {
 //				}
 //				case ControlInstr.Br_OnCastFail brOnCastFail -> {
-//				}
-//				case ControlInstr.Loop loop -> {
-//				}
-//				case ControlInstr.Throw_Ref throwRef -> {
-//				}
-//				case ControlInstr.Unreachable unreachable -> {
 //				}
 
 				default -> throw new RuntimeException("Not implemented: " + instr);
