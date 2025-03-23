@@ -195,14 +195,28 @@ public abstract class SubtypingBase {
 		);
 	}
 
+	public boolean isSubtypeLimitsIgnoreMin(Limits a, Limits b) {
+		return b.max() == null || (a.max() != null && a.max() <= b.max());
+	}
+
 	public boolean isSubtypeTable(TableType a, TableType b) {
 		return a.addrType() == b.addrType() && isSubtypeLimits(a.limits(), b.limits()) &&
 			isSubtypeRef(a.elementType(), b.elementType()) &&
 			isSubtypeRef(b.elementType(), a.elementType());
 	}
 
+	public boolean isSubtypeTableIgnoreMin(TableType a, TableType b) {
+		return a.addrType() == b.addrType() && isSubtypeLimitsIgnoreMin(a.limits(), b.limits()) &&
+			isSubtypeRef(a.elementType(), b.elementType()) &&
+			isSubtypeRef(b.elementType(), a.elementType());
+	}
+
 	public boolean isSubtypeMemory(MemType a, MemType b) {
 		return a.addrType() == b.addrType() && isSubtypeLimits(a.limits(), b.limits());
+	}
+
+	public boolean isSubtypeMemoryIgnoreMin(MemType a, MemType b) {
+		return a.addrType() == b.addrType() && isSubtypeLimitsIgnoreMin(a.limits(), b.limits());
 	}
 
 	public boolean isSubtypeGlobal(GlobalType a, GlobalType b) {

@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.engine.reflection;
 
+import com.google.common.collect.ImmutableList;
 import dev.argon.jawawasm.engine.compiler.ModuleCompiler;
 import dev.argon.jawawasm.engine.compiler.WasmExportRealization;
 import dev.argon.jawawasm.engine.compiler.WasmModuleRealization;
@@ -8,12 +9,16 @@ import dev.argon.jawawasm.format.types.*;
 import dev.argon.jawawasm.runtime.*;
 import org.jspecify.annotations.Nullable;
 
+import java.lang.classfile.attribute.InnerClassInfo;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.lang.reflect.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+
+import static java.lang.constant.ConstantDescs.CD_void;
 
 /**
  * Module loader using reflection to access types.
@@ -37,9 +42,15 @@ public class ReflectionModuleLoader {
 	 */
 	public WasmModuleRealization loadModule(Class<?> moduleClass) throws ModuleFormatException {
 
-		List<WasmExportRealization> exports = new ArrayList<>();
+		var exports = ImmutableList.<WasmExportRealization>builder();
 		for(var method : moduleClass.getMethods()) {
 			var export = loadExport(method);
+			if(export != null) {
+				exports.add(export);
+			}
+		}
+		for(var innerClass : moduleClass.getDeclaredClasses()) {
+			var export = loadExport(innerClass);
 			if(export != null) {
 				exports.add(export);
 			}
@@ -47,7 +58,7 @@ public class ReflectionModuleLoader {
 
 		return new WasmModuleRealization(
 			ClassDesc.ofDescriptor(moduleClass.descriptorString()),
-			exports
+			exports.build()
 		);
 	}
 
@@ -84,12 +95,12 @@ public class ReflectionModuleLoader {
 			throw new ModuleFormatException("Invalid result type. \"of\" method must return the result type. Result type: " + t + ", Return type: " + ofMethod.getReturnType());
 		}
 
-		List<ValType> resTypes = new ArrayList<>();
+		var resTypes = ImmutableList.<ValType>builder();
 		for(var ctorParamType : ofMethod.getAnnotatedParameterTypes()) {
 			resTypes.add(loadValType(ctorParamType));
 		}
 
-		var resultType = new ResultType(resTypes);
+		var resultType = new ResultType(resTypes.build());
 
 		var resTypeDesc = ClassDesc.ofDescriptor(t.descriptorString());
 
@@ -100,6 +111,10 @@ public class ReflectionModuleLoader {
 
 	private @Nullable WasmExportRealization loadExport(Method method) throws ModuleFormatException {
 		if(!Modifier.isPublic(method.getModifiers())) {
+			return null;
+		}
+
+		if(Modifier.isStatic(method.getModifiers())) {
 			return null;
 		}
 
@@ -120,7 +135,67 @@ public class ReflectionModuleLoader {
 
 		var externalType = loadExternalType(exportAnn.type(), method);
 
-		return new WasmExportRealization(name, method.getName(), type, externalType);
+		return new WasmExportRealization.OfInstanceMethod(name, method.getName(), type, externalType);
+	}
+
+	private @Nullable WasmExportRealization loadExport(Class<?> innerClass) throws ModuleFormatException {
+		if(!Modifier.isPublic(innerClass.getModifiers())) {
+			return null;
+		}
+
+		if(!Modifier.isStatic(innerClass.getModifiers())) {
+			return null;
+		}
+
+		if(!WebAssemblyException.class.isAssignableFrom(innerClass)) {
+			return null;
+		}
+
+		var constructors = Arrays.stream(innerClass.getConstructors())
+			.filter(c -> Modifier.isPublic(innerClass.getModifiers()))
+			.toList();
+
+		if(constructors.size() != 1) {
+			throw new ModuleFormatException("A WebAssembly exception type is expected to have exactly one public constructor");
+		}
+
+		var constructor = constructors.getFirst();
+
+
+		String name;
+
+		var exportAnn = innerClass.getAnnotation(WasmExport.class);
+		if(exportAnn != null && (exportAnn.allowEmptyName() || !exportAnn.rename().isEmpty())) {
+			name = exportAnn.rename();
+		}
+		else {
+			name = innerClass.getSimpleName();
+		}
+
+
+		var paramTypes = ImmutableList.<ValType>builder();
+		for(var param : constructor.getAnnotatedParameterTypes()) {
+			paramTypes.add(loadValType(param));
+		}
+
+
+		List<ClassDesc> realizedParamTypes = new ArrayList<>();
+		for(var param : constructor.getParameterTypes()) {
+			realizedParamTypes.add(ClassDesc.ofDescriptor(param.descriptorString()));
+		}
+
+		return new WasmExportRealization.OfInnerClass(
+			name,
+			ClassDesc.ofDescriptor(innerClass.descriptorString()),
+			InnerClassInfo.of(
+				ClassDesc.ofDescriptor(innerClass.descriptorString()),
+				Optional.of(ClassDesc.ofDescriptor(innerClass.getDeclaringClass().descriptorString())),
+				Optional.of(innerClass.getSimpleName()),
+				innerClass.getModifiers()
+			),
+			MethodTypeDesc.of(CD_void, realizedParamTypes),
+			new FuncType(new ResultType(paramTypes.build()), new ResultType(ImmutableList.of()))
+		);
 	}
 
 	private MethodTypeDesc getMethodDescriptor(Method method) {
@@ -140,18 +215,18 @@ public class ReflectionModuleLoader {
 	}
 
 	private DefType loadExternalFunctionType(Method method) throws ModuleFormatException {
-		List<ValType> paramTypes = new ArrayList<>();
+		var paramTypes = ImmutableList.<ValType>builder();
 		for(var param : method.getAnnotatedParameterTypes()) {
 			paramTypes.add(loadValType(param));
 		}
 
 		var resultType = loadResultType(method.getReturnType());
 
-		var funcType = new FuncType(new ResultType(paramTypes), resultType);
+		var funcType = new FuncType(new ResultType(paramTypes.build()), resultType);
 
 		return new DefType(
-			new RecursiveType(List.of(
-				new SubType(true, List.of(), funcType)
+			new RecursiveType(ImmutableList.of(
+				new SubType(true, ImmutableList.of(), funcType)
 			)),
 			0
 		);

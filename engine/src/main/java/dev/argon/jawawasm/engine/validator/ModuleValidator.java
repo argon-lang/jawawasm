@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.engine.validator;
 
+import com.google.common.collect.ImmutableList;
 import dev.argon.jawawasm.engine.internal.TypeRoll;
 import dev.argon.jawawasm.format.instructions.Expr;
 import dev.argon.jawawasm.format.modules.*;
@@ -196,7 +197,7 @@ public class ModuleValidator extends ValidatorBase {
 
 	private void validateTable(Table table) throws ValidationException {
 		new TypeValidator(context).validateTableType(table.type());
-		new InstrValidator(context).validateExpr(table.init(), new ResultType(List.of(table.type().elementType())));
+		new InstrValidator(context).validateExpr(table.init(), new ResultType(ImmutableList.of(table.type().elementType())));
 	}
 
 	private void validateMem(Mem mem) throws ValidationException {
@@ -210,14 +211,14 @@ public class ModuleValidator extends ValidatorBase {
 	private void validateGlobal(Global global) throws ValidationException {
 		var iv = new InstrValidator(context);
 		iv.requireConstantExpr(global.init());
-		iv.validateExpr(global.init(), new ResultType(List.of(global.type().type())));
+		iv.validateExpr(global.init(), new ResultType(ImmutableList.of(global.type().type())));
 	}
 
 	private void validateElem(Elem elem) throws ValidationException {
 		var iv = new InstrValidator(context);
 		for(Expr expr : elem.init()) {
 			iv.requireConstantExpr(expr);
-			iv.validateExpr(expr, new ResultType(List.of(elem.type())));
+			iv.validateExpr(expr, new ResultType(ImmutableList.of(elem.type())));
 		}
 
 		new TypeValidator(context).validateReferenceType(elem.type());
@@ -231,7 +232,7 @@ public class ModuleValidator extends ValidatorBase {
 
 				require(new Subtyping(context).isSubtypeRef(elem.type(), tableElementType), "type mismatch " + elem.type() + ", " + tableElementType);
 				iv.requireConstantExpr(active.offset());
-				iv.validateExpr(active.offset(), new ResultType(List.of(AddressTypeUtils.asNumType(table.addrType()))));
+				iv.validateExpr(active.offset(), new ResultType(ImmutableList.of(AddressTypeUtils.asNumType(table.addrType()))));
 			}
 			case ElemMode.Declarative(), ElemMode.Passive() -> {}
 		}
@@ -244,7 +245,7 @@ public class ModuleValidator extends ValidatorBase {
 				context.requireMem(active.memory());
 				var memory = context.getMem(active.memory());
 				iv.requireConstantExpr(active.offset());
-				iv.validateExpr(active.offset(), new ResultType(List.of(AddressTypeUtils.asNumType(memory.addrType()))));
+				iv.validateExpr(active.offset(), new ResultType(ImmutableList.of(AddressTypeUtils.asNumType(memory.addrType()))));
 			}
 			case DataMode.Passive() -> {}
 		}

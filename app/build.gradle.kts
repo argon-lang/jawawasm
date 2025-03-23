@@ -37,6 +37,8 @@ tasks.withType<JavaCompile>().configureEach {
         option("NullAway:JSpecifyMode", "true")
         error("NullAway")
     }
+
+    options.compilerArgs.add("-Xlint:unchecked,deprecation,fallthrough,path,rawtypes")
 }
 
 application {

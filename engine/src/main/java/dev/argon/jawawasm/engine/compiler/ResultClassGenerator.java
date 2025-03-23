@@ -4,10 +4,7 @@ import dev.argon.jawawasm.format.types.FuncType;
 import dev.argon.jawawasm.format.types.ResultType;
 import dev.argon.jawawasm.format.types.SubType;
 
-import java.lang.classfile.Annotation;
-import java.lang.classfile.ClassElement;
-import java.lang.classfile.ClassFile;
-import java.lang.classfile.TypeKind;
+import java.lang.classfile.*;
 import java.lang.classfile.attribute.*;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
@@ -33,6 +30,11 @@ class ResultClassGenerator extends WasmClassGenerator {
 	}
 
 	@Override
+	public ClassHierarchyResolver.ClassHierarchyInfo hierarchyInfo() {
+		return ClassHierarchyResolver.ClassHierarchyInfo.ofInterface();
+	}
+
+	@Override
 	protected byte[] generateImpl() {
 		var stepInterface = new StepClassGenerator();
 		var endResultClass = new EndResultClassGenerator();
@@ -40,7 +42,7 @@ class ResultClassGenerator extends WasmClassGenerator {
 		compiler.enqueueGenerator(stepInterface);
 		compiler.enqueueGenerator(endResultClass);
 
-		return compiler.getOptions().classFile()
+		return compiler.classFile()
 			.build(
 				className,
 				clb -> {
@@ -131,8 +133,13 @@ class ResultClassGenerator extends WasmClassGenerator {
 		}
 
 		@Override
+		public ClassHierarchyResolver.ClassHierarchyInfo hierarchyInfo() {
+			return ClassHierarchyResolver.ClassHierarchyInfo.ofClass(CD_Object);
+		}
+
+		@Override
 		protected byte[] generateImpl() {
-			return compiler.getOptions().classFile()
+			return compiler.classFile()
 				.build(
 					className,
 					clb -> {
@@ -197,9 +204,14 @@ class ResultClassGenerator extends WasmClassGenerator {
 		}
 
 		@Override
+		public ClassHierarchyResolver.ClassHierarchyInfo hierarchyInfo() {
+			return ClassHierarchyResolver.ClassHierarchyInfo.ofInterface();
+		}
+
+		@Override
 		protected byte[] generateImpl() {
 
-			return compiler.getOptions().classFile()
+			return compiler.classFile()
 				.build(
 					className,
 					clb -> {

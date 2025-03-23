@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.engine.interpreter;
 
+import com.google.common.collect.ImmutableList;
 import dev.argon.jawawasm.format.types.*;
 import org.jspecify.annotations.Nullable;
 
@@ -51,10 +52,10 @@ public non-sealed interface DynamicWasmFunction extends WasmExport, DynamicWasmO
 		@Override
 		default DefType type() {
 			return new DefType(
-				new RecursiveType(List.of(
+				new RecursiveType(ImmutableList.of(
 					new SubType(
 						true,
-						List.of(),
+						ImmutableList.of(),
 						functionType()
 					)
 				)),

@@ -37,21 +37,13 @@ public class ReflectionEngine {
 	public ReflectionEngine(String packageName, RuntimeContext context) {
 		this.context = context;
 
-		classFile = ClassFile.of(
-			ClassFile.ShortJumpsOption.FIX_SHORT_JUMPS,
-			ClassFile.ClassHierarchyResolverOption.of(
-				new LoaderHierarchyResolver().orElse(ClassHierarchyResolver.defaultResolver())
-			)
-		);
-
 		compiler = new ModuleCompiler(new CompilerOptions(
-			classFile,
+			ClassHierarchyResolver.defaultResolver(),
 			packageName
 		));
 	}
 
 	private final RuntimeContext context;
-	private final ClassFile classFile;
 	private final ModuleCompiler compiler;
 	private final ClassLoader classLoader = new EngineClassLoaderImpl();
 	private final AtomicInteger moduleIndex = new AtomicInteger(0);
@@ -70,7 +62,7 @@ public class ReflectionEngine {
 	public ReflectionModule instantiateModule(Module module, ModuleResolver<ReflectionModule> resolver) throws ExecutionException, ModuleLinkException {
 		try {
 			int currentIndex = moduleIndex.getAndIncrement();
-			var classRealization = compiler.enqueueModule(module, "Module" + currentIndex, new MappedResolver(resolver));
+			WasmModuleRealization classRealization = compiler.enqueueModule(module, "Module" + currentIndex, new MappedResolver(resolver));
 			List<byte[]> newClassBytecode = new ArrayList<>();
 
 			genLoop:
@@ -99,11 +91,11 @@ public class ReflectionEngine {
 			}
 
 			for(var ncb : newClassBytecode) {
-				var errors = classFile.verify(ncb);
+				var errors = compiler.classFile().verify(ncb);
 
 				if(!errors.isEmpty()) {
 					System.err.println("Bytecode: " + Base64.getEncoder().encodeToString(ncb));
-					var classModel = classFile.parse(ncb);
+					var classModel = compiler.classFile().parse(ncb);
 					System.err.println(classModel);
 					for(var method : classModel.methods()) {
 						System.err.println(method);
@@ -176,23 +168,36 @@ public class ReflectionEngine {
 		Map<String, ReflectionExport> exports = new HashMap<>();
 		for(var exp : classRealization.exports()) {
 			ReflectionExport export;
-			switch(exp.externalType()) {
-				case DefType defType -> {
-					Class<?>[] paramTypes = new Class<?>[exp.methodType().parameterCount()];
-					for(int i = 0; i < exp.methodType().parameterCount(); ++i) {
-						paramTypes[i] = classDescToClass(exp.methodType().parameterType(i));
+			switch(exp) {
+				case WasmExportRealization.OfInstanceMethod expMethod -> {
+					switch(expMethod.externalType()) {
+						case DefType defType -> {
+							Class<?>[] paramTypes = new Class<?>[expMethod.methodType().parameterCount()];
+							for(int i = 0; i < expMethod.methodType().parameterCount(); ++i) {
+								paramTypes[i] = classDescToClass(expMethod.methodType().parameterType(i));
+							}
+							var method = cls.getMethod(expMethod.methodName(), paramTypes);
+							export = new ReflectionExport.FunctionExport(method);
+						}
+						case GlobalType globalType -> {
+							var method = cls.getMethod(expMethod.methodName());
+							export = switch(globalType.mutability()) {
+								case Const -> new ReflectionExport.GlobalExportConst(method);
+								case Var -> new ReflectionExport.GlobalExportVar(method);
+							};
+						}
+//						case MemType memType -> throw new RuntimeException("Not implemented");
+//						case TableType tableType -> throw new RuntimeException("Not implemented");
+//						case TagType tagType -> throw new RuntimeException("Not implemented");
+						default -> {
+							continue;
+						}
 					}
-					var method = cls.getMethod(exp.methodName(), paramTypes);
-					export = new ReflectionExport.FunctionExport(method);
 				}
-//				case GlobalType globalType -> throw new RuntimeException("Not implemented");
-//				case MemType memType -> throw new RuntimeException("Not implemented");
-//				case TableType tableType -> throw new RuntimeException("Not implemented");
-//				case TagType tagType -> throw new RuntimeException("Not implemented");
-				default -> {
+				case WasmExportRealization.OfInnerClass _ -> {
 					continue;
 				}
-			};
+			}
 
 			exports.put(exp.exportName(), export);
 		}
@@ -344,50 +349,6 @@ public class ReflectionEngine {
 			var data = generatedFiles.get(path);
 			Objects.requireNonNull(data);
 			return new ByteArrayInputStream(data);
-		}
-	}
-
-	private final class LoaderHierarchyResolver implements ClassHierarchyResolver {
-		@Override
-		public ClassHierarchyInfo getClassInfo(ClassDesc classDesc) {
-			var bytecode = generatedFiles.get(getInternalName(classDesc) + ".class");
-
-			if(bytecode != null) {
-				var classModel = classFile.parse(bytecode);
-				if(classModel.flags().has(AccessFlag.INTERFACE)) {
-					return ClassHierarchyInfo.ofInterface();
-				}
-				else {
-					var superclass = classModel.superclass().orElse(null);
-					if(superclass == null) {
-						return ClassHierarchyInfo.ofClass(null);
-					}
-
-					return ClassHierarchyInfo.ofClass(ClassDesc.ofInternalName(superclass.asInternalName()));
-				}
-			}
-
-			// Not a generated class, fallback to reflection.
-			Class<?> cls;
-			try {
-				cls = Class.forName(getBinaryName(classDesc));
-
-			} catch(ClassNotFoundException e) {
-				throw new RuntimeException(e);
-			}
-
-			if(cls.isInterface()) {
-				return ClassHierarchyInfo.ofInterface();
-			}
-			else {
-				var superclass = cls.getSuperclass();
-				if(superclass == null) {
-					return ClassHierarchyInfo.ofClass(null);
-				}
-				else {
-					return ClassHierarchyInfo.ofClass(ClassDesc.ofDescriptor(superclass.descriptorString()));
-				}
-			}
 		}
 	}
 

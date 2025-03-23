@@ -9,7 +9,7 @@ import java.lang.annotation.Target;
  * Indicates a WebAssembly export within a module.
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
+@Target({ElementType.METHOD, ElementType.TYPE})
 public @interface WasmExport {
 
 	/**

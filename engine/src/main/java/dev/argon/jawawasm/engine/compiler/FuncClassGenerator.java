@@ -5,6 +5,7 @@ import dev.argon.jawawasm.format.types.SubType;
 
 import java.lang.classfile.Annotation;
 import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassHierarchyResolver;
 import java.lang.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
@@ -30,6 +31,11 @@ class FuncClassGenerator extends WasmClassGenerator {
 	}
 
 	@Override
+	public ClassHierarchyResolver.ClassHierarchyInfo hierarchyInfo() {
+		return ClassHierarchyResolver.ClassHierarchyInfo.ofInterface();
+	}
+
+	@Override
 	protected byte[] generateImpl() {
 		if(!subtype.superTypes().isEmpty()) {
 			throw new RuntimeException("Not implemented");
@@ -38,7 +44,7 @@ class FuncClassGenerator extends WasmClassGenerator {
 		var methodType = compiler.getMethodType(funcType);
 
 
-		return compiler.getOptions().classFile()
+		return compiler.classFile()
 			.build(
 				className,
 				clb -> clb

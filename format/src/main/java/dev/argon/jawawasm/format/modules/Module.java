@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.format.modules;
 
+import com.google.common.collect.ImmutableList;
 import dev.argon.jawawasm.format.types.CompositeType;
 import dev.argon.jawawasm.format.types.DefType;
 import dev.argon.jawawasm.format.types.RecursiveType;
@@ -22,16 +23,16 @@ import java.util.List;
  * @param exports The exports section.
  */
 public record Module(
-    List<? extends RecursiveType> types,
-    List<? extends Func> funcs,
-    List<? extends Table> tables,
-    List<? extends Mem> mems,
-	List<? extends Tag> tags,
-    List<? extends Global> globals,
-    List<? extends Elem> elems,
-    List<? extends Data> datas,
+    ImmutableList<RecursiveType> types,
+	ImmutableList<Func> funcs,
+	ImmutableList<Table> tables,
+	ImmutableList<Mem> mems,
+	ImmutableList<Tag> tags,
+	ImmutableList<Global> globals,
+	ImmutableList<Elem> elems,
+	ImmutableList<Data> datas,
 	@Nullable Start start,
-    List<? extends Import> imports,
-    List<? extends Export> exports
+	ImmutableList<Import> imports,
+	ImmutableList<Export> exports
 ) {
 }

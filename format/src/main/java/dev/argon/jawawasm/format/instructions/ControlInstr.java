@@ -1,10 +1,9 @@
 package dev.argon.jawawasm.format.instructions;
 
+import com.google.common.collect.ImmutableList;
 import dev.argon.jawawasm.format.modules.*;
 import dev.argon.jawawasm.format.types.RefType;
 import dev.argon.jawawasm.format.types.ValType;
-
-import java.util.List;
 
 /**
  * Represents WebAssembly control instructions.
@@ -48,14 +47,14 @@ public sealed interface ControlInstr extends Instr {
 	 * @param type The type of the block.
 	 * @param body The body of the block.
 	 */
-	public static record Block(BlockType type, List<? extends Instr> body) implements ControlInstr {}
+	public static record Block(BlockType type, ImmutableList<Instr> body) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `loop` instruction.
 	 * @param type The type of the block.
 	 * @param body The body of the block.
 	 */
-	public static record Loop(BlockType type, List<? extends Instr> body) implements ControlInstr {}
+	public static record Loop(BlockType type, ImmutableList<Instr> body) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `if` instruction.
@@ -63,7 +62,7 @@ public sealed interface ControlInstr extends Instr {
 	 * @param thenBody The body of the block executed when true.
 	 * @param elseBody The body of the block executed when false.
 	 */
-	public static record If(BlockType type, List<? extends Instr> thenBody, List<? extends Instr> elseBody) implements ControlInstr {}
+	public static record If(BlockType type, ImmutableList<Instr> thenBody, ImmutableList<Instr> elseBody) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `throw` instruction.
@@ -93,7 +92,7 @@ public sealed interface ControlInstr extends Instr {
 	 * @param labels The branch targets.
 	 * @param fallback The fallback branch target.
 	 */
-	public static record Br_Table(List<? extends LabelIdx> labels, LabelIdx fallback) implements ControlInstr {}
+	public static record Br_Table(ImmutableList<LabelIdx> labels, LabelIdx fallback) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `br_on_null` instruction.
@@ -172,7 +171,7 @@ public sealed interface ControlInstr extends Instr {
 	 * @param catchClauses The list of catch clauses.
 	 * @param body The body of the try block.
 	 */
-	public static record Try_Table(BlockType blockType, List<? extends CatchClause> catchClauses, List<? extends Instr> body) implements ControlInstr {}
+	public static record Try_Table(BlockType blockType, ImmutableList<CatchClause> catchClauses, ImmutableList<Instr> body) implements ControlInstr {}
 
 	/**
 	 * Represents a catch clause in a `try_table` instruction.

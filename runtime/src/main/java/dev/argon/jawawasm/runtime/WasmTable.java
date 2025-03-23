@@ -39,7 +39,7 @@ public final class WasmTable<T extends @Nullable Object> {
 	 * Gets the size of the table.
 	 * @return The current size of the table.
 	 */
-	public long size() {
+	public int size() {
 		return items.length;
 	}
 
@@ -74,12 +74,21 @@ public final class WasmTable<T extends @Nullable Object> {
 
 	/**
 	 * Grow the table.
+	 * @param fillValue The value to fill in for the new elements.
 	 * @param growBy The number of elements to add to the table.
-	 * @return The new size of the table or -1 if the table could not be resized.
+	 * @return The old size of the table or -1 if the table could not be resized.
 	 */
-	public int grow(int growBy) {
-		if(growBy < 0 || (long)growBy + items.length > Integer.MAX_VALUE) {
+	public int grow(T fillValue, int growBy) {
+		if(
+			growBy < 0 ||
+				(long)growBy + items.length > Integer.MAX_VALUE ||
+				(maxSize != null && (long)growBy + items.length > maxSize)
+		) {
 			return -1;
+		}
+
+		if(growBy == 0) {
+			return items.length;
 		}
 
 		int newSize = growBy + items.length;
@@ -92,22 +101,22 @@ public final class WasmTable<T extends @Nullable Object> {
 			return -1;
 		}
 
+		int oldLength = items.length;
+
 		System.arraycopy(items, 0, newItems, 0, items.length);
+		Arrays.fill(newItems, oldLength, newItems.length, fillValue);
 		items = newItems;
-		return newItems.length;
+		return oldLength;
 	}
 
 	/**
-	 * Grow the table.
-	 * @param growBy The number of elements to add to the table.
-	 * @return The new size of the table or -1 if the table could not be resized.
+	 * Ensures that the table has a minimum size.
+	 * @param min The minimum number of elements.
 	 */
-	public long grow(long growBy) {
-		if(growBy > Integer.MAX_VALUE || growBy < 0) {
-			return -1;
+	public final void ensureMinimumSize(int min) {
+		if(items.length < min) {
+			throw new ModuleLinkException("incompatible import type: Table size is too small");
 		}
-
-		return grow((int)growBy);
 	}
 
 	/**
@@ -182,6 +191,34 @@ public final class WasmTable<T extends @Nullable Object> {
 		}
 
 		table.set((int)index, value);
+	}
+
+	/**
+	 * Grow the table.
+	 * @param fillValue The value to fill in for the new elements.
+	 * @param growBy The number of elements to add to the table.
+	 * @param table The table to grow.
+	 * @return The old size of the table or -1 if the table could not be resized.
+	 * @param <T> The element type.
+	 */
+	public static <T extends @Nullable Object> int table_grow(T fillValue, int growBy, WasmTable<T> table) {
+		return table.grow(fillValue, growBy);
+	}
+
+	/**
+	 * Grow the table.
+	 * @param fillValue The value to fill in for the new elements.
+	 * @param growBy The number of elements to add to the table.
+	 * @param table The table to grow.
+	 * @return The old size of the table or -1 if the table could not be resized.
+	 * @param <T> The element type.
+	 */
+	public static <T extends @Nullable Object> long table_grow(T fillValue, long growBy, WasmTable<T> table) {
+		if(growBy > Integer.MAX_VALUE || growBy < 0) {
+			return -1;
+		}
+
+		return table.grow(fillValue, (int)growBy);
 	}
 
 	/**

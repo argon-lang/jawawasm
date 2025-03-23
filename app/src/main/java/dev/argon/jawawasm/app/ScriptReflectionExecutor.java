@@ -7,10 +7,7 @@ import dev.argon.jawawasm.engine.reflection.ReflectionExport;
 import dev.argon.jawawasm.engine.reflection.ReflectionModule;
 import dev.argon.jawawasm.format.ModuleFormatException;
 import dev.argon.jawawasm.format.modules.Module;
-import dev.argon.jawawasm.runtime.MemoryAllocator;
-import dev.argon.jawawasm.runtime.ModuleLinkException;
-import dev.argon.jawawasm.runtime.RuntimeContext;
-import dev.argon.jawawasm.runtime.WasmModule;
+import dev.argon.jawawasm.runtime.*;
 import org.jspecify.annotations.Nullable;
 
 import java.io.PrintWriter;
@@ -53,7 +50,7 @@ public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionMod
 	}
 
 	@Override
-	ReflectionModule instantiateModule(Module module, ModuleResolver<ReflectionModule> resolver) throws ModuleLinkException, ExecutionException {
+	ReflectionModule instantiateModule(Module module, ModuleResolver<ReflectionModule> resolver) throws ExecutionException {
 		return engine.instantiateModule(module, resolver);
 	}
 
@@ -101,6 +98,34 @@ public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionMod
 
 	@Override
 	@Nullable Object getGlobalExport(ReflectionModule module, String exportName) {
-		throw new RuntimeException("Not implemented");
+		try {
+			return switch(module.exports().get(exportName)) {
+				case ReflectionExport.GlobalExportConst(var method) ->
+					method.invoke(module.module());
+
+				case ReflectionExport.GlobalExportVar(var method) -> {
+					var globalObj = method.invoke(module.module());
+					yield switch(globalObj) {
+						case GlobalI32 g -> g.get();
+						case GlobalI64 g -> g.get();
+						case GlobalF32 g -> g.get();
+						case GlobalF64 g -> g.get();
+						case GlobalRef<?> g -> g.get();
+						default -> throw new RuntimeException("Unexpected global container type");
+					};
+				}
+
+				case null, default -> throw new RuntimeException("Could not find global export");
+			};
+		}
+		catch(IllegalAccessException e) {
+			throw new RuntimeException(e);
+		}
+		catch(InvocationTargetException e) {
+			if(e.getCause() instanceof RuntimeException re) {
+				throw re;
+			}
+			throw new RuntimeException(e.getCause());
+		}
 	}
 }

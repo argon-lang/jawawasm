@@ -36,7 +36,7 @@ public final class ScriptInterpreter extends ScriptExecutor<WasmModule> {
 	}
 
 	@Override
-	WasmModule instantiateModule(Module module, ModuleResolver<WasmModule> resolver) throws ModuleLinkException, ExecutionException {
+	WasmModule instantiateModule(Module module, ModuleResolver<WasmModule> resolver) throws ExecutionException {
 		return engine.instantiateModule(module, resolver);
 	}
 

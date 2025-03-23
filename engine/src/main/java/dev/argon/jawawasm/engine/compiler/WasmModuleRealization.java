@@ -1,7 +1,8 @@
 package dev.argon.jawawasm.engine.compiler;
 
+import com.google.common.collect.ImmutableList;
+
 import java.lang.constant.ClassDesc;
-import java.util.List;
 
 /**
  * Information about the realization of a module.
@@ -10,6 +11,6 @@ import java.util.List;
  */
 public record WasmModuleRealization(
 	ClassDesc classDesc,
-	List<WasmExportRealization> exports
+	ImmutableList<WasmExportRealization> exports
 ) {
 }

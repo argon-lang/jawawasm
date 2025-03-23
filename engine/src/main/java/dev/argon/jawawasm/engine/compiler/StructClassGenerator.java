@@ -7,6 +7,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.lang.classfile.ClassBuilder;
 import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassHierarchyResolver;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.util.ArrayList;
@@ -31,6 +32,15 @@ class StructClassGenerator extends WasmClassGenerator {
 	@Override
 	public ClassDesc className() {
 		return className;
+	}
+
+	@Override
+	public ClassHierarchyResolver.ClassHierarchyInfo hierarchyInfo() {
+		if(!subtype.superTypes().isEmpty() || !subtype.isFinal()) {
+			throw new RuntimeException("Not implemented");
+		}
+
+		return ClassHierarchyResolver.ClassHierarchyInfo.ofClass(CD_Object);
 	}
 
 	public StructTypeRealization realization() {
@@ -70,7 +80,7 @@ class StructClassGenerator extends WasmClassGenerator {
 
 		var superInterface = ClassDesc.of(RUNTIME_PACKAGE, "WasmArray");
 
-		return compiler.getOptions().classFile()
+		return compiler.classFile()
 			.build(className, clb -> generateFinalStruct(clb, className, superInterface));
 	}
 

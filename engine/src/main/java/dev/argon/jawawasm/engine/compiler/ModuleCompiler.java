@@ -2,13 +2,17 @@ package dev.argon.jawawasm.engine.compiler;
 
 import dev.argon.jawawasm.engine.ModuleResolver;
 import dev.argon.jawawasm.engine.internal.TypeUnroll;
+import dev.argon.jawawasm.engine.reflection.ReflectionEngine;
 import dev.argon.jawawasm.format.ModuleFormatException;
 import dev.argon.jawawasm.format.modules.Module;
 import dev.argon.jawawasm.format.modules.TypeIdx;
 import dev.argon.jawawasm.format.types.*;
+import dev.argon.jawawasm.runtime.ModuleLinkException;
 import dev.argon.jawawasm.runtime.ModuleResolutionException;
 import org.jspecify.annotations.Nullable;
 
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassHierarchyResolver;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.util.*;
@@ -29,11 +33,20 @@ public class ModuleCompiler {
 	 */
 	public ModuleCompiler(CompilerOptions options) {
 		this.options = options;
+
+		classFile = ClassFile.of(
+			ClassFile.ShortJumpsOption.FIX_SHORT_JUMPS,
+			ClassFile.ClassHierarchyResolverOption.of(
+				new GeneratedHierarchyResolver().orElse(options.classHierarchyResolver())
+			)
+		);
 	}
 
 	private final CompilerOptions options;
+	private final ClassFile classFile;
 
 	private final Queue<WasmOutputGenerator> generatorQueue = new ConcurrentLinkedQueue<>();
+	private final Map<ClassDesc, ClassHierarchyResolver.ClassHierarchyInfo> generatedHierarchy = new ConcurrentHashMap<>();
 
 
 	private final Map<DefType, DefTypeRealization> typeCache = new ConcurrentHashMap<>();
@@ -49,17 +62,20 @@ public class ModuleCompiler {
 	 * @param className The name of the class for the module.
 	 * @param resolver The module resolver used to look up imports.
 	 * @return The realization of the module.
-	 * @throws ModuleResolutionException if an imported module cannot be resolved
+	 * @throws ModuleLinkException if a linkage error occurs
 	 */
-	public WasmModuleRealization enqueueModule(Module module, String className, ModuleResolver<WasmModuleRealization> resolver) throws ModuleResolutionException {
+	public WasmModuleRealization enqueueModule(Module module, String className, ModuleResolver<WasmModuleRealization> resolver) {
 		var gen = new ModuleClassGenerator(this, module, className, resolver);
-		generatorQueue.offer(gen);
 		gen.generate();
+		enqueueGenerator(gen);
 		return gen.realization();
 	}
 
 	void enqueueGenerator(WasmOutputGenerator generator) {
 		generatorQueue.offer(generator);
+		if(generator instanceof WasmClassGenerator cg) {
+			generatedHierarchy.put(cg.className(), cg.hierarchyInfo());
+		}
 	}
 
 	/**
@@ -83,6 +99,10 @@ public class ModuleCompiler {
 		}
 	}
 
+	public ClassFile classFile() {
+		return classFile;
+	}
+
 
 	CompilerOptions getOptions() {
 		return options;
@@ -96,19 +116,19 @@ public class ModuleCompiler {
 				case ArrayType arrayType -> {
 					var className = "Array" + arrayTypeIndex.getAndIncrement();
 					var generator = new ArrayClassGenerator(this, subtype, arrayType, className);
-					generatorQueue.offer(generator);
+					enqueueGenerator(generator);
 					yield generator.realization();
 				}
 				case StructType structType -> {
 					var className = "Struct" + structTypeIndex.getAndIncrement();
 					var generator = new StructClassGenerator(this, subtype, structType, className);
-					generatorQueue.offer(generator);
+					enqueueGenerator(generator);
 					yield generator.realization();
 				}
 				case FuncType funcType -> {
 					var className = "Func" + funcTypeIndex.getAndIncrement();
 					var generator = new FuncClassGenerator(this, subtype, funcType, className);
-					generatorQueue.offer(generator);
+					enqueueGenerator(generator);
 					yield generator.realization();
 				}
 			};
@@ -177,7 +197,7 @@ public class ModuleCompiler {
 		return resultTypeCache.computeIfAbsent(type, t -> {
 			var className = "Result" + funcTypeIndex.getAndIncrement();
 			var generator = new ResultClassGenerator(this, t, className);
-			generatorQueue.offer(generator);
+			enqueueGenerator(generator);
 			return generator.className();
 		});
 	}
@@ -204,4 +224,13 @@ public class ModuleCompiler {
 	ClassDesc getGlobalType(ValType elementType) {
 		throw new RuntimeException("Not implemented");
 	}
+
+
+	private class GeneratedHierarchyResolver implements ClassHierarchyResolver {
+		@Override
+		public @Nullable ClassHierarchyInfo getClassInfo(ClassDesc classDesc) {
+			return generatedHierarchy.get(classDesc);
+		}
+	}
+
 }

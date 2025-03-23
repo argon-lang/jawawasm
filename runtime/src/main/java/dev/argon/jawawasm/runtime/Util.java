@@ -948,6 +948,126 @@ public final class Util {
 	}
 
 	/**
+	 * Checks if two float numbers are equal.
+	 * @param a First float number
+	 * @param b Second float number
+	 * @return true if the numbers are equal, false otherwise
+	 */
+	public static boolean numEquals(float a, float b) {
+		return a == b;
+	}
+
+	/**
+	 * Checks if two double numbers are equal.
+	 * @param a First double number
+	 * @param b Second double number
+	 * @return true if the numbers are equal, false otherwise
+	 */
+	public static boolean numEquals(double a, double b) {
+		return a == b;
+	}
+
+	/**
+	 * Checks if two float numbers are not equal.
+	 * @param a First float number
+	 * @param b Second float number
+	 * @return true if the numbers are not equal, false otherwise
+	 */
+	public static boolean numNotEquals(float a, float b) {
+		return a != b;
+	}
+
+	/**
+	 * Checks if two double numbers are not equal.
+	 * @param a First double number
+	 * @param b Second double number
+	 * @return true if the numbers are not equal, false otherwise
+	 */
+	public static boolean numNotEquals(double a, double b) {
+		return a != b;
+	}
+
+	/**
+	 * Checks if one float is less than another.
+	 * @param a First float number
+	 * @param b Second float number
+	 * @return true if a is less than b, false otherwise
+	 */
+	public static boolean numLessThan(float a, float b) {
+		return a < b;
+	}
+
+	/**
+	 * Checks if one double is less than another.
+	 * @param a First double number
+	 * @param b Second double number
+	 * @return true if a is less than b, false otherwise
+	 */
+	public static boolean numLessThan(double a, double b) {
+		return a < b;
+	}
+
+	/**
+	 * Checks if one float is greater than another.
+	 * @param a First float number
+	 * @param b Second float number
+	 * @return true if a is greater than b, false otherwise
+	 */
+	public static boolean numGreaterThan(float a, float b) {
+		return a > b;
+	}
+
+	/**
+	 * Checks if one double is greater than another.
+	 * @param a First double number
+	 * @param b Second double number
+	 * @return true if a is greater than b, false otherwise
+	 */
+	public static boolean numGreaterThan(double a, double b) {
+		return a > b;
+	}
+
+	/**
+	 * Checks if one float is less than or equal to another.
+	 * @param a First float number
+	 * @param b Second float number
+	 * @return true if a is less than or equal to b, false otherwise
+	 */
+	public static boolean numLessThanOrEqual(float a, float b) {
+		return a <= b;
+	}
+
+	/**
+	 * Checks if one double is less than or equal to another.
+	 * @param a First double number
+	 * @param b Second double number
+	 * @return true if a is less than or equal to b, false otherwise
+	 */
+	public static boolean numLessThanOrEqual(double a, double b) {
+		return a <= b;
+	}
+
+	/**
+	 * Checks if one float is greater than or equal to another.
+	 * @param a First float number
+	 * @param b Second float number
+	 * @return true if a is greater than or equal to b, false otherwise
+	 */
+	public static boolean numGreaterThanOrEqual(float a, float b) {
+		return a >= b;
+	}
+
+	/**
+	 * Checks if one double is greater than or equal to another.
+	 * @param a First double number
+	 * @param b Second double number
+	 * @return true if a is greater than or equal to b, false otherwise
+	 */
+	public static boolean numGreaterThanOrEqual(double a, double b) {
+		return a >= b;
+	}
+
+	/**
 	 * Reads data from an InputStream. Intended to be used to read data segment content from resources.
 	 * @param is The input stream.
 	 * @return The byte data.

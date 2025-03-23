@@ -55,7 +55,7 @@ abstract class ScriptTestsBase {
 			}
 		}
 
-//		if(!path.toString().equals("br_on_non_null.wast")) {
+//		if(!path.toString().equals("if.wast")) {
 //			return true;
 //		}
 

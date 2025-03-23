@@ -17,6 +17,8 @@ repositories {
 
 dependencies {
     api(project(":runtime"))
+    api(libs.guava)
+    api(libs.protobuf)
     compileOnly(libs.jspecify)
     testImplementation(libs.junit.jupiter)
 
@@ -41,6 +43,8 @@ tasks.withType<JavaCompile>().configureEach {
         option("NullAway:JSpecifyMode", "true")
         error("NullAway")
     }
+
+    options.compilerArgs.add("-Xlint:unchecked,deprecation,fallthrough,path,rawtypes")
 }
 
 publishing {

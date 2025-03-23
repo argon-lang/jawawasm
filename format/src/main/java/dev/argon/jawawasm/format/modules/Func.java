@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.format.modules;
 
+import com.google.common.collect.ImmutableList;
 import dev.argon.jawawasm.format.instructions.Expr;
 import dev.argon.jawawasm.format.types.ValType;
 
@@ -13,7 +14,7 @@ import java.util.List;
  */
 public record Func(
 	TypeIdx type,
-	List<? extends ValType> locals,
+	ImmutableList<ValType> locals,
 	Expr body
 ) {
 }

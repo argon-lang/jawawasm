@@ -3,7 +3,7 @@ package dev.argon.jawawasm.runtime;
 /**
  * Indicates an error occurred during module linking.
  */
-public class ModuleLinkException extends Exception {
+public class ModuleLinkException extends RuntimeException {
 	/**
 	 * Creates a ModuleLinkException.
 	 */

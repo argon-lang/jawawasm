@@ -16,9 +16,19 @@ public sealed abstract class WasmMemory extends WasmMemoryNoResize permits WasmM
 	/**
 	 * Grow the memory.
 	 * @param pages The number of pages by which to grow the memory.
-	 * @return The old number of pages.
+	 * @return The old number of pages or -1 if it could not be grown.
 	 */
 	public abstract long grow(long pages);
+
+	/**
+	 * Ensures that the memory has a minimum size.
+	 * @param pages The minimum number of pages.
+	 */
+	public final void ensureMinimumSize(int pages) {
+		if(pageSize() < pages) {
+			throw new ModuleLinkException("incompatible import type: Memory size is too small");
+		}
+	}
 
 	/**
 	 * Creates a WasmMemory
@@ -30,6 +40,26 @@ public sealed abstract class WasmMemory extends WasmMemoryNoResize permits WasmM
 	 */
 	public static WasmMemory create(MemoryAllocator allocator, AddrType addrType, long minSize, @Nullable Long maxSize) {
 		return new WasmMemoryMeta(allocator, maxSize, allocator.allocateMemory(addrType, minSize));
+	}
+
+	/**
+	 * Grow the memory.
+	 * @param pages The number of pages by which to grow the memory.
+	 * @param mem The memory to grow.
+	 * @return The old number of pages or -1 if it could not be grown.
+	 */
+	public static long grow(long pages, WasmMemory mem) {
+		return mem.grow(pages);
+	}
+
+	/**
+	 * Grow the memory.
+	 * @param pages The number of pages by which to grow the memory.
+	 * @param mem The memory to grow.
+	 * @return The old number of pages or -1 if it could not be grown.
+	 */
+	public static int grow(int pages, WasmMemory mem) {
+		return (int)mem.grow(Integer.toUnsignedLong(pages));
 	}
 
 	/**

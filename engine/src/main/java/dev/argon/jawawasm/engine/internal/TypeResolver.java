@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.engine.internal;
 
+import com.google.common.collect.ImmutableList;
 import dev.argon.jawawasm.format.modules.TypeIdx;
 import dev.argon.jawawasm.format.types.*;
 
@@ -53,7 +54,12 @@ public sealed abstract class TypeResolver permits TypeClosure, TypeRoll, TypeUnr
 	public AggregateType resolveAggregateType(AggregateType t) {
 		return switch(t) {
 			case StructType structType ->
-				new StructType(structType.fields().stream().map(this::resolveFieldType).toList());
+				new StructType(
+					structType.fields()
+						.stream()
+						.map(this::resolveFieldType)
+						.collect(ImmutableList.toImmutableList())
+				);
 
 			case ArrayType arrayType ->
 				new ArrayType(resolveFieldType(arrayType.fieldType()));
@@ -66,23 +72,23 @@ public sealed abstract class TypeResolver permits TypeClosure, TypeRoll, TypeUnr
 	}
 
 	public RecursiveType resolveRecursiveType(RecursiveType t) {
-		var resolvedSubTypes = new ArrayList<SubType>(t.subtypes().size());
+		var resolvedSubTypes = ImmutableList.<SubType>builderWithExpectedSize(t.subtypes().size());
 
 		for(var subType : t.subtypes()) {
 			resolvedSubTypes.add(resolveSubType(subType));
 		}
 
-		return new RecursiveType(resolvedSubTypes);
+		return new RecursiveType(resolvedSubTypes.build());
 	}
 
 	public SubType resolveSubType(SubType subType) {
-		var resolvedSuperTypes = new ArrayList<HeapType>();
+		var resolvedSuperTypes = ImmutableList.<HeapType>builder();
 		for(var superType : subType.superTypes()) {
 			resolvedSuperTypes.add(resolveHeapType(superType));
 		}
 
 		var resolvedType = resolveCompositeType(subType.compositeType());
-		return new SubType(subType.isFinal(), resolvedSuperTypes, resolvedType);
+		return new SubType(subType.isFinal(), resolvedSuperTypes.build(), resolvedType);
 	}
 
 	public FieldType resolveFieldType(FieldType t) {
@@ -90,7 +96,12 @@ public sealed abstract class TypeResolver permits TypeClosure, TypeRoll, TypeUnr
 	}
 
 	public ResultType resolveResultType(ResultType t) {
-		return new ResultType(t.types().stream().map(this::resolveValType).toList());
+		return new ResultType(
+			t.types()
+				.stream()
+				.map(this::resolveValType)
+				.collect(ImmutableList.toImmutableList())
+		);
 	}
 
 	public TableType resolveTableType(TableType t) {

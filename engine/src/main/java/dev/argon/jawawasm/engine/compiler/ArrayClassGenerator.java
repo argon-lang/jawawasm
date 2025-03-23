@@ -6,10 +6,7 @@ import dev.argon.jawawasm.format.types.Mut;
 import dev.argon.jawawasm.format.types.SubType;
 import org.jspecify.annotations.Nullable;
 
-import java.lang.classfile.Annotation;
-import java.lang.classfile.ClassBuilder;
-import java.lang.classfile.ClassFile;
-import java.lang.classfile.TypeKind;
+import java.lang.classfile.*;
 import java.lang.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
@@ -44,6 +41,15 @@ class ArrayClassGenerator extends WasmClassGenerator {
 	}
 
 	@Override
+	public ClassHierarchyResolver.ClassHierarchyInfo hierarchyInfo() {
+		if(!subtype.superTypes().isEmpty() || !subtype.isFinal()) {
+			throw new RuntimeException("Not implemented");
+		}
+
+		return ClassHierarchyResolver.ClassHierarchyInfo.ofInterface();
+	}
+
+	@Override
 	protected byte[] generateImpl() {
 		if(!subtype.superTypes().isEmpty() || !subtype.isFinal()) {
 			throw new RuntimeException("Not implemented");
@@ -51,7 +57,7 @@ class ArrayClassGenerator extends WasmClassGenerator {
 
 		var superInterface = ClassDesc.of(RUNTIME_PACKAGE, "WasmArray");
 
-		return compiler.getOptions().classFile()
+		return compiler.classFile()
 			.build(className, clb -> generateFinalArray(clb, className, superInterface));
 	}
 

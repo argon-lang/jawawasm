@@ -1,5 +1,7 @@
 package dev.argon.jawawasm.engine.interpreter;
 
+import com.google.common.collect.ImmutableList;
+import com.google.protobuf.ByteString;
 import dev.argon.jawawasm.runtime.*;
 import dev.argon.jawawasm.format.instructions.*;
 import dev.argon.jawawasm.format.modules.Func;
@@ -2182,91 +2184,91 @@ class StackFrame {
 		return module.subtyping.isSubtypeHeap(objType, t.heapType());
 	}
 
-	private void copyDataToArrayByte(DynamicWasmArray.OfByte dest, byte[] src, int d, int s, int n) {
-		Objects.checkFromIndexSize(s, n, src.length);
+	private void copyDataToArrayByte(DynamicWasmArray.OfByte dest, ByteString src, int d, int s, int n) {
+		Objects.checkFromIndexSize(s, n, src.size());
 		Objects.checkFromIndexSize(d, n, dest.length());
 
 		for(int i = 0; i < n; ++i) {
-			dest.setByte(d + i, src[s + i]);
+			dest.setByte(d + i, src.byteAt(s + i));
 		}
 	}
 
-	private void copyDataToArrayShort(DynamicWasmArray.OfShort dest, byte[] src, int d, int s, int n) {
-		Objects.checkFromIndexSize(s, n, src.length);
+	private void copyDataToArrayShort(DynamicWasmArray.OfShort dest, ByteString src, int d, int s, int n) {
+		Objects.checkFromIndexSize(s, n, src.size());
 		Objects.checkFromIndexSize(d, n, dest.length());
 
 		for(int i = 0; i < n; ++i) {
 			short value = 0;
 			for(int j = 0; j < 2; ++j) {
-				value |= (short)((src[s + i * 2 + j] & 0xFF) << (8 * j));
+				value |= (short)((src.byteAt(s + i * 2 + j) & 0xFF) << (8 * j));
 			}
 			dest.setShort(d + i, value);
 		}
 	}
 
-	private void copyDataToArrayInt(DynamicWasmArray.OfInt dest, byte[] src, int d, int s, int n) {
-		Objects.checkFromIndexSize(s, (long)n * 4, src.length);
+	private void copyDataToArrayInt(DynamicWasmArray.OfInt dest, ByteString src, int d, int s, int n) {
+		Objects.checkFromIndexSize(s, (long)n * 4, src.size());
 		Objects.checkFromIndexSize(d, n, dest.length());
 
 		for(int i = 0; i < n; ++i) {
 			int value = 0;
 			for(int j = 0; j < 4; ++j) {
-				value |= (src[s + i * 4 + j] & 0xFF) << (8 * j);
+				value |= (src.byteAt(s + i * 4 + j) & 0xFF) << (8 * j);
 			}
 
 			dest.setInt(d + i, value);
 		}
 	}
 
-	private void copyDataToArrayLong(DynamicWasmArray.OfLong dest, byte[] src, int d, int s, int n) {
-		Objects.checkFromIndexSize(s, (long)n * 8, src.length);
+	private void copyDataToArrayLong(DynamicWasmArray.OfLong dest, ByteString src, int d, int s, int n) {
+		Objects.checkFromIndexSize(s, (long)n * 8, src.size());
 		Objects.checkFromIndexSize(d, n, dest.length());
 
 		for(int i = 0; i < n; ++i) {
 			long value = 0;
 			for(int j = 0; j < 8; ++j) {
-				value |= (long)(src[s + i * 8 + j] & 0xFF) << (8 * j);
+				value |= (long)(src.byteAt(s + i * 8 + j) & 0xFF) << (8 * j);
 			}
 
 			dest.setLong(d + i, value);
 		}
 	}
 
-	private void copyDataToArrayFloat(DynamicWasmArray.OfFloat dest, byte[] src, int d, int s, int n) {
-		Objects.checkFromIndexSize(s, (long)n * 4, src.length);
+	private void copyDataToArrayFloat(DynamicWasmArray.OfFloat dest, ByteString src, int d, int s, int n) {
+		Objects.checkFromIndexSize(s, (long)n * 4, src.size());
 		Objects.checkFromIndexSize(d, n, dest.length());
 
 		for(int i = 0; i < n; ++i) {
 			int value = 0;
 			for(int j = 0; j < 4; ++j) {
-				value |= (src[s + i * 4 + j] & 0xFF) << (8 * j);
+				value |= (src.byteAt(s + i * 4 + j) & 0xFF) << (8 * j);
 			}
 
 			dest.setFloat(d + i, Float.intBitsToFloat(value));
 		}
 	}
 
-	private void copyDataToArrayDouble(DynamicWasmArray.OfDouble dest, byte[] src, int d, int s, int n) {
-		Objects.checkFromIndexSize(s, (long)n * 8, src.length);
+	private void copyDataToArrayDouble(DynamicWasmArray.OfDouble dest, ByteString src, int d, int s, int n) {
+		Objects.checkFromIndexSize(s, (long)n * 8, src.size());
 		Objects.checkFromIndexSize(d, n, dest.length());
 
 		for(int i = 0; i < n; ++i) {
 			long value = 0;
 			for(int j = 0; j < 8; ++j) {
-				value |= (long)(src[s + i * 8 + j] & 0xFF) << (8 * j);
+				value |= (long)(src.byteAt(s + i * 8 + j) & 0xFF) << (8 * j);
 			}
 
 			dest.setDouble(d + i, Double.longBitsToDouble(value));
 		}
 	}
 
-	private void copyDataToArrayV128(DynamicWasmArray dest, byte[] src, int d, int s, int n) {
-		Objects.checkFromIndexSize(s, (long)n * 16, src.length);
+	private void copyDataToArrayV128(DynamicWasmArray dest, ByteString src, int d, int s, int n) {
+		Objects.checkFromIndexSize(s, (long)n * 16, src.size());
 		Objects.checkFromIndexSize(d, n, dest.length());
 
 		for(int i = 0; i < n; ++i) {
 			final int i2 = i;
-			V128 value = V128.build8(j -> src[s + i2 * 16 + j]);
+			V128 value = V128.build8(j -> src.byteAt(s + i2 * 16 + j));
 			dest.set(d + i, value);
 		}
 	}
@@ -2831,7 +2833,7 @@ class StackFrame {
 				int s = popInt();
 				long d = popAddress(memory);
 
-				memory.copyFromArray(d, s, n, data.init());
+				memory.copyFromArray(d, s, n, data.init().toByteArray());
 			}
 
 
@@ -3075,9 +3077,9 @@ class StackFrame {
 
 	private FuncType expandBlockType(ControlInstr.BlockType blockType) {
 		return switch(blockType) {
-			case ControlInstr.BlockType.Empty() -> new FuncType(new ResultType(List.of()), new ResultType(List.of()));
+			case ControlInstr.BlockType.Empty() -> new FuncType(new ResultType(ImmutableList.of()), new ResultType(ImmutableList.of()));
 			case ControlInstr.BlockType.OfIndex(var index) -> module.getFuncType(index);
-			case ControlInstr.BlockType.OfValType(var valType) -> new FuncType(new ResultType(List.of()), new ResultType(List.of(valType)));
+			case ControlInstr.BlockType.OfValType(var valType) -> new FuncType(new ResultType(ImmutableList.of()), new ResultType(ImmutableList.of(valType)));
 		};
 	}
 

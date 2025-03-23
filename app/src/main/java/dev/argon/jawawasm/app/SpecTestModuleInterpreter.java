@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.app;
 
+import com.google.common.collect.ImmutableList;
 import dev.argon.jawawasm.engine.interpreter.*;
 import dev.argon.jawawasm.format.types.*;
 import dev.argon.jawawasm.runtime.AddrType;
@@ -46,7 +47,7 @@ final class SpecTestModuleInterpreter implements WasmModule {
 	private final class Print implements DynamicWasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
-			return new FuncType(new ResultType(List.of()), new ResultType(List.of()));
+			return new FuncType(new ResultType(ImmutableList.of()), new ResultType(ImmutableList.of()));
 		}
 
 		@Override
@@ -59,7 +60,7 @@ final class SpecTestModuleInterpreter implements WasmModule {
 	private final class PrintI32 implements DynamicWasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
-			return new FuncType(new ResultType(List.of(NumType.I32)), new ResultType(List.of()));
+			return new FuncType(new ResultType(ImmutableList.of(NumType.I32)), new ResultType(ImmutableList.of()));
 		}
 
 		@Override
@@ -73,7 +74,7 @@ final class SpecTestModuleInterpreter implements WasmModule {
 	private final class PrintI64 implements DynamicWasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
-			return new FuncType(new ResultType(List.of(NumType.I64)), new ResultType(List.of()));
+			return new FuncType(new ResultType(ImmutableList.of(NumType.I64)), new ResultType(ImmutableList.of()));
 		}
 
 		@Override
@@ -87,7 +88,7 @@ final class SpecTestModuleInterpreter implements WasmModule {
 	private final class PrintF32 implements DynamicWasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
-			return new FuncType(new ResultType(List.of(NumType.F32)), new ResultType(List.of()));
+			return new FuncType(new ResultType(ImmutableList.of(NumType.F32)), new ResultType(ImmutableList.of()));
 		}
 
 		@Override
@@ -101,7 +102,7 @@ final class SpecTestModuleInterpreter implements WasmModule {
 	private final class PrintF64 implements DynamicWasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
-			return new FuncType(new ResultType(List.of(NumType.F64)), new ResultType(List.of()));
+			return new FuncType(new ResultType(ImmutableList.of(NumType.F64)), new ResultType(ImmutableList.of()));
 		}
 
 		@Override
@@ -115,7 +116,7 @@ final class SpecTestModuleInterpreter implements WasmModule {
 	private final class PrintI32F32 implements DynamicWasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
-			return new FuncType(new ResultType(List.of(NumType.I32, NumType.F32)), new ResultType(List.of()));
+			return new FuncType(new ResultType(ImmutableList.of(NumType.I32, NumType.F32)), new ResultType(ImmutableList.of()));
 		}
 
 		@Override
@@ -131,7 +132,7 @@ final class SpecTestModuleInterpreter implements WasmModule {
 	private final class PrintF64F64 implements DynamicWasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
-			return new FuncType(new ResultType(List.of(NumType.F64, NumType.F64)), new ResultType(List.of()));
+			return new FuncType(new ResultType(ImmutableList.of(NumType.F64, NumType.F64)), new ResultType(ImmutableList.of()));
 		}
 
 		@Override

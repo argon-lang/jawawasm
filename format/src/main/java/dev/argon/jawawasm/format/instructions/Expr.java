@@ -1,10 +1,10 @@
 package dev.argon.jawawasm.format.instructions;
 
-import java.util.List;
+import com.google.common.collect.ImmutableList;
 
 /**
  * An expression.
  * @param body The instructions.
  */
-public record Expr(List<? extends Instr> body) {
+public record Expr(ImmutableList<Instr> body) {
 }

@@ -1,5 +1,7 @@
 package dev.argon.jawawasm.format.types;
 
+import com.google.common.collect.ImmutableList;
+
 import java.util.List;
 
 /**
@@ -10,7 +12,7 @@ import java.util.List;
  */
 public record SubType(
 	boolean isFinal,
-	List<? extends HeapType> superTypes,
+	ImmutableList<? extends HeapType> superTypes,
 	CompositeType compositeType
 ) {
 }

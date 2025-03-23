@@ -1,5 +1,8 @@
 package dev.argon.jawawasm.format.binary;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.primitives.Bytes;
+import com.google.protobuf.ByteString;
 import dev.argon.jawawasm.runtime.AddrType;
 import dev.argon.jawawasm.format.types.Limits;
 import dev.argon.jawawasm.runtime.V128;
@@ -129,13 +132,13 @@ public class ModuleReader {
 		T read() throws IOException, ModuleFormatException;
 	}
 
-	private <T> List<? extends T> readVector(ValueReader<T> reader) throws IOException, ModuleFormatException {
+	private <T> ImmutableList<T> readVector(ValueReader<T> reader) throws IOException, ModuleFormatException {
 		int len = readU32();
-		List<T> l = new ArrayList<>(len);
+		var l = ImmutableList.<T>builderWithExpectedSize(len);
 		for(int i = 0; i < len; ++i) {
 			l.add(reader.read());
 		}
-		return l;
+		return l.build();
 	}
 	
 	private byte[] readByteVec() throws IOException, ModuleFormatException {
@@ -424,7 +427,7 @@ public class ModuleReader {
 		}
 		else {
 			var subtype = this.readSubType();
-			return new RecursiveType(List.of(subtype));
+			return new RecursiveType(ImmutableList.of(subtype));
 		}
 	}
 
@@ -445,7 +448,7 @@ public class ModuleReader {
 
 			default -> {
 				var composite = readCompositeType();
-				return new SubType(true, List.of(), composite);
+				return new SubType(true, ImmutableList.of(), composite);
 			}
 		}
 	}
@@ -624,7 +627,7 @@ public class ModuleReader {
 			case 0x04 -> {
 				var bt = readBlockType();
 
-				List<Instr> thenInstrs = new ArrayList<>();
+				var thenInstrs = ImmutableList.<Instr>builder();
 				boolean reachedEnd = false;
 				boolean hasElse = false;
 				while(!reachedEnd && !hasElse) {
@@ -641,7 +644,7 @@ public class ModuleReader {
 					}
 				}
 
-				List<Instr> elseInstrs = new ArrayList<>();
+				var elseInstrs = ImmutableList.<Instr>builder();
 				if(hasElse) {
 					reachedEnd = false;
 					while(!reachedEnd) {
@@ -659,7 +662,7 @@ public class ModuleReader {
 					}
 				}
 
-				yield new ControlInstr.If(bt, thenInstrs, elseInstrs);
+				yield new ControlInstr.If(bt, thenInstrs.build(), elseInstrs.build());
 			}
 
 			case 0x05 -> BlockTerminator.ELSE;
@@ -757,7 +760,7 @@ public class ModuleReader {
 			// Try
 			case 0x1F -> {
 				var blockType = readBlockType();
-				var catchClauses = readVector(() -> {
+				ImmutableList<ControlInstr.CatchClause> catchClauses = readVector(() -> {
 					var catchType = readByte();
 					return switch(catchType) {
 						case 0x00 -> {
@@ -1797,8 +1800,8 @@ public class ModuleReader {
 		};
 	}
 
-	private List<? extends Instr> readInstructionBlock() throws IOException, ModuleFormatException {
-		List<Instr> instrs = new ArrayList<>();
+	private ImmutableList<Instr> readInstructionBlock() throws IOException, ModuleFormatException {
+		var instrs = ImmutableList.<Instr>builder();
 		while(true) {
 			var instr = readInstrOrTerminator();
 			if(instr == BlockTerminator.END) {
@@ -1811,7 +1814,7 @@ public class ModuleReader {
 				throw new ModuleFormatException("END opcode expected");
 			}
 		}
-		return instrs;
+		return instrs.build();
 	}
 
 	private MemoryInstr.MemArg readMemArg() throws IOException, ModuleFormatException {
@@ -1830,7 +1833,7 @@ public class ModuleReader {
 
 
 	private Expr readExpr() throws IOException, ModuleFormatException {
-		List<Instr> instrs = new ArrayList<>();
+		var instrs = ImmutableList.<Instr>builder();
 		while(true) {
 			var instr = readInstrOrTerminator();
 			if(instr == BlockTerminator.END) {
@@ -1844,7 +1847,7 @@ public class ModuleReader {
 			}
 		}
 
-		return new Expr(instrs);
+		return new Expr(instrs.build());
 	}
 
 
@@ -1887,11 +1890,11 @@ public class ModuleReader {
 		return new FieldIdx(readU32());
 	}
 
-	private List<? extends RecursiveType> readTypeSectionContent() throws IOException, ModuleFormatException {
+	private ImmutableList<RecursiveType> readTypeSectionContent() throws IOException, ModuleFormatException {
 		return readVector(this::readRecursiveType);
 	}
 
-	private List<? extends Import> readImportSectionContent() throws IOException, ModuleFormatException {
+	private ImmutableList<Import> readImportSectionContent() throws IOException, ModuleFormatException {
 		return readVector(() -> {
 			var mod = readName();
 			var importName = readName();
@@ -1929,11 +1932,11 @@ public class ModuleReader {
 		});
 	}
 
-	private List<? extends TypeIdx> readFunctionSectionContent() throws IOException, ModuleFormatException {
+	private ImmutableList<TypeIdx> readFunctionSectionContent() throws IOException, ModuleFormatException {
 		return readVector(this::readTypeIdx);
 	}
 
-	private List<? extends Table> readTableSectionContent() throws IOException, ModuleFormatException {
+	private ImmutableList<Table> readTableSectionContent() throws IOException, ModuleFormatException {
 		return readVector(() -> {
 			if(peekByte() == 0x40) {
 				readByte();
@@ -1947,27 +1950,27 @@ public class ModuleReader {
 			}
 			else {
 				var type = readTableType();
-				var init = new Expr(List.of(new ReferenceInstr.Ref_Null(type.elementType().heapType())));
+				var init = new Expr(ImmutableList.of(new ReferenceInstr.Ref_Null(type.elementType().heapType())));
 				return new Table(type, init);
 			}
 		});
 	}
 
-	private List<? extends Mem> readMemorySectionContent() throws IOException, ModuleFormatException {
+	private ImmutableList<Mem> readMemorySectionContent() throws IOException, ModuleFormatException {
 		return readVector(() -> {
 			var type = readMemType();
 			return new Mem(type);
 		});
 	}
 
-	private List<? extends Tag> readTagSectionContent() throws IOException, ModuleFormatException {
+	private ImmutableList<Tag> readTagSectionContent() throws IOException, ModuleFormatException {
 		return readVector(() -> {
 			var type = readTagType();
 			return new Tag(type);
 		});
 	}
 
-	private List<? extends Global> readGlobalSectionContent() throws IOException, ModuleFormatException {
+	private ImmutableList<Global> readGlobalSectionContent() throws IOException, ModuleFormatException {
 		return readVector(() -> {
 			var type = readGlobalType();
 			var expr = readExpr();
@@ -1975,7 +1978,7 @@ public class ModuleReader {
 		});
 	}
 
-	private List<? extends Export> readExportSectionContent() throws IOException, ModuleFormatException {
+	private ImmutableList<Export> readExportSectionContent() throws IOException, ModuleFormatException {
 		return readVector(() -> {
 			var name = readName();
 
@@ -2017,7 +2020,7 @@ public class ModuleReader {
 		return new Start(func);
 	}
 
-	private List<? extends Elem> readElementSectionContent() throws IOException, ModuleFormatException {
+	private ImmutableList<Elem> readElementSectionContent() throws IOException, ModuleFormatException {
 		return readVector(() -> {
 			var elemSpec = readU32();
 
@@ -2027,7 +2030,7 @@ public class ModuleReader {
 					var offset = readExpr();
 					var init = readVector(() -> {
 						var funcIdx = readFuncIdx();
-						return new Expr(List.of(new ReferenceInstr.Ref_Func(funcIdx)));
+						return new Expr(ImmutableList.of(new ReferenceInstr.Ref_Func(funcIdx)));
 					});
 					var mode = new ElemMode.Active(new TableIdx(0), offset);
 
@@ -2043,7 +2046,7 @@ public class ModuleReader {
 					var type = new RefType(false, HeapType.AbstractHeapType.FUNC);
 					var init = readVector(() -> {
 						var funcIdx = readFuncIdx();
-						return new Expr(List.of(new ReferenceInstr.Ref_Func(funcIdx)));
+						return new Expr(ImmutableList.of(new ReferenceInstr.Ref_Func(funcIdx)));
 					});
 					var mode = new ElemMode.Passive();
 
@@ -2062,7 +2065,7 @@ public class ModuleReader {
 
 					var init = readVector(() -> {
 						var funcIdx = readFuncIdx();
-						return new Expr(List.of(new ReferenceInstr.Ref_Func(funcIdx)));
+						return new Expr(ImmutableList.of(new ReferenceInstr.Ref_Func(funcIdx)));
 					});
 
 					var mode = new ElemMode.Active(tableIndex, offset);
@@ -2080,7 +2083,7 @@ public class ModuleReader {
 
 					var init = readVector(() -> {
 						var funcIdx = readFuncIdx();
-						return new Expr(List.of(new ReferenceInstr.Ref_Func(funcIdx)));
+						return new Expr(ImmutableList.of(new ReferenceInstr.Ref_Func(funcIdx)));
 					});
 					var mode = new ElemMode.Declarative();
 
@@ -2132,7 +2135,7 @@ public class ModuleReader {
 
 	private record LocalDeclaration(int n, ValType t) {}
 
-	private List<? extends Code> readCodeSectionContent() throws IOException, ModuleFormatException {
+	private ImmutableList<Code> readCodeSectionContent() throws IOException, ModuleFormatException {
 		return readVector(() -> {
 			readU32(); // Size
 
@@ -2150,7 +2153,9 @@ public class ModuleReader {
 				}
 			}
 
-			var locals = localDecls.stream().flatMap(decl -> Stream.generate(() -> decl.t()).limit(decl.n())).toList();
+			var locals = localDecls.stream()
+				.flatMap(decl -> Stream.generate(decl::t).limit(decl.n()))
+				.collect(ImmutableList.toImmutableList());
 
 			var body = readExpr();
 
@@ -2158,26 +2163,26 @@ public class ModuleReader {
 		});
 	}
 
-	private static record Code(List<? extends ValType> locals, Expr body) {}
+	private static record Code(ImmutableList<ValType> locals, Expr body) {}
 
-	private List<? extends Data> readDataSectionContent() throws IOException, ModuleFormatException {
+	private ImmutableList<Data> readDataSectionContent() throws IOException, ModuleFormatException {
 		return readVector(() -> switch(readU32()) {
 			case 0 -> {
 				var offset = readExpr();
 				var data = readByteVec();
-				yield new Data(data, new DataMode.Active(new MemIdx(0), offset));
+				yield new Data(ByteString.copyFrom(data), new DataMode.Active(new MemIdx(0), offset));
 			}
 
 			case 1 -> {
 				var data = readByteVec();
-				yield new Data(data, new DataMode.Passive());
+				yield new Data(ByteString.copyFrom(data), new DataMode.Passive());
 			}
 
 			case 2 -> {
 				var mem = readMemIdx();
 				var offset = readExpr();
 				var data = readByteVec();
-				yield new Data(data, new DataMode.Active(mem, offset));
+				yield new Data(ByteString.copyFrom(data), new DataMode.Active(mem, offset));
 			}
 			
 			default -> throw new ModuleFormatException("illegal data mode");
@@ -2208,18 +2213,18 @@ public class ModuleReader {
 	 * @throws ModuleFormatException if the WebAssembly module is invalid.
 	 */
 	public dev.argon.jawawasm.format.modules.Module readModule() throws IOException, ModuleFormatException {
-		List<? extends RecursiveType> types = new ArrayList<>();
-		List<? extends TypeIdx> funcTypes = new ArrayList<>();
-		List<? extends Table> tables = new ArrayList<>();
-		List<? extends Mem> mems = new ArrayList<>();
-		List<? extends Tag> tags = new ArrayList<>();
-		List<? extends Global> globals = new ArrayList<>();
-		List<? extends Elem> elems = new ArrayList<>();
-		List<? extends Data> datas = new ArrayList<>();
+		ImmutableList<RecursiveType> types = ImmutableList.of();
+		ImmutableList<TypeIdx> funcTypes = ImmutableList.of();
+		ImmutableList<Table> tables = ImmutableList.of();
+		ImmutableList<Mem> mems = ImmutableList.of();
+		ImmutableList<Tag> tags = ImmutableList.of();
+		ImmutableList<Global> globals = ImmutableList.of();
+		ImmutableList<Elem> elems = ImmutableList.of();
+		ImmutableList<Data> datas = ImmutableList.of();
 		@Nullable Start start = null;
-		List<? extends Import> imports = new ArrayList<>();
-		List<? extends Export> exports = new ArrayList<>();
-		List<? extends Code> codeSec = new ArrayList<>();
+		ImmutableList<Import> imports = ImmutableList.of();
+		ImmutableList<Export> exports = ImmutableList.of();
+		ImmutableList<Code> codeSec = ImmutableList.of();
 		int dataCount = 0;
 
 		try {
@@ -2312,7 +2317,7 @@ public class ModuleReader {
 				throw new ModuleFormatException("data count and data section have inconsistent lengths");
 			}
 
-			List<Func> funcs = new ArrayList<>(funcTypes.size());
+			var funcs = ImmutableList.<Func>builderWithExpectedSize(funcTypes.size());
 			for(int i = 0; i < funcTypes.size(); ++i) {
 				var code = codeSec.get(i);
 				funcs.add(new Func(funcTypes.get(i), code.locals(), code.body()));
@@ -2320,7 +2325,7 @@ public class ModuleReader {
 
 			return new Module(
 				types,
-				funcs,
+				funcs.build(),
 				tables,
 				mems,
 				tags,

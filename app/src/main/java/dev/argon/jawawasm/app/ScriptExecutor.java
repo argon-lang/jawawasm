@@ -52,7 +52,7 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 	private Map<Integer, Object> externRefs = new HashMap<>();
 
 	abstract Mod getSpecTestModule(PrintWriter output) throws ModuleFormatException, ModuleLinkException;
-	abstract Mod instantiateModule(Module module, ModuleResolver<Mod> resolver) throws ModuleLinkException, ExecutionException;
+	abstract Mod instantiateModule(Module module, ModuleResolver<Mod> resolver) throws ExecutionException;
 	abstract @Nullable Object[] invokeModuleExport(Mod mod, String name, @Nullable Object[] args) throws ExecutionException;
 	abstract @Nullable Object getGlobalExport(Mod mod, String name);
 
@@ -91,8 +91,10 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 		return module;
 	}
 
+	private static record KnownExternRef(int index) {}
+
 	private Object getExternRef(int index) {
-		return externRefs.computeIfAbsent(index, k -> new Object());
+		return externRefs.computeIfAbsent(index, KnownExternRef::new);
 	}
 
 
@@ -407,7 +409,7 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 			}
 
 			case "indirect call type mismatch", "indirect call" -> {
-				if(error instanceof IndirectCallTypeMismatchTrap) {
+				if(error instanceof IndirectCallTypeMismatchTrap || error instanceof ClassCastException) {
 					gotExpectedError = true;
 				}
 			}

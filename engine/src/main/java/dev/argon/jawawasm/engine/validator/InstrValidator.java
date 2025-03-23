@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.engine.validator;
 
+import com.google.common.collect.ImmutableList;
 import dev.argon.jawawasm.format.instructions.*;
 import dev.argon.jawawasm.format.modules.TableIdx;
 import dev.argon.jawawasm.format.modules.TypeIdx;
@@ -21,7 +22,7 @@ class InstrValidator extends ValidatorBase {
 	private final Subtyping subtyping;
 	
 	public void validateExpr(Expr expr, ResultType resultType) throws ValidationException {
-		validateInstructions(expr.body(), new ResultType(List.of()), resultType);
+		validateInstructions(expr.body(), new ResultType(ImmutableList.of()), resultType);
 	}
 
 	public void validateInstructions(List<? extends Instr> instrs, ResultType argType, ResultType resultType) throws ValidationException {
@@ -1428,16 +1429,17 @@ class InstrValidator extends ValidatorBase {
 
 				case ControlInstr.Br_Table(var labels, var fallback) -> {
 					context.requireLabel(fallback);
+					var fallbackLabel = context.getLabel(fallback);
 
 					pop(NumType.I32);
 
-					ValType[] results = new ValType[context.getLabel(fallback).types().size()];
+					ValType[] results = new ValType[fallbackLabel.types().size()];
 
 					for(int i = results.length - 1; i >= 0; --i) {
 						results[i] = pop();
 					}
 
-					var resultType = new ResultType(List.of(results));
+					var resultType = new ResultType(ImmutableList.copyOf(results));
 
 					require(subtyping.isSubtypeResult(resultType, context.getLabel(fallback)), "type mismatch");
 
@@ -1472,8 +1474,8 @@ class InstrValidator extends ValidatorBase {
 						throw new ValidationException("br_on_non_null target must contain at least one type");
 					}
 
-					var labelType2Types = new ArrayList<>(labelType.types());
-					var lastType = labelType2Types.removeLast();
+					var labelType2Types = ImmutableList.copyOf(labelType.types().subList(0, labelType.types().size() - 1));
+					var lastType = labelType.types().getLast();
 					var labelType2 = new ResultType(labelType2Types);
 
 					var lastRefType = requireRefType(lastType);
@@ -1491,8 +1493,8 @@ class InstrValidator extends ValidatorBase {
 						throw new ValidationException("br_on_cast target must contain at least one type");
 					}
 
-					var labelType2Types = new ArrayList<>(labelType.types());
-					var lastType = labelType2Types.removeLast();
+					var labelType2Types = ImmutableList.copyOf(labelType.types().subList(0, labelType.types().size() - 1));
+					var lastType = labelType.types().getLast();
 					var labelType2 = new ResultType(labelType2Types);
 
 					var lastRefType = requireRefType(lastType);
@@ -1517,8 +1519,8 @@ class InstrValidator extends ValidatorBase {
 						throw new ValidationException("br_on_cast_fail target must contain at least one type");
 					}
 
-					var labelType2Types = new ArrayList<>(labelType.types());
-					var lastType = labelType2Types.removeLast();
+					var labelType2Types = ImmutableList.copyOf(labelType.types().subList(0, labelType.types().size() - 1));
+					var lastType = labelType.types().getLast();
 					var labelType2 = new ResultType(labelType2Types);
 
 					var lastRefType = requireRefType(lastType);
@@ -1659,13 +1661,13 @@ class InstrValidator extends ValidatorBase {
 
 					require(t.results().types().isEmpty(), "Tag type must have empty result");
 
-					var resType = new ArrayList<ValType>();
+					var resType = ImmutableList.<ValType>builder();
 					resType.addAll(t.args().types());
 					resType.add(new RefType(false, HeapType.AbstractHeapType.EXN));
 
 					context.requireLabel(labelIdx);
 					var label = context.getLabel(labelIdx);
-					require(subtyping.isSubtypeResult(new ResultType(resType), label), "type mismatch: catch_ref clause must match target block type" + resType + ", " + label);
+					require(subtyping.isSubtypeResult(new ResultType(resType.build()), label), "type mismatch: catch_ref clause must match target block type" + resType + ", " + label);
 				}
 
 				case ControlInstr.CatchAll(var labelIdx) -> {
@@ -1679,8 +1681,9 @@ class InstrValidator extends ValidatorBase {
 					context.requireLabel(labelIdx);
 					var label = context.getLabel(labelIdx);
 
-					var resType = new ArrayList<ValType>();
-					resType.add(new RefType(false, HeapType.AbstractHeapType.EXN));
+					ImmutableList<ValType> resType = ImmutableList.of(
+						new RefType(false, HeapType.AbstractHeapType.EXN)
+					);
 
 					require(subtyping.isSubtypeResult(new ResultType(resType), label), "type mismatch: catch_all_ref clause must be ref exn");
 				}
@@ -1690,9 +1693,9 @@ class InstrValidator extends ValidatorBase {
 
 		private FuncType expandBlockType(ControlInstr.BlockType blockType) {
 			return switch(blockType) {
-				case ControlInstr.BlockType.Empty() -> new FuncType(new ResultType(List.of()), new ResultType(List.of()));
+				case ControlInstr.BlockType.Empty() -> new FuncType(new ResultType(ImmutableList.of()), new ResultType(ImmutableList.of()));
 				case ControlInstr.BlockType.OfIndex(var index) -> (FuncType)context.getCompositeType(index);
-				case ControlInstr.BlockType.OfValType(var valType) -> new FuncType(new ResultType(List.of()), new ResultType(List.of(valType)));
+				case ControlInstr.BlockType.OfValType(var valType) -> new FuncType(new ResultType(ImmutableList.of()), new ResultType(ImmutableList.of(valType)));
 			};
 		}
 

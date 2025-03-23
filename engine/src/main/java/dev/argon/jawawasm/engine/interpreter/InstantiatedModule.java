@@ -1,5 +1,7 @@
 package dev.argon.jawawasm.engine.interpreter;
 
+import com.google.common.collect.ImmutableList;
+import com.google.protobuf.ByteString;
 import dev.argon.jawawasm.engine.ModuleResolver;
 import dev.argon.jawawasm.engine.internal.SubtypingBase;
 import dev.argon.jawawasm.engine.internal.TypeClosure;
@@ -81,7 +83,7 @@ public final class InstantiatedModule implements WasmModule {
 						var memory = getMemory(memoryIdx);
 						var addrType = memory.addressType();
 						long offset = AddressTypeUtils.unboxAddress(addrType, evaluateInitializer(offsetExpr.body(), AddressTypeUtils.asNumType(addrType)));
-						memory.copyFromArray(offset, 0, data.init().length, data.init());
+						memory.copyFromArray(offset, 0, data.init().size(), data.init().toByteArray());
 					}
 					case DataMode.Passive() -> {}
 				}
@@ -177,8 +179,8 @@ public final class InstantiatedModule implements WasmModule {
 						InstantiatedModule.this,
 						init,
 						new FuncType(
-								new ResultType(List.of()),
-								new ResultType(List.of(type))
+								new ResultType(ImmutableList.of()),
+								new ResultType(ImmutableList.of(type))
 						),
 						new Object[] {},
 						new Object[] {}
@@ -460,7 +462,7 @@ public final class InstantiatedModule implements WasmModule {
 	Data getData(DataIdx index) {
 		synchronized(droppedData) {
 			if(droppedData.contains(index.index())) {
-				return new Data(new byte[] {}, new DataMode.Passive());
+				return new Data(ByteString.EMPTY, new DataMode.Passive());
 			}
 
 			return module.datas().get(index.index());
