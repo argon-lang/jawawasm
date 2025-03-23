@@ -12,12 +12,13 @@ import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 import static dev.argon.jawawasm.engine.compiler.Constants.RUNTIME_PACKAGE;
 import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.typeKind;
 import static java.lang.constant.ConstantDescs.*;
 
-class StructClassGenerator extends WasmClassGenerator {
+class StructClassGenerator extends DefTypeClassGenerator {
 	public StructClassGenerator(ModuleCompiler compiler, SubType subtype, StructType structType, String className) {
 		super(compiler);
 		this.subtype = subtype;
@@ -43,23 +44,24 @@ class StructClassGenerator extends WasmClassGenerator {
 		return ClassHierarchyResolver.ClassHierarchyInfo.ofClass(CD_Object);
 	}
 
+	@Override
 	public StructTypeRealization realization() {
 		var fields = new StructTypeRealization.Field[structType.fields().size()];
 		for(int i = 0; i < fields.length; ++i) {
 			var fieldType = structType.fields().get(i);
-			var t = compiler.getStorageType(fieldType.storageType()).type();
+			Supplier<ClassDesc> t = () -> compiler.getStorageType(fieldType.storageType()).type();
 
 			new StructTypeRealization.Field(
 				t,
 				new StructTypeRealization.AccessMethod(
 					"get" + i,
-					MethodTypeDesc.of(t, CD_int)
+					() -> MethodTypeDesc.of(t.get(), CD_int)
 				),
 				switch(fieldType.mut()) {
 					case Const -> null;
 					case Var -> new StructTypeRealization.AccessMethod(
 						"set" + i,
-						MethodTypeDesc.of(CD_void, CD_int, t)
+						() -> MethodTypeDesc.of(CD_void, CD_int, t.get())
 					);
 				}
 			);

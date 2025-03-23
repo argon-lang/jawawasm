@@ -49,7 +49,7 @@ public class ModuleCompiler {
 	private final Map<ClassDesc, ClassHierarchyResolver.ClassHierarchyInfo> generatedHierarchy = new ConcurrentHashMap<>();
 
 
-	private final Map<DefType, DefTypeRealization> typeCache = new ConcurrentHashMap<>();
+	private final Map<DefType, DefTypeClassGenerator> typeCache = new ConcurrentHashMap<>();
 	private final AtomicInteger funcTypeIndex = new AtomicInteger(0);
 	private final AtomicInteger arrayTypeIndex = new AtomicInteger(0);
 	private final AtomicInteger structTypeIndex = new AtomicInteger(0);
@@ -117,22 +117,22 @@ public class ModuleCompiler {
 					var className = "Array" + arrayTypeIndex.getAndIncrement();
 					var generator = new ArrayClassGenerator(this, subtype, arrayType, className);
 					enqueueGenerator(generator);
-					yield generator.realization();
+					yield generator;
 				}
 				case StructType structType -> {
 					var className = "Struct" + structTypeIndex.getAndIncrement();
 					var generator = new StructClassGenerator(this, subtype, structType, className);
 					enqueueGenerator(generator);
-					yield generator.realization();
+					yield generator;
 				}
 				case FuncType funcType -> {
 					var className = "Func" + funcTypeIndex.getAndIncrement();
 					var generator = new FuncClassGenerator(this, subtype, funcType, className);
 					enqueueGenerator(generator);
-					yield generator.realization();
+					yield generator;
 				}
 			};
-		});
+		}).realization();
 	}
 
 	TypeRealization getStorageType(StorageType storageType) {
@@ -185,8 +185,8 @@ public class ModuleCompiler {
 				case ARRAY -> ClassDesc.of(RUNTIME_PACKAGE, "WasmArray");
 			};
 
-			case TypeIdx typeIdx -> throw new RuntimeException("Not implemented");
-			case BotType botType -> throw new RuntimeException("Unexpected bot type");
+			case TypeIdx _ -> throw new RuntimeException("Unexpected type index");
+			case BotType _ -> throw new RuntimeException("Unexpected bot type");
 			case DefType defType -> getDefType(defType).classDesc();
 
 			case RecTypeIdx recTypeIdx -> throw new RuntimeException("Not implemented");
@@ -203,7 +203,7 @@ public class ModuleCompiler {
 	}
 
 	MethodTypeDesc getMethodType(DefType t) {
-		var subtype = t.recursiveType().subtypes().get(t.index());
+		var subtype = TypeUnroll.unroll(t);
 		return switch(subtype.compositeType()) {
 			case AggregateType _ -> throw new RuntimeException("Unexpected aggregate type");
 			case FuncType funcType -> getMethodType(funcType);

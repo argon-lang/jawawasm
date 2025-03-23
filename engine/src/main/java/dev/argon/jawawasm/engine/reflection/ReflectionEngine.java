@@ -298,8 +298,6 @@ public class ReflectionEngine {
 //	}
 
 	private final class EngineClassLoaderImpl extends ClassLoader {
-		private final Map<String, Class<?>> loadedClasses = new ConcurrentHashMap<>();
-
 		@Override
 		protected Class<?> findClass(String name) throws ClassNotFoundException {
 			byte[] data = generatedFiles.get(name.replace('.', '/') + ".class");

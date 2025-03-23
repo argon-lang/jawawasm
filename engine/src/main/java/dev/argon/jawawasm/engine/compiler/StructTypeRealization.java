@@ -5,6 +5,7 @@ import org.jspecify.annotations.Nullable;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.util.List;
+import java.util.function.Supplier;
 
 public record StructTypeRealization(
 	ClassDesc classDesc,
@@ -13,11 +14,11 @@ public record StructTypeRealization(
 ) implements DefTypeRealization {
 
 	record Field(
-		ClassDesc fieldType,
+		Supplier<ClassDesc> fieldType,
 		AccessMethod getMethod,
 		@Nullable AccessMethod setMethod
 	) {}
 
-	record AccessMethod(String methodName, MethodTypeDesc methodType) {}
+	record AccessMethod(String methodName, Supplier<MethodTypeDesc> methodType) {}
 
 }

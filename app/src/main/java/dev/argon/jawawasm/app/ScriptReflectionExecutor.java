@@ -45,7 +45,7 @@ public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionMod
 
 	@Override
 	ReflectionModule getSpecTestModule(PrintWriter output) throws ModuleFormatException, ModuleLinkException {
-		var specTest = new SpecTestModuleInstance(output);
+		var specTest = new SpecTestModuleInstance(allocator, output);
 		return engine.addHostModule(specTest);
 	}
 

@@ -273,7 +273,17 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 				ModuleValidator.validateModule(convertedModule);
 
 				try {
-					instantiateModule(convertedModule, resolver);
+					try {
+						instantiateModule(convertedModule, resolver);
+					}
+					catch(ExecutionException e) {
+						if(e.getCause() instanceof ModuleLinkException linkEx) {
+							throw linkEx;
+						}
+						else {
+							throw e;
+						}
+					}
 				}
 				catch(ModuleLinkException ex) {
 					if(ex.getMessage() != null && ex.getMessage().startsWith(message)) {

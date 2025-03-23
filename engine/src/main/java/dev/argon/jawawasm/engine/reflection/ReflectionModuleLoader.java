@@ -219,6 +219,8 @@ public class ReflectionModuleLoader {
 		return switch(exportType) {
 			case FUNC -> loadExternalFunctionType(method);
 			case TABLE -> loadExternalTableType(method.getAnnotatedReturnType());
+			case GLOBAL -> loadExternalGlobalType(method.getAnnotatedReturnType());
+			case MEMORY -> loadExternalMemoryType(method.getAnnotatedReturnType());
 		};
 	}
 
@@ -262,6 +264,51 @@ public class ReflectionModuleLoader {
 
 		var elementType = loadRefType(typeArgs[0]);
 		return new TableType(sizeLimits.addressType(), new Limits(sizeLimits.min(), sizeLimits.max() == -1L ? null : sizeLimits.max()), elementType);
+	}
+
+	private GlobalType loadExternalGlobalType(AnnotatedType returnType) throws ModuleFormatException {
+		if(returnType.getType() == GlobalRef.class) {
+			if(!(returnType instanceof AnnotatedParameterizedType annGlobalType)) {
+				throw new ModuleFormatException("Missing parameter types for global export");
+			}
+
+			var typeArgs = annGlobalType.getAnnotatedActualTypeArguments();
+			if(typeArgs.length != 1) {
+				throw new ModuleFormatException("Incorrect type arguments for GlobalRef");
+			}
+
+			var elementType = loadValType(typeArgs[0]);
+			return new GlobalType(Mut.Var, elementType);
+		}
+		else if(returnType.getType() == GlobalI32.class) {
+			return new GlobalType(Mut.Var, NumType.I32);
+		}
+		else if(returnType.getType() == GlobalI64.class) {
+			return new GlobalType(Mut.Var, NumType.I64);
+		}
+		else if(returnType.getType() == GlobalF32.class) {
+			return new GlobalType(Mut.Var, NumType.F32);
+		}
+		else if(returnType.getType() == GlobalF64.class) {
+			return new GlobalType(Mut.Var, NumType.F64);
+		}
+		else {
+			var t = loadValType(returnType);
+			return new GlobalType(Mut.Const, t);
+		}
+	}
+
+	private MemType loadExternalMemoryType(AnnotatedType returnType) throws ModuleFormatException {
+		if(returnType.getType() != WasmMemory.class) {
+			throw new ModuleFormatException("A memory export must return a WasmMemory. Actual: " + returnType);
+		}
+
+		var sizeLimits = returnType.getAnnotation(SizeLimits.class);
+		if(sizeLimits == null) {
+			throw new ModuleFormatException("Missing SizeLimits for memory type");
+		}
+
+		return new MemType(sizeLimits.addressType(), new Limits(sizeLimits.min(), sizeLimits.max() == -1L ? null : sizeLimits.max()));
 	}
 
 

@@ -15,7 +15,7 @@ import static dev.argon.jawawasm.engine.compiler.Constants.RUNTIME_PACKAGE;
 import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.typeKind;
 import static java.lang.constant.ConstantDescs.*;
 
-class ArrayClassGenerator extends WasmClassGenerator {
+class ArrayClassGenerator extends DefTypeClassGenerator {
 	public ArrayClassGenerator(ModuleCompiler compiler, SubType subtype, ArrayType arrayType, String className) {
 		super(compiler);
 		this.subtype = subtype;
@@ -32,11 +32,12 @@ class ArrayClassGenerator extends WasmClassGenerator {
 		return className;
 	}
 
+	@Override
 	public ArrayTypeRealization realization() {
 		return new ArrayTypeRealization(
 			className,
 			!subtype.isFinal(),
-			compiler.getStorageType(arrayType.fieldType().storageType()).type()
+			() -> compiler.getStorageType(arrayType.fieldType().storageType()).type()
 		);
 	}
 

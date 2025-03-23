@@ -13,7 +13,7 @@ import java.util.ArrayList;
 
 import static dev.argon.jawawasm.engine.compiler.Constants.RUNTIME_PACKAGE;
 
-class FuncClassGenerator extends WasmClassGenerator {
+class FuncClassGenerator extends DefTypeClassGenerator {
 	public FuncClassGenerator(ModuleCompiler compiler, SubType subtype, FuncType funcType, String className) {
 		super(compiler);
 		this.subtype = subtype;
@@ -28,6 +28,15 @@ class FuncClassGenerator extends WasmClassGenerator {
 	@Override
 	public ClassDesc className() {
 		return className;
+	}
+
+	@Override
+	public FuncTypeRealization realization() {
+		return new FuncTypeRealization(
+			className,
+			"invoke",
+			() -> compiler.getMethodType(funcType)
+		);
 	}
 
 	@Override
@@ -62,13 +71,5 @@ class FuncClassGenerator extends WasmClassGenerator {
 						mb -> {}
 					)
 			);
-	}
-
-	public FuncTypeRealization realization() {
-		return new FuncTypeRealization(
-			className,
-			"invoke",
-			compiler.getMethodType(funcType)
-		);
 	}
 }

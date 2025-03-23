@@ -55,7 +55,7 @@ abstract class ScriptTestsBase {
 			}
 		}
 
-//		if(!path.toString().equals("if.wast")) {
+//		if(!path.toString().equals("return_call_ref.wast")) {
 //			return true;
 //		}
 

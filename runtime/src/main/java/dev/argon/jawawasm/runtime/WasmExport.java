@@ -43,5 +43,15 @@ public @interface WasmExport {
 		 * A table export.
 		 */
 		TABLE,
+
+		/**
+		 * A global export
+		 */
+		GLOBAL,
+
+		/**
+		 * A memory export
+		 */
+		MEMORY,
 	}
 }
