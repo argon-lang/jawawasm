@@ -290,10 +290,11 @@ class ModuleClassGenerator extends WasmClassGenerator {
 						throw new ModuleLinkException("incompatible import type");
 					}
 
-					var funcType = getFuncType(closure.resolveDefType(types.get(tag.type().funcType().index())));
+					var defType = closure.resolveDefType(types.get(tag.type().funcType().index()));
+					var funcType = getFuncType(defType);
 
 					if(
-						!subtyping.isSubtypeFunc(exportRealClass.tagFunctionType(), funcType)
+						!subtyping.isSubtypeDefType(exportRealClass.tagDefType(), defType)
 					) {
 						throw new ModuleLinkException("incompatible import type");
 					}
@@ -304,7 +305,8 @@ class ModuleClassGenerator extends WasmClassGenerator {
 							exportRealClass.innerClass(),
 							exportRealClass.constructorType()
 						),
-						funcType
+						funcType,
+						defType
 					));
 				}
 			}
@@ -646,7 +648,8 @@ class ModuleClassGenerator extends WasmClassGenerator {
 						tagInfo.realization().classDesc(),
 						tagInfo.realization().innerClassInfo(),
 						tagInfo.realization().constructorType(),
-						tagInfo.funcType
+						tagInfo.funcType,
+						tagInfo.defType
 					));
 				}
 			}
@@ -656,9 +659,10 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 	private void generateTags() {
 		for(var tag : module.tags()) {
-			var funcType = getFuncType(closure.resolveDefType(types.get(tag.type().funcType().index())));
+			var defType = closure.resolveDefType(types.get(tag.type().funcType().index()));
+			var funcType = getFuncType(defType);
 			var tagGen = new TagExceptionClassGenerator(compiler, className, "Tag" + tags.size(), funcType);
-			tags.add(new TagInfo(tagGen.realization(), funcType));
+			tags.add(new TagInfo(tagGen.realization(), funcType, defType));
 			compiler.enqueueGenerator(tagGen);
 		}
 	}
@@ -2803,7 +2807,8 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 	private record TagInfo(
 		TagRealization realization,
-		FuncType funcType
+		FuncType funcType,
+		DefType defType
 	) {}
 
 	private record LocalInfo(int slotIndex, ClassDesc type) {}

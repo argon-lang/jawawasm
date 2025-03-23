@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.engine.compiler;
 
+import dev.argon.jawawasm.format.types.DefType;
 import dev.argon.jawawasm.format.types.ExternalType;
 import dev.argon.jawawasm.format.types.FuncType;
 
@@ -32,7 +33,8 @@ public sealed interface WasmExportRealization {
 		ClassDesc classDesc,
 		InnerClassInfo innerClass,
 		MethodTypeDesc constructorType,
-		FuncType tagFunctionType
+		FuncType tagFunctionType,
+		DefType tagDefType
 	) implements WasmExportRealization {}
 
 }

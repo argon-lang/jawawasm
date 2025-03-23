@@ -184,6 +184,8 @@ public class ReflectionModuleLoader {
 			realizedParamTypes.add(ClassDesc.ofDescriptor(param.descriptorString()));
 		}
 
+		var funcType = new FuncType(new ResultType(paramTypes.build()), new ResultType(ImmutableList.of()));
+
 		return new WasmExportRealization.OfInnerClass(
 			name,
 			ClassDesc.ofDescriptor(innerClass.descriptorString()),
@@ -194,7 +196,13 @@ public class ReflectionModuleLoader {
 				innerClass.getModifiers()
 			),
 			MethodTypeDesc.of(CD_void, realizedParamTypes),
-			new FuncType(new ResultType(paramTypes.build()), new ResultType(ImmutableList.of()))
+			funcType,
+			new DefType(
+				new RecursiveType(ImmutableList.of(
+					new SubType(true, ImmutableList.of(), funcType)
+				)),
+				0
+			)
 		);
 	}
 
