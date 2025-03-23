@@ -175,7 +175,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					}
 
 					localName = "func" + funcs.size();
-					var defType = types.get(func.type().index());
+					var defType = closure.resolveDefType(types.get(func.type().index()));
 
 					if(!subtyping.isSubtypeDefType(importDefType, defType)) {
 						throw new ModuleLinkException("incompatible import type: import " + imp.name() + " from " + imp.module() + " Expected " + defType + ", Actual " + importDefType);
@@ -290,7 +290,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 						throw new ModuleLinkException("incompatible import type");
 					}
 
-					var funcType = getFuncType(types.get(tag.type().funcType().index()));
+					var funcType = getFuncType(closure.resolveDefType(types.get(tag.type().funcType().index())));
 
 					if(
 						!subtyping.isSubtypeFunc(exportRealClass.tagFunctionType(), funcType)
@@ -656,9 +656,10 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 	private void generateTags() {
 		for(var tag : module.tags()) {
-			var funcType = getFuncType(types.get(tag.type().funcType().index()));
+			var funcType = getFuncType(closure.resolveDefType(types.get(tag.type().funcType().index())));
 			var tagGen = new TagExceptionClassGenerator(compiler, className, "Tag" + tags.size(), funcType);
 			tags.add(new TagInfo(tagGen.realization(), funcType));
+			compiler.enqueueGenerator(tagGen);
 		}
 	}
 
@@ -1008,16 +1009,18 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var tagInfo = tags.get(tagIdx.index());
 
 					saveStackTempRes(tagInfo.funcType.args());
-
 					cb.new_(tagInfo.realization.classDesc());
 					cb.dup();
+					restoreStackTempRes(tagInfo.funcType.args());
 					cb.invokespecial(
 						tagInfo.realization.classDesc(),
 						"<init>",
 						tagInfo.realization.constructorType()
 					);
+					cb.athrow();
 
-					restoreStackTempRes(tagInfo.funcType.args());
+					stackTypes.clear();
+					isUnreachable = true;
 				}
 
 				case ControlInstr.Return() -> generateReturn();
@@ -1038,32 +1041,30 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					unpackResultType(funcInfo.funcType.results(), endResultType);
 				}
 				case ControlInstr.Call_Ref(var funcTypeIdx) -> {
-					var defType = types.get(funcTypeIdx.index());
+					var defType = closure.resolveDefType(types.get(funcTypeIdx.index()));
 					var realizedType = (FuncTypeRealization)compiler.getDefType(defType);
 					var funcType = getFuncType(defType);
 
 
-					int tempVarSlot = this.tempVarSlot;
-					for(var paramType : realizedType.methodType().parameterList()) {
-						tempVarSlot += typeKind(paramType).slotSize();
-					}
+					var functionObjSlot = tempVarSlot;
+					++tempVarSlot;
 
-					int functionObjSlot = tempVarSlot;
 					cb.astore(functionObjSlot);
 					stackTypes.removeLast();
 
-					for(var paramType : realizedType.methodType().parameterList().reversed()) {
-						tempVarSlot -= typeKind(paramType).slotSize();
-						cb.storeLocal(typeKind(paramType), tempVarSlot);
+					saveStackTempDesc(realizedType.methodType().parameterList());
+
+					cb.aload(functionObjSlot);
+					stackTypes.add(TypeKind.REFERENCE);
+
+					restoreStackTempDesc(realizedType.methodType().parameterList());
+
+					for(var _ : realizedType.methodType().parameterList()) {
 						stackTypes.removeLast();
 					}
 
-					cb.aload(functionObjSlot);
+					stackTypes.removeLast();
 
-					for(var paramType : realizedType.methodType().parameterList()) {
-						cb.loadLocal(typeKind(paramType), tempVarSlot);
-						tempVarSlot += typeKind(paramType).slotSize();
-					}
 
 					var resultType = realizedType.methodType().returnType();
 					var endResultType = resultType.nested("EndResult");
@@ -1071,6 +1072,8 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					cb.invokeinterface(realizedType.classDesc(), realizedType.methodName(), realizedType.methodType());
 					cb.invokestatic(resultType, "get", MethodTypeDesc.of(endResultType, resultType), true);
 					unpackResultType(funcType.results(), endResultType);
+
+					tempVarSlot = functionObjSlot;
 				}
 				case ControlInstr.Call_Indirect(var tableIdx, var funcTypeIdx) -> {
 					var tableInfo = tables.get(tableIdx.index());
@@ -1087,6 +1090,132 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 					generateControlInstr(new ControlInstr.Call_Ref(funcTypeIdx));
 				}
+				case ControlInstr.Return_Call(var funcIdx) -> {
+					var funcInfo = funcs.get(funcIdx.index());
+
+					var resultType = compiler.getResultType(funcInfo.funcType.results());
+					var stepResultType = resultType.nested("Step");
+
+					var invokeDynamicSig = funcInfo.type
+						.insertParameterTypes(funcInfo.type.parameterCount(), className)
+						.changeReturnType(stepResultType);
+
+					var stepSig = MethodTypeDesc.of(resultType);
+
+
+					var callSite = DynamicCallSiteDesc.of(
+						MethodHandleDesc.ofMethod(
+							DirectMethodHandleDesc.Kind.STATIC,
+							ClassDesc.of("java.lang.invoke.LambdaMetafactory"),
+							"metafactory",
+							MethodTypeDesc.of(
+								ClassDesc.of("java.lang.invoke.CallSite"),
+								ClassDesc.of("java.lang.invoke.MethodHandles$Lookup"),
+								CD_String,
+								ClassDesc.of("java.lang.invoke.MethodType"),
+								ClassDesc.of("java.lang.invoke.MethodType"),
+								ClassDesc.of("java.lang.invoke.MethodHandle"),
+								ClassDesc.of("java.lang.invoke.MethodType")
+							)
+						),
+						"step",
+						invokeDynamicSig,
+
+						stepSig,
+						MethodHandleDesc.ofMethod(
+							DirectMethodHandleDesc.Kind.STATIC,
+							className,
+							"static_" + funcInfo.name,
+							getStaticThunkType(funcInfo.type)
+						),
+						stepSig
+					);
+
+					cb.aload(0);
+					cb.invokedynamic(callSite);
+					cb.areturn();
+					stackTypes.clear();
+					isUnreachable = true;
+				}
+				case ControlInstr.Return_Call_Ref(var funcTypeIdx) -> {
+					var defType = closure.resolveDefType(types.get(funcTypeIdx.index()));
+					var realizedType = (FuncTypeRealization)compiler.getDefType(defType);
+
+
+					var functionObjSlot = tempVarSlot;
+					++tempVarSlot;
+
+					cb.astore(functionObjSlot);
+					stackTypes.removeLast();
+
+					saveStackTempDesc(realizedType.methodType().parameterList());
+
+					cb.aload(functionObjSlot);
+					stackTypes.add(TypeKind.REFERENCE);
+
+					restoreStackTempDesc(realizedType.methodType().parameterList());
+
+
+					var resultType = realizedType.methodType().returnType();
+					var stepResultType = resultType.nested("Step");
+
+					var invokeDynamicSig = realizedType.methodType()
+						.insertParameterTypes(realizedType.methodType().parameterCount(), realizedType.classDesc())
+						.changeReturnType(stepResultType);
+
+					var stepSig = MethodTypeDesc.of(resultType);
+
+					var callSite = DynamicCallSiteDesc.of(
+						MethodHandleDesc.ofMethod(
+							DirectMethodHandleDesc.Kind.STATIC,
+							ClassDesc.of("java.lang.invoke.LambdaMetafactory"),
+							"metafactory",
+							MethodTypeDesc.of(
+								ClassDesc.of("java.lang.invoke.CallSite"),
+								ClassDesc.of("java.lang.invoke.MethodHandles$Lookup"),
+								CD_String,
+								ClassDesc.of("java.lang.invoke.MethodType"),
+								ClassDesc.of("java.lang.invoke.MethodType"),
+								ClassDesc.of("java.lang.invoke.MethodHandle"),
+								ClassDesc.of("java.lang.invoke.MethodType")
+							)
+						),
+						"step",
+						invokeDynamicSig,
+
+						stepSig,
+						MethodHandleDesc.ofMethod(
+							DirectMethodHandleDesc.Kind.INTERFACE_VIRTUAL,
+							realizedType.classDesc(),
+							realizedType.methodName(),
+							realizedType.methodType()
+						),
+						stepSig
+					);
+
+					cb.invokedynamic(callSite);
+					cb.areturn();
+
+					tempVarSlot = functionObjSlot;
+
+					stackTypes.clear();
+					isUnreachable = true;
+				}
+				case ControlInstr.Return_Call_Indirect(var tableIdx, var funcTypeIdx) -> {
+					var tableInfo = tables.get(tableIdx.index());
+					cb.aload(0);
+					cb.getfield(className, tableInfo.fieldName, wasmTable);
+					cb.invokestatic(wasmTable, "table_get", MethodTypeDesc.of(CD_Object, addrDesc(tableInfo.tableType.addrType()), wasmTable));
+
+					var defType = types.get(funcTypeIdx.index());
+					var realizedType = compiler.getDefType(defType);
+					cb.checkcast(realizedType.classDesc());
+
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+
+					generateControlInstr(new ControlInstr.Return_Call_Ref(funcTypeIdx));
+				}
 
 				case ControlInstr.Try_Table(var blockType, var catchClauses, var innerBlock) -> {
 					var type = closure.resolveFuncType(getBlockFuncType(blockType));
@@ -1096,9 +1225,9 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var endLabel = cb.newLabel();
 
 					cb.labelBinding(tryStartLabel);
+					cb.nop(); // Ensure that the try block is non-empty.
 
 					var state = enterBlock(type);
-
 					labels.add(new LabelInfo(endLabel, closure.resolveResultType(type.results())));
 					generateInstructionBlock(new Expr(innerBlock));
 					labels.removeLast();
@@ -1127,7 +1256,9 @@ class ModuleClassGenerator extends WasmClassGenerator {
 									}
 								}
 
-								cb.goto_(getLabel(labelIdx).label);
+								var targetLabel = getLabel(labelIdx).label;
+								cb.goto_(targetLabel);
+								jumpedLabels.add(targetLabel);
 
 								cb.exceptionCatch(tryStartLabel, tryEndLabel, catchLabel, tagInfo.realization.classDesc());
 							}
@@ -1149,7 +1280,9 @@ class ModuleClassGenerator extends WasmClassGenerator {
 									cb.aload(tempVarSlot);
 								}
 
-								cb.goto_(getLabel(labelIdx).label);
+								var targetLabel = getLabel(labelIdx).label;
+								cb.goto_(targetLabel);
+								jumpedLabels.add(targetLabel);
 
 								cb.exceptionCatch(tryStartLabel, tryEndLabel, catchLabel, tagInfo.realization.classDesc());
 							}
@@ -1160,13 +1293,20 @@ class ModuleClassGenerator extends WasmClassGenerator {
 								cb.labelBinding(catchLabel);
 
 								cb.pop();
-								cb.goto_(getLabel(labelIdx).label);
+								var targetLabel = getLabel(labelIdx).label;
+								cb.goto_(targetLabel);
+								jumpedLabels.add(targetLabel);
 								cb.exceptionCatch(tryStartLabel, tryEndLabel, catchLabel, exType);
 							}
 							case ControlInstr.CatchAllRef(var labelIdx) -> {
 								var exType = ClassDesc.of(RUNTIME_PACKAGE, "WebAssemblyException");
 
-								var catchLabel = getLabel(labelIdx).label;
+								var catchLabel = cb.newLabel();
+								cb.labelBinding(catchLabel);
+
+								var targetLabel = getLabel(labelIdx).label;
+								cb.goto_(targetLabel);
+								jumpedLabels.add(targetLabel);
 								cb.exceptionCatch(tryStartLabel, tryEndLabel, catchLabel, exType);
 							}
 						}
@@ -1185,12 +1325,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 //				case ControlInstr.Br_OnCastFail brOnCastFail -> {
 //				}
 //				case ControlInstr.Loop loop -> {
-//				}
-//				case ControlInstr.Return_Call returnCall -> {
-//				}
-//				case ControlInstr.Return_Call_Indirect returnCallIndirect -> {
-//				}
-//				case ControlInstr.Return_Call_Ref returnCallRef -> {
 //				}
 //				case ControlInstr.Throw_Ref throwRef -> {
 //				}
@@ -2526,7 +2660,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			int slot = tempVarSlot;
 			for(var t : tempTypes.reversed()) {
 				slot -= t.slotSize();
-				cb.storeLocal(t, tempVarSlot);
+				cb.storeLocal(t, slot);
 				stackTypes.removeLast();
 			}
 		}
@@ -2546,23 +2680,10 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 			int slot = tempVarSlot;
 			for(var t : tempTypes) {
-				cb.loadLocal(t, tempVarSlot);
+				cb.loadLocal(t, slot);
 				slot += t.slotSize();
+				stackTypes.add(t);
 			}
-		}
-
-		private List<TypeKind> asTypeKindList(List<ClassDesc> types) {
-			return new AbstractList<>() {
-				@Override
-				public TypeKind get(int index) {
-					return typeKind(types.get(index));
-				}
-
-				@Override
-				public int size() {
-					return types.size();
-				}
-			};
 		}
 	}
 

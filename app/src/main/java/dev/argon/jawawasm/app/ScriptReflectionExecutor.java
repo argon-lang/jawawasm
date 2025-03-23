@@ -63,15 +63,13 @@ public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionMod
 
 			Object result = export.method().invoke(module.module(), args);
 
-			for(;;) {
-				Method stepMethod;
-				try {
-					stepMethod = result.getClass().getMethod("step");
-				}
-				catch(NoSuchMethodException e) {
-					break;
-				}
+			var stepClass = Arrays.stream(export.method().getReturnType().getDeclaredClasses())
+				.filter(c -> c.getSimpleName().equals("Step"))
+				.findAny()
+				.orElseThrow();
 
+			while(stepClass.isInstance(result)) {
+				Method stepMethod = stepClass.getMethod("step");
 				result = stepMethod.invoke(result);
 			}
 
@@ -88,7 +86,7 @@ public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionMod
 			}
 			return results;
 		}
-		catch(IllegalAccessException e) {
+		catch(IllegalAccessException | NoSuchMethodException e) {
 			throw new RuntimeException(e);
 		}
 		catch(InvocationTargetException e) {

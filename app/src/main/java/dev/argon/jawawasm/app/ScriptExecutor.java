@@ -170,7 +170,7 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 					actual = runAction(action);
 				}
 				catch(ExecutionException ex) {
-					if(ex.getCause() instanceof DynamicWebAssemblyException) {
+					if(ex.getCause() instanceof WebAssemblyException) {
 						return;
 					}
 
