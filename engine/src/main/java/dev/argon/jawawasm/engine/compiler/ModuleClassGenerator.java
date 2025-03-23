@@ -2227,6 +2227,18 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					stackTypes.removeLast();
 					stackTypes.add(typeKind(at));
 				}
+				case TableInstr.Table_Fill(var tableIdx) -> {
+					var tableInfo = tables.get(tableIdx.index());
+					var at = addrDesc(tableInfo.tableType.addrType());
+
+					cb.aload(0);
+					cb.getfield(className, tableInfo.fieldName, wasmTable);
+					cb.invokestatic(wasmTable, "table_fill", MethodTypeDesc.of(CD_void, at, CD_Object, at, wasmTable));
+
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+				}
 				case TableInstr.Table_Copy(var destTableIdx, var srcTableIdx) -> {
 					var destTable = tables.get(destTableIdx.index());
 					var srcTable = tables.get(srcTableIdx.index());
@@ -2289,7 +2301,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					stackTypes.removeLast();
 					stackTypes.removeLast();
 				}
-
 				case TableInstr.Elem_Drop(var elemIdx) -> {
 					var elem = elems.get(elemIdx.index());
 					Objects.requireNonNull(elem);
@@ -2298,11 +2309,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					cb.anewarray(elem.elementType);
 					cb.putfield(className, elem.fieldName, elem.fieldType);
 				}
-
-//				case TableInstr.Table_Fill tableFill -> {
-//				}
-
-				default -> throw new RuntimeException("Not implemented: " + instr);
 			}
 		}
 

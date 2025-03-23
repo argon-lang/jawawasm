@@ -110,10 +110,21 @@ public final class WasmTable<T extends @Nullable Object> {
 	}
 
 	/**
+	 * Fill a range of the table with a value.
+	 * @param i The start of the range.
+	 * @param n The number of items in the range.
+	 * @param value The fill value.
+	 */
+	public void fill(int i, int n, T value) {
+		Objects.checkFromIndexSize(i, n, items.length);
+		Arrays.fill(items, i, i + n, value);
+	}
+
+	/**
 	 * Ensures that the table has a minimum size.
 	 * @param min The minimum number of elements.
 	 */
-	public final void ensureMinimumSize(int min) {
+	public void ensureMinimumSize(int min) {
 		if(items.length < min) {
 			throw new ModuleLinkException("incompatible import type: Table size is too small");
 		}
@@ -219,6 +230,34 @@ public final class WasmTable<T extends @Nullable Object> {
 		}
 
 		return table.grow(fillValue, (int)growBy);
+	}
+
+	/**
+	 * Fill a range of the table with a value.
+	 * @param i The start of the range.
+	 * @param fillValue The fill value.
+	 * @param n The number of items in the range.
+	 * @param table The table to fill.
+	 * @param <T> The element type.
+	 */
+	public static <T extends @Nullable Object> void table_fill(int i, T fillValue, int n, WasmTable<T> table) {
+		table.fill(i, n, fillValue);
+	}
+
+	/**
+	 * Fill a range of the table with a value.
+	 * @param i The start of the range.
+	 * @param fillValue The fill value.
+	 * @param n The number of items in the range.
+	 * @param table The table to fill.
+	 * @param <T> The element type.
+	 */
+	public static <T extends @Nullable Object> void table_fill(long i, T fillValue, long n, WasmTable<T> table) {
+		if(i > Integer.MAX_VALUE || i < 0 || n > Integer.MAX_VALUE || n < 0) {
+			throw new IndexOutOfBoundsException();
+		}
+
+		table.fill((int)i, (int)n, fillValue);
 	}
 
 	/**
