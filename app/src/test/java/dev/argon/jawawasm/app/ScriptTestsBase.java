@@ -27,7 +27,6 @@ abstract class ScriptTestsBase {
 		"inline-module.wast",
 
 		"gc/",
-		"multi-memory/",
 		"relaxed-simd/",
 		"simd/",
 
