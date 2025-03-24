@@ -757,7 +757,7 @@ public record V128(
 	}
 
 	/**
-	 * Narrow two vectors with 16-bit lanes to a single vector with 8 lanes using signed operations.
+	 * Narrow two vectors with 16-bit lanes to a single vector with 8-bit lanes using signed operations.
 	 * @param b The second vector
 	 * @return The result.
 	 */
@@ -766,12 +766,62 @@ public record V128(
 	}
 
 	/**
-	 * Narrow two vectors with 16-bit lanes to a single vector with 8 lanes using unsigned operations.
+	 * Narrow two vectors with 16-bit lanes to a single vector with 8-bit lanes using unsigned operations.
 	 * @param b The second vector
 	 * @return The result.
 	 */
 	public V128 narrow16To8Unsigned(V128 b) {
 		return build8(i -> Util.narrowU16I8(i < 8 ? extractLane16(i) : b.extractLane16(i - 8)));
+	}
+
+	/**
+	 * Narrow two vectors with 32-bit lanes to a single vector with 16-bit lanes using signed operations.
+	 * @param b The second vector
+	 * @return The result.
+	 */
+	public V128 narrow32To16Signed(V128 b) {
+		return build16(i -> Util.narrowS32I16(i < 4 ? extractLane32(i) : b.extractLane32(i - 4)));
+	}
+
+	/**
+	 * Narrow two vectors with 32-bit lanes to a single vector with 16-bit lanes using unsigned operations.
+	 * @param b The second vector
+	 * @return The result.
+	 */
+	public V128 narrow32To16Unsigned(V128 b) {
+		return build16(i -> Util.narrowU32I16(i < 4 ? extractLane32(i) : b.extractLane32(i - 4)));
+	}
+
+	/**
+	 * Extend the low half of the vector from 8-bit unsigned to 16-bit
+	 * @return The result.
+	 */
+	public V128 extendLowU8To16() {
+		return V128.build16(i -> (short)Byte.toUnsignedInt(extractLane8(i)));
+	}
+
+	/**
+	 * Extend the low half of the vector from 8-bit signed to 16-bit
+	 * @return The result.
+	 */
+	public V128 extendLowS8To16() {
+		return V128.build16(this::extractLane8);
+	}
+
+	/**
+	 * Extend the high half of the vector from 8-bit unsigned to 16-bit
+	 * @return The result.
+	 */
+	public V128 extendHighU8To16() {
+		return V128.build16(i -> (short)Byte.toUnsignedInt(extractLane8(i + 8)));
+	}
+
+	/**
+	 * Extend the high half of the vector from 8-bit signed to 16-bit
+	 * @return The result.
+	 */
+	public V128 extendHighS8To16() {
+		return V128.build16(i -> extractLane8(i + 8));
 	}
 
 
@@ -1046,6 +1096,10 @@ public record V128(
 			}
 		}
 		return result;
+	}
+
+	public V128 q15mulrSatS(V128 b) {
+		return binary16(b, (n0, n1) -> Util.narrowS32I16((n0 * n1 + (1 << 14)) >> 15));
 	}
 
 
@@ -1554,7 +1608,6 @@ public record V128(
 		return binary64(b, (n0, n1) -> n0 - n1);
 	}
 
-
 	/**
 	 * Shifts each 8-bit lane left by the specified amount.
 	 * @param amount The number of bits to shift (0-7)
@@ -1869,6 +1922,96 @@ public record V128(
 	 */
 	public V128 subSatU16(V128 b) {
 		return binary16(b, Util::subSatU16);
+	}
+	
+	/**
+	 * Multiplies two V128 vectors across 8 lanes of 16-bit values.
+	 * Results wrap on overflow.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with the products of corresponding lanes
+	 */
+	public V128 mul16(V128 b) {
+		return binary16(b, (n0, n1) -> (short)(n0 * n1));
+	}
+
+	/**
+	 * Multiplies two V128 vectors across 4 lanes of 32-bit values.
+	 * Results wrap on overflow.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with the products of corresponding lanes
+	 */
+	public V128 mul32(V128 b) {
+		return binary32(b, (n0, n1) -> n0 * n1);
+	}
+
+	/**
+	 * Multiplies two V128 vectors across 2 lanes of 64-bit values.
+	 * Results wrap on overflow.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with the products of corresponding lanes
+	 */
+	public V128 mul64(V128 b) {
+		return binary64(b, (n0, n1) -> n0 * n1);
+	}
+
+	/**
+	 * Multiplies the lower 8 lanes of two V128 vectors as signed 8-bit values,
+	 * producing 16-bit results.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with 8 lanes containing the products of the lower 8 lanes
+	 */
+	public V128 extmulLowS8(V128 b) {
+		return V128.build16(i -> (short)(this.extractLane8(i) * b.extractLane8(i)));
+	}
+
+	/**
+	 * Multiplies the upper 8 lanes of two V128 vectors as signed 8-bit values,
+	 * producing 16-bit results.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with 8 lanes containing the products of the upper 8 lanes
+	 */
+	public V128 extmulHighS8(V128 b) {
+		return V128.build16(i -> (short)(this.extractLane8(i + 8) * b.extractLane8(i + 8)));
+	}
+
+	/**
+	 * Multiplies the lower 8 lanes of two V128 vectors as unsigned 8-bit values,
+	 * producing 16-bit results.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with 8 lanes containing the products of the lower 8 lanes
+	 */
+	public V128 extmulLowU8(V128 b) {
+		return V128.build16(i -> (short)(Byte.toUnsignedInt(this.extractLane8(i)) * Byte.toUnsignedInt(b.extractLane8(i))));
+	}
+
+	/**
+	 * Multiplies the upper 8 lanes of two V128 vectors as unsigned 8-bit values,
+	 * producing 16-bit results.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with 8 lanes containing the products of the upper 8 lanes
+	 */
+	public V128 extmulHighU8(V128 b) {
+		return V128.build16(i -> (short)(Byte.toUnsignedInt(this.extractLane8(i + 8)) * Byte.toUnsignedInt(b.extractLane8(i + 8))));
+	}
+
+	// Extended addition operations
+
+	/**
+	 * Sums adjacent pairs of signed 8-bit values from a V128 vector,
+	 * producing 16-bit results.
+	 * @return A new V128 with 8 lanes containing the sums of adjacent pairs
+	 */
+	public V128 extaddPairwiseS8() {
+		return V128.build16(i -> (short)(extractLane8(i) + extractLane8(i + 8)));
+	}
+
+	/**
+	 * Sums adjacent pairs of unsigned 8-bit values from a V128 vector,
+	 * producing 16-bit results.
+	 * @return A new V128 with 8 lanes containing the sums of adjacent pairs
+	 */
+	public V128 extaddPairwiseU8() {
+		return V128.build16(i -> (short)(Byte.toUnsignedInt(extractLane8(i)) + Byte.toUnsignedInt(extractLane8(i + 8))));
 	}
 
 	@Override
