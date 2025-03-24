@@ -26,8 +26,6 @@ abstract class ScriptTestsBase {
 		"annotations.wast",
 		"inline-module.wast",
 
-		"gc/",
-
 	});
 
 	private static final String testDir = "../webassembly-spec/test/core";
@@ -52,7 +50,7 @@ abstract class ScriptTestsBase {
 			}
 		}
 
-//		if(!path.toString().equals("simd/simd_boolean.wast")) {
+//		if(!path.toString().equals("gc/array.wast")) {
 //			return true;
 //		}
 

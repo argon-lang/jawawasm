@@ -14,6 +14,9 @@ final class WasmClassGeneratorUtils {
 	public static final ClassDesc wasmTable = ClassDesc.of(RUNTIME_PACKAGE, "WasmTable");
 	public static final ClassDesc wasmMemory = ClassDesc.of(RUNTIME_PACKAGE, "WasmMemory");
 	public static final ClassDesc v128Type = ClassDesc.of(RUNTIME_PACKAGE, "V128");
+	public static final ClassDesc wasmArray = ClassDesc.of(RUNTIME_PACKAGE, "WasmArray");
+	public static final ClassDesc wasmArrayMutable = ClassDesc.of(RUNTIME_PACKAGE, "WasmArrayMutable");
+	public static final ClassDesc wasmArrayImmutable = ClassDesc.of(RUNTIME_PACKAGE, "WasmArrayImmutable");
 
 
 	public static TypeKind typeKind(ClassDesc t) {

@@ -2,6 +2,7 @@ package dev.argon.jawawasm.engine.compiler;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.sun.source.tree.BreakTree;
 import dev.argon.jawawasm.engine.ModuleResolver;
 import dev.argon.jawawasm.engine.internal.SubtypingBase;
 import dev.argon.jawawasm.engine.internal.TypeClosure;
@@ -50,7 +51,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 	private final List<GlobalInfo> globals = new ArrayList<>();
 	private final List<MemInfo> mems = new ArrayList<>();
 	private final List<TagInfo> tags = new ArrayList<>();
-	private final List<@Nullable ElemInfo> elems = new ArrayList<>();
+	private final List<ElemInfo> elems = new ArrayList<>();
 	private final List<WasmExportRealization> exports = new ArrayList<>();
 
 	private byte @Nullable[] cachedBytecode = null;
@@ -314,6 +315,8 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			}
 		}
 
+		int constructorTempVarSlot = importModules.size() + 1;
+
 		List<Runnable> functionCodegens = new ArrayList<>();
 
 		for(var func : module.funcs()) {
@@ -340,7 +343,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					cb.dup();
 				}
 
-				var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[] {}, new ResultType(ImmutableList.of(globalType.type())), 0);
+				var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[] {}, new ResultType(ImmutableList.of(globalType.type())), constructorTempVarSlot);
 				bytecodeGen.generateInstructionBlock(global.init());
 
 				if(globalType.mutability() == Mut.Var) {
@@ -366,7 +369,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				cb.aload(0);
 				loadLimits(cb, tableType.limits());
 
-				var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[] {}, new ResultType(ImmutableList.of(table.type().elementType())), 0);
+				var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[] {}, new ResultType(ImmutableList.of(table.type().elementType())), constructorTempVarSlot);
 				bytecodeGen.generateInstructionBlock(table.init());
 
 				cb.invokestatic(wasmTable, "create", MethodTypeDesc.of(wasmTable, CD_long, CD_Long, CD_Object));
@@ -435,7 +438,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					cb.getfield(className, fieldName, arrayType);
 					cb.loadConstant(i);
 
-					var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[] {}, new ResultType(ImmutableList.of(elem.type())), 0);
+					var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[] {}, new ResultType(ImmutableList.of(elem.type())), constructorTempVarSlot);
 					bytecodeGen.generateInstructionBlock(elem.init().get(i));
 
 					cb.aastore();
@@ -445,7 +448,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var table = tables.get(tableIdx.index());
 					var at = addrDesc(table.tableType.addrType());
 
-					var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[] {}, new ResultType(ImmutableList.of(addrValType(table.tableType.addrType()))), 0);
+					var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[] {}, new ResultType(ImmutableList.of(addrValType(table.tableType.addrType()))), constructorTempVarSlot);
 					bytecodeGen.generateInstructionBlock(offset);
 
 
@@ -502,7 +505,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var mem = mems.get(memIdx.index());
 					var at = addrDesc(mem.memType().addrType());
 
-					var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[]{}, new ResultType(ImmutableList.of(addrValType(mem.memType().addrType()))), 0);
+					var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[]{}, new ResultType(ImmutableList.of(addrValType(mem.memType().addrType()))), constructorTempVarSlot);
 					bytecodeGen.generateInstructionBlock(offset);
 
 
@@ -1695,8 +1698,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					stackTypes.removeLast();
 					stackTypes.add(TypeKind.REFERENCE);
 				}
-
-				default -> throw new RuntimeException("Not implemented: " + instr);
 			}
 		}
 
@@ -2271,8 +2272,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 //				case ReferenceInstr.Any_Convert_Extern anyConvertExtern -> {
 //				}
-//				case ReferenceInstr.ArrayInstr arrayInstr -> {
-//				}
 //				case ReferenceInstr.Extern_Convert_Any externConvertAny -> {
 //				}
 //				case ReferenceInstr.I31_Get_S i31GetS -> {
@@ -2289,6 +2288,195 @@ class ModuleClassGenerator extends WasmClassGenerator {
 //				}
 //				case ReferenceInstr.StructInstr structInstr -> {
 //				}
+
+				case ReferenceInstr.Array_New(var typeIdx) -> {
+					var defType = types.get(typeIdx.index());
+					var arrayType = getArrayType(defType);
+					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
+					var elementType = arrayType.fieldType().storageType();
+					var elementClass = compiler.getStorageType(elementType);
+
+					cb.istore(tempVarSlot);
+					cb.storeLocal(typeKind(elementClass.type()), tempVarSlot + 1);
+
+					cb.new_(realization.classDesc());
+					cb.dup();
+					cb.iload(tempVarSlot);
+					cb.loadLocal(typeKind(elementClass.type()), tempVarSlot + 1);
+					cb.invokespecial(realization.classDesc(), "<init>", MethodTypeDesc.of(CD_void, CD_int, elementClass.type()));
+
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case ReferenceInstr.Array_New_Default(var typeIdx) -> {
+					var defType = types.get(typeIdx.index());
+					var arrayType = getArrayType(defType);
+					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
+					var elementType = arrayType.fieldType().storageType();
+					var elementClass = realization.elementType().get();
+
+					cb.istore(tempVarSlot);
+
+					cb.new_(realization.classDesc());
+					cb.dup();
+					cb.iload(tempVarSlot);
+					switch(elementType) {
+						case PackedType.I8, PackedType.I16, NumType.I32 -> cb.iconst_0();
+						case NumType.I64 -> cb.lconst_0();
+						case NumType.F32 -> cb.fconst_0();
+						case NumType.F64 -> cb.dconst_0();
+						case VecType.V128 -> loadV128(V128.ZERO);
+						case RefType _ -> cb.aconst_null();
+						case BotType _ -> throw new RuntimeException("Unexpected bot type");
+					}
+					cb.invokespecial(realization.classDesc(), "<init>", MethodTypeDesc.of(CD_void, CD_int, elementClass));
+
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case ReferenceInstr.Array_New_Fixed(var typeIdx, int n) -> {
+					var defType = types.get(typeIdx.index());
+					var arrayType = getArrayType(defType);
+					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
+					var elementType = arrayType.fieldType().storageType();
+					var elementClass = compiler.getStorageType(elementType);
+
+					if(n == 0) {
+						cb.new_(realization.classDesc());
+						cb.dup();
+						cb.invokespecial(realization.classDesc(), "<init>", MethodTypeDesc.of(CD_void));
+					}
+					else {
+						cb.loadConstant(n);
+						if(elementClass.type().isPrimitive()) {
+							cb.newarray(typeKind(elementClass.type()));
+						}
+						else {
+							cb.anewarray(elementClass.type());
+						}
+						cb.astore(tempVarSlot);
+
+						for(int i = n - 1; i >= 0; --i) {
+							cb.storeLocal(typeKind(elementClass.type()), tempVarSlot + 1);
+							cb.aload(tempVarSlot);
+							cb.loadConstant(i);
+							cb.loadLocal(typeKind(elementClass.type()), tempVarSlot + 1);
+							cb.arrayStore(typeKind(elementClass.type()));
+						}
+
+						cb.new_(realization.classDesc());
+						cb.dup();
+						cb.aload(tempVarSlot);
+						cb.invokespecial(realization.classDesc(), "<init>", MethodTypeDesc.of(CD_void, elementClass.type().arrayType()));
+					}
+
+					for(int i = 0; i < n; ++i) {
+						stackTypes.removeLast();
+					}
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case ReferenceInstr.Array_New_Data(var typeIdx, var dataIdx) -> {
+					var defType = types.get(typeIdx.index());
+					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
+
+					cb.istore(tempVarSlot);
+					cb.istore(tempVarSlot + 1);
+
+					cb.new_(realization.classDesc());
+					cb.dup();
+					cb.aload(0);
+					cb.getfield(className, "data" + dataIdx.index(), CD_byte.arrayType());
+					cb.iload(tempVarSlot + 1);
+					cb.iload(tempVarSlot);
+					cb.invokespecial(realization.classDesc(), "<init>", MethodTypeDesc.of(CD_void, CD_byte.arrayType(), CD_int, CD_int));
+
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case ReferenceInstr.Array_New_Elem(var typeIdx, var elemIdx) -> {
+					var defType = types.get(typeIdx.index());
+					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
+					var elemInfo = elems.get(elemIdx.index());
+
+					cb.istore(tempVarSlot);
+					cb.istore(tempVarSlot + 1);
+
+					cb.new_(realization.classDesc());
+					cb.dup();
+					cb.aload(0);
+					cb.getfield(className, elemInfo.fieldName, elemInfo.fieldType);
+					cb.iload(tempVarSlot + 1);
+					cb.iload(tempVarSlot);
+					cb.invokespecial(realization.classDesc(), "<init>", MethodTypeDesc.of(CD_void, realization.elementType().get().arrayType(), CD_int, CD_int));
+
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case ReferenceInstr.Array_Get(var typeIdx) -> {
+					var defType = types.get(typeIdx.index());
+					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
+					var elementClass = realization.elementType().get();
+
+					cb.invokevirtual(realization.classDesc(), "get", MethodTypeDesc.of(elementClass, CD_int));
+
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.add(typeKind(elementClass));
+				}
+				case ReferenceInstr.Array_Get_S(var typeIdx) -> {
+					var defType = types.get(typeIdx.index());
+					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
+					var elementClass = realization.elementType().get();
+
+					cb.invokevirtual(realization.classDesc(), "get", MethodTypeDesc.of(elementClass, CD_int));
+
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.INT);
+				}
+				case ReferenceInstr.Array_Get_U(var typeIdx) -> {
+					var defType = types.get(typeIdx.index());
+					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
+					var elementClass = realization.elementType().get();
+
+					cb.invokevirtual(realization.classDesc(), "get", MethodTypeDesc.of(elementClass, CD_int));
+					if(elementClass == CD_byte) {
+						cb.invokestatic(CD_Byte, "toUnsignedInt", MethodTypeDesc.ofDescriptor("(B)I"));
+					}
+					else if(elementClass == CD_short) {
+						cb.invokestatic(CD_Short, "toUnsignedInt", MethodTypeDesc.ofDescriptor("(S)I"));
+					}
+					else {
+						throw new RuntimeException("Unexpected type for Array_Get_U");
+					}
+
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.INT);
+				}
+				case ReferenceInstr.Array_Set(var typeIdx) -> {
+					var defType = types.get(typeIdx.index());
+					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
+					var elementClass = realization.elementType().get();
+
+					cb.invokevirtual(realization.classDesc(), "set", MethodTypeDesc.of(CD_void, CD_int, elementClass));
+
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+
+				}
+				case ReferenceInstr.Array_Len() -> {
+					cb.invokevirtual(wasmArray, "length", MethodTypeDesc.of(CD_int));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.INT);
+				}
+				case ReferenceInstr.Array_Copy _ -> {
+					cb.invokestatic(wasmArray, "copy", MethodTypeDesc.of(CD_void, wasmArrayMutable, CD_int, wasmArray, CD_int, CD_int));
+				}
 
 				default -> throw new RuntimeException("Not implemented: " + instr);
 			}
@@ -2383,7 +2571,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				case TableInstr.Table_Init(var tableIdx, var elemIdx) -> {
 					var table = tables.get(tableIdx.index());
 					var elem = elems.get(elemIdx.index());
-					Objects.requireNonNull(elem);
 
 					var at = addrDesc(table.tableType.addrType());
 
@@ -2411,7 +2598,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				}
 				case TableInstr.Elem_Drop(var elemIdx) -> {
 					var elem = elems.get(elemIdx.index());
-					Objects.requireNonNull(elem);
 					cb.aload(0);
 					cb.iconst_0();
 					cb.anewarray(elem.elementType);
@@ -3351,12 +3537,17 @@ class ModuleClassGenerator extends WasmClassGenerator {
 		}
 
 		private void loadV128(V128 value) {
-			cb.new_(v128Type);
-			cb.dup();
-			for(int i = 0; i < 16; ++i) {
-				cb.loadConstant(value.extractLane8(i));
+			if(value.equals(V128.ZERO)) {
+				cb.getstatic(v128Type, "ZERO", v128Type);
 			}
-			cb.invokespecial(v128Type, "<init>", MethodTypeDesc.of(CD_void, Collections.nCopies(16, CD_byte)));
+			else {
+				cb.new_(v128Type);
+				cb.dup();
+				for(int i = 0; i < 16; ++i) {
+					cb.loadConstant(value.extractLane8(i));
+				}
+				cb.invokespecial(v128Type, "<init>", MethodTypeDesc.of(CD_void, Collections.nCopies(16, CD_byte)));
+			}
 		}
 	}
 
@@ -3386,6 +3577,14 @@ class ModuleClassGenerator extends WasmClassGenerator {
 		return switch(subtype.compositeType()) {
 			case AggregateType _ -> throw new RuntimeException("Unexpected aggregate elementType");
 			case FuncType ft -> ft;
+		};
+	}
+
+	private ArrayType getArrayType(DefType t) {
+		var subtype = TypeUnroll.unroll(t);
+		return switch(subtype.compositeType()) {
+			case ArrayType arrayType -> arrayType;
+			default -> throw new RuntimeException("Expected an array type");
 		};
 	}
 

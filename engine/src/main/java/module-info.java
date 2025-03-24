@@ -5,6 +5,7 @@ module dev.argon.jawawasm.engine {
 	requires transitive dev.argon.jawawasm.format;
 	requires transitive org.jspecify;
 	requires com.google.protobuf;
+	requires jdk.compiler;
 
 	exports dev.argon.jawawasm.engine;
 	exports dev.argon.jawawasm.engine.validator;

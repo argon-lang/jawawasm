@@ -37,6 +37,8 @@ public record V128(
 		byte b14,
 		byte b15
 ) {
+	public static final V128 ZERO = build8(_ -> (byte)0);
+
 	public static V128 ofIntZero(int value) {
 		return V128.build32(j -> j == 0 ? value : 0);
 	}

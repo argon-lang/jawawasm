@@ -80,7 +80,7 @@ class StructClassGenerator extends DefTypeClassGenerator {
 			throw new RuntimeException("Not implemented");
 		}
 
-		var superInterface = ClassDesc.of(RUNTIME_PACKAGE, "WasmArray");
+		var superInterface = ClassDesc.of(RUNTIME_PACKAGE, "WasmStruct");
 
 		return compiler.classFile()
 			.build(className, clb -> generateFinalStruct(clb, className, superInterface));

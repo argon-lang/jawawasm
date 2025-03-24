@@ -362,16 +362,16 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 			return true;
 		}
 		else if(expected instanceof AnyEqRef) {
-			return actual instanceof DynamicWasmEq;
+			return actual instanceof DynamicWasmEq || actual instanceof WasmEq;
 		}
 		else if(expected instanceof AnyFuncRef) {
 			return actual instanceof DynamicWasmFunction || actual instanceof WasmFunction;
 		}
 		else if(expected instanceof AnyStructRef) {
-			return actual instanceof DynamicWasmStruct;
+			return actual instanceof DynamicWasmStruct || actual instanceof WasmStruct;
 		}
 		else if(expected instanceof AnyArrayRef) {
-			return actual instanceof DynamicWasmArray;
+			return actual instanceof DynamicWasmArray || actual instanceof WasmArray;
 		}
 		else if(expected instanceof AnyI31) {
 			return actual instanceof I31;
