@@ -27,7 +27,6 @@ abstract class ScriptTestsBase {
 		"inline-module.wast",
 
 		"gc/",
-		"relaxed-simd/",
 
 	});
 
@@ -53,7 +52,7 @@ abstract class ScriptTestsBase {
 			}
 		}
 
-//		if(!path.toString().equals("return_call_ref.wast")) {
+//		if(!path.toString().equals("simd/simd_i8x16_arith2.wast")) {
 //			return true;
 //		}
 

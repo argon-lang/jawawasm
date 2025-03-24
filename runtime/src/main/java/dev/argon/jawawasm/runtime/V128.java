@@ -793,6 +793,38 @@ public record V128(
 	}
 
 	/**
+	 * Truncate a vector from F32 to U32.
+	 * @return The result.
+	 */
+	public V128 truncateSatF32ToU32() {
+		return V128.build32(i -> Util.truncSatF32U32(extractLaneF32(i)));
+	}
+
+	/**
+	 * Truncate a vector from F32 to S32.
+	 * @return The result.
+	 */
+	public V128 truncateSatF32ToS32() {
+		return V128.build32(i -> (int)extractLaneF32(i));
+	}
+
+	/**
+	 * Truncate a vector from F64 to U32. The high half will be filled with zeroes.
+	 * @return The result.
+	 */
+	public V128 truncateSatF64ToU32Zero() {
+		return V128.build32(i -> i < 2 ? Util.truncSatF64U32(extractLaneF64(i)) : 0);
+	}
+
+	/**
+	 * Truncate a vector from F64 to S32. The high half will be filled with zeroes.
+	 * @return The result.
+	 */
+	public V128 truncateSatF64ToS32Zero() {
+		return V128.build32(i -> i < 2 ? (int)extractLaneF64(i) : 0);
+	}
+
+	/**
 	 * Extend the low half of the vector from 8-bit unsigned to 16-bit
 	 * @return The result.
 	 */
@@ -822,6 +854,118 @@ public record V128(
 	 */
 	public V128 extendHighS8To16() {
 		return V128.build16(i -> extractLane8(i + 8));
+	}
+
+	/**
+	 * Extend the low half of the vector from 16-bit unsigned to 32-bit
+	 * @return The result.
+	 */
+	public V128 extendLowU16To32() {
+		return V128.build32(i -> Short.toUnsignedInt(extractLane16(i)));
+	}
+
+	/**
+	 * Extend the low half of the vector from 16-bit signed to 32-bit
+	 * @return The result.
+	 */
+	public V128 extendLowS16To32() {
+		return V128.build32(this::extractLane16);
+	}
+
+	/**
+	 * Extend the high half of the vector from 16-bit unsigned to 32-bit
+	 * @return The result.
+	 */
+	public V128 extendHighU16To32() {
+		return V128.build32(i -> Short.toUnsignedInt(extractLane16(i + 4)));
+	}
+
+	/**
+	 * Extend the high half of the vector from 16-bit signed to 32-bit
+	 * @return The result.
+	 */
+	public V128 extendHighS16To32() {
+		return V128.build32(i -> extractLane16(i + 4));
+	}
+
+	/**
+	 * Extend the low half of the vector from 32-bit unsigned to 64-bit
+	 * @return The result.
+	 */
+	public V128 extendLowU32To64() {
+		return V128.build64(i -> Integer.toUnsignedLong(extractLane32(i)));
+	}
+
+	/**
+	 * Extend the low half of the vector from 32-bit signed to 64-bit
+	 * @return The result.
+	 */
+	public V128 extendLowS32To64() {
+		return V128.build64(this::extractLane32);
+	}
+
+	/**
+	 * Extend the high half of the vector from 32-bit unsigned to 64-bit
+	 * @return The result.
+	 */
+	public V128 extendHighU32To64() {
+		return V128.build64(i -> Integer.toUnsignedLong(extractLane32(i + 2)));
+	}
+
+	/**
+	 * Extend the high half of the vector from 32-bit signed to 64-bit
+	 * @return The result.
+	 */
+	public V128 extendHighS32To64() {
+		return V128.build64(i -> extractLane32(i + 2));
+	}
+
+	/**
+	 * Convert S32 vector to F32
+	 * @return The result.
+	 */
+	public V128 convertS32ToF32() {
+		return V128.buildF32(i -> (float)extractLane32(i));
+	}
+
+	/**
+	 * Convert U32 vector to F32
+	 * @return The result.
+	 */
+	public V128 convertU32ToF32() {
+		return V128.buildF32(i -> (float)Integer.toUnsignedLong(extractLane32(i)));
+	}
+
+	/**
+	 * Demote F64 vector to F32. High half is zero.
+	 * @return The result.
+	 */
+	public V128 demoteF64ToF32Zero() {
+		return V128.buildF32(i -> (float)extractLaneF64(i));
+	}
+
+	/**
+	 * Convert low half of S32 vector to F64
+	 * @return The result.
+	 */
+	public V128 convertS32LowToF64() {
+		return V128.buildF64(i -> (double)extractLane32(i));
+	}
+
+	/**
+	 * Convert low half of U32 vector to F64
+	 * @return The result.
+	 */
+	public V128 convertU32LowToF64() {
+		return V128.buildF64(i -> (double)Integer.toUnsignedLong(extractLane32(i)));
+	}
+
+	/**
+	 * Promote the low half of F32 vector to F64
+	 * @return The result.
+	 */
+	public V128 promoteF32ToF64() {
+		return V128.buildF32(i -> i < 2 ? (float)extractLaneF64(i) : 0.0f);
 	}
 
 
@@ -926,8 +1070,8 @@ public record V128(
 
 	/**
 	 * Replace an 8-bit lane.
-	 * @param index The index.
 	 * @param value The value.
+	 * @param index The index.
 	 * @return The result.
 	 */
 	public V128 replaceLane8(byte value, int index) {
@@ -937,6 +1081,8 @@ public record V128(
 
 	/**
 	 * Replace a 16-bit lane.
+	 * @param value The value.
+	 * @param index The index.
 	 * @return The result.
 	 */
 	public V128 replaceLane16(short value, int index) {
@@ -1100,6 +1246,33 @@ public record V128(
 
 	public V128 q15mulrSatS(V128 b) {
 		return binary16(b, (n0, n1) -> Util.narrowS32I16((n0 * n1 + (1 << 14)) >> 15));
+	}
+
+	public V128 dotS16x8(V128 b) {
+		return V128.build32(i -> this.extractLane16(i) * b.extractLane16(i) + this.extractLane16(i + 4) * b.extractLane16(i + 4));
+	}
+
+	public V128 relaxedDotI8x16ByI7x16Signed(V128 b) {
+		short[] intermediate = new short[16];
+
+		for(int i = 0; i < intermediate.length; ++i) {
+			intermediate[i] = (short)(this.extractLane8(i) * b.extractLane8(i));
+		}
+		return V128.build16(i -> Util.addSatS16(intermediate[2 * i], intermediate[2 * i + 1]));
+	}
+
+	public V128 relaxedDotI8x16ByI7x16AddSigned(V128 b, V128 c) {
+		int[] intermediate = new int[16];
+		for(int i = 0; i < intermediate.length; ++i) {
+			intermediate[i] = this.extractLane8(i) * b.extractLane8(i);
+		}
+
+		int[] tmp = new int[8];
+		for(int i = 0; i < tmp.length; ++i) {
+			tmp[i] = intermediate[2 * i] + intermediate[2 * i + 1];
+		}
+
+		return V128.build32(i -> tmp[2 * i] + tmp[2 * i + 1] + c.extractLane32(i));
 	}
 
 
@@ -1994,8 +2167,6 @@ public record V128(
 		return V128.build16(i -> (short)(Byte.toUnsignedInt(this.extractLane8(i + 8)) * Byte.toUnsignedInt(b.extractLane8(i + 8))));
 	}
 
-	// Extended addition operations
-
 	/**
 	 * Sums adjacent pairs of signed 8-bit values from a V128 vector,
 	 * producing 16-bit results.
@@ -2012,6 +2183,588 @@ public record V128(
 	 */
 	public V128 extaddPairwiseU8() {
 		return V128.build16(i -> (short)(Byte.toUnsignedInt(extractLane8(i)) + Byte.toUnsignedInt(extractLane8(i + 8))));
+	}
+	
+	/**
+	 * Multiplies the lower 4 lanes of two V128 vectors as signed 16-bit values,
+	 * producing 32-bit results.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with 4 lanes containing the products of the lower 4 lanes
+	 */
+	public V128 extmulLowS16(V128 b) {
+		return V128.build32(i -> this.extractLane16(i) * b.extractLane16(i));
+	}
+
+	/**
+	 * Multiplies the upper 4 lanes of two V128 vectors as signed 16-bit values,
+	 * producing 32-bit results.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with 4 lanes containing the products of the upper 4 lanes
+	 */
+	public V128 extmulHighS16(V128 b) {
+		return V128.build32(i -> this.extractLane16(i + 4) * b.extractLane16(i + 4));
+	}
+
+	/**
+	 * Multiplies the lower 4 lanes of two V128 vectors as unsigned 16-bit values,
+	 * producing 32-bit results.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with 4 lanes containing the products of the lower 4 lanes
+	 */
+	public V128 extmulLowU16(V128 b) {
+		return V128.build32(i -> Short.toUnsignedInt(this.extractLane16(i)) * Short.toUnsignedInt(b.extractLane16(i)));
+	}
+
+	/**
+	 * Multiplies the upper 4 lanes of two V128 vectors as unsigned 16-bit values,
+	 * producing 32-bit results.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with 4 lanes containing the products of the upper 4 lanes
+	 */
+	public V128 extmulHighU16(V128 b) {
+		return V128.build32(i -> Short.toUnsignedInt(this.extractLane16(i + 4)) * Short.toUnsignedInt(b.extractLane16(i + 4)));
+	}
+
+	/**
+	 * Sums adjacent pairs of signed 16-bit values from a V128 vector,
+	 * producing 32-bit results.
+	 * @return A new V128 with 4 lanes containing the sums of adjacent pairs
+	 */
+	public V128 extaddPairwiseS16() {
+		return V128.build32(i -> extractLane16(i) + extractLane16(i + 4));
+	}
+
+	/**
+	 * Sums adjacent pairs of unsigned 16-bit values from a V128 vector,
+	 * producing 32-bit results.
+	 * @return A new V128 with 4 lanes containing the sums of adjacent pairs
+	 */
+	public V128 extaddPairwiseU16() {
+		return V128.build32(i -> Short.toUnsignedInt(extractLane16(i)) + Short.toUnsignedInt(extractLane16(i + 4)));
+	}
+
+
+	/**
+	 * Multiplies the lower 2 lanes of two V128 vectors as signed 32-bit values,
+	 * producing 64-bit results.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with 2 lanes containing the products of the lower 2 lanes
+	 */
+	public V128 extmulLowS32(V128 b) {
+		return V128.build64(i -> (long)this.extractLane32(i) * (long)b.extractLane32(i));
+	}
+
+	/**
+	 * Multiplies the upper 2 lanes of two V128 vectors as signed 32-bit values,
+	 * producing 64-bit results.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with 2 lanes containing the products of the upper 2 lanes
+	 */
+	public V128 extmulHighS32(V128 b) {
+		return V128.build64(i -> (long)this.extractLane32(i + 2) * (long)b.extractLane32(i + 2));
+	}
+
+	/**
+	 * Multiplies the lower 2 lanes of two V128 vectors as unsigned 32-bit values,
+	 * producing 64-bit results.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with 2 lanes containing the products of the lower 2 lanes
+	 */
+	public V128 extmulLowU32(V128 b) {
+		return V128.build64(i -> Integer.toUnsignedLong(this.extractLane32(i)) * Integer.toUnsignedLong(b.extractLane32(i)));
+	}
+
+	/**
+	 * Multiplies the upper 2 lanes of two V128 vectors as unsigned 32-bit values,
+	 * producing 64-bit results.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with 2 lanes containing the products of the upper 2 lanes
+	 */
+	public V128 extmulHighU32(V128 b) {
+		return V128.build64(i -> Integer.toUnsignedLong(this.extractLane32(i + 2)) * Integer.toUnsignedLong(b.extractLane32(i + 2)));
+	}
+
+
+	/**
+	 * Adds two V128 vectors across 4 lanes of 32-bit floats.
+	 * @param b The second V128 vector to add
+	 * @return A new V128 with the sums of corresponding lanes
+	 */
+	public V128 addF32(V128 b) {
+		return binaryF32(b, Float::sum);
+	}
+
+	/**
+	 * Subtracts the second V128 vector from the first across 4 lanes of 32-bit floats.
+	 * @param b The V128 vector to subtract
+	 * @return A new V128 with the differences of corresponding lanes
+	 */
+	public V128 subF32(V128 b) {
+		return binaryF32(b, (ai, bi) -> ai - bi);
+	}
+
+	/**
+	 * Multiplies two V128 vectors across 4 lanes of 32-bit floats.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with the products of corresponding lanes
+	 */
+	public V128 mulF32(V128 b) {
+		return binaryF32(b, (ai, bi) -> ai * bi);
+	}
+
+	/**
+	 * Divides the first V128 vector by the second across 4 lanes of 32-bit floats.
+	 * @param b The V128 vector to divide by
+	 * @return A new V128 with the quotients of corresponding lanes
+	 */
+	public V128 divF32(V128 b) {
+		return binaryF32(b, (ai, bi) -> ai / bi);
+	}
+
+	/**
+	 * Computes the IEEE 754 minimum of two V128 vectors across 4 lanes of 32-bit floats.
+	 * Propagates NaN, prefers -0 over +0.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 with the minimum of corresponding lanes
+	 */
+	public V128 minF32(V128 b) {
+		return binaryF32(b, Util::min);
+	}
+
+	/**
+	 * Computes the IEEE 754 maximum of two V128 vectors across 4 lanes of 32-bit floats.
+	 * Propagates NaN, prefers -0 over +0.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 with the maximum of corresponding lanes
+	 */
+	public V128 maxF32(V128 b) {
+		return binaryF32(b, Util::max);
+	}
+
+	/**
+	 * Computes the pseudo-minimum of two V128 vectors across 4 lanes of 32-bit floats.
+	 * Returns the other operand if one is NaN, treats +0 and -0 as equal.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 with the pseudo-minimum of corresponding lanes
+	 */
+	public V128 pminF32(V128 b) {
+		return binaryF32(b, (ai, bi) -> {
+			return ai < bi ? ai : bi;
+		});
+	}
+
+	/**
+	 * Computes the pseudo-maximum of two V128 vectors across 4 lanes of 32-bit floats.
+	 * Returns the other operand if one is NaN, treats +0 and -0 as equal.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 with the pseudo-maximum of corresponding lanes
+	 */
+	public V128 pmaxF32(V128 b) {
+		return binaryF32(b, (ai, bi) -> {
+			return bi < ai ? ai : bi;
+		});
+	}
+
+	/**
+	 * Adds two V128 vectors across 2 lanes of 64-bit floats.
+	 * @param b The second V128 vector to add
+	 * @return A new V128 with the sums of corresponding lanes
+	 */
+	public V128 addF64(V128 b) {
+		return binaryF64(b, Double::sum);
+	}
+
+	/**
+	 * Subtracts the second V128 vector from the first across 2 lanes of 64-bit floats.
+	 * @param b The V128 vector to subtract
+	 * @return A new V128 with the differences of corresponding lanes
+	 */
+	public V128 subF64(V128 b) {
+		return binaryF64(b, (ai, bi) -> ai - bi);
+	}
+
+	/**
+	 * Multiplies two V128 vectors across 2 lanes of 64-bit floats.
+	 * @param b The second V128 vector to multiply with
+	 * @return A new V128 with the products of corresponding lanes
+	 */
+	public V128 mulF64(V128 b) {
+		return binaryF64(b, (ai, bi) -> ai * bi);
+	}
+
+	/**
+	 * Divides the first V128 vector by the second across 2 lanes of 64-bit floats.
+	 * @param b The V128 vector to divide by
+	 * @return A new V128 with the quotients of corresponding lanes
+	 */
+	public V128 divF64(V128 b) {
+		return binaryF64(b, (ai, bi) -> ai / bi);
+	}
+
+	/**
+	 * Computes the IEEE 754 minimum of two V128 vectors across 2 lanes of 64-bit floats.
+	 * Propagates NaN, prefers -0 over +0.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 with the minimum of corresponding lanes
+	 */
+	public V128 minF64(V128 b) {
+		return binaryF64(b, Util::min);
+	}
+
+	/**
+	 * Computes the IEEE 754 maximum of two V128 vectors across 2 lanes of 64-bit floats.
+	 * Propagates NaN, prefers -0 over +0.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 with the maximum of corresponding lanes
+	 */
+	public V128 maxF64(V128 b) {
+		return binaryF64(b, Util::max);
+	}
+
+	/**
+	 * Computes the pseudo-minimum of two V128 vectors across 2 lanes of 64-bit floats.
+	 * Returns the other operand if one is NaN, treats +0 and -0 as equal.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 with the pseudo-minimum of corresponding lanes
+	 */
+	public V128 pminF64(V128 b) {
+		return binaryF64(b, (ai, bi) -> {
+			return ai < bi ? ai : bi;
+		});
+	}
+
+	/**
+	 * Computes the pseudo-maximum of two V128 vectors across 2 lanes of 64-bit floats.
+	 * Returns the other operand if one is NaN, treats +0 and -0 as equal.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 with the pseudo-maximum of corresponding lanes
+	 */
+	public V128 pmaxF64(V128 b) {
+		return binaryF64(b, (ai, bi) -> {
+			return bi < ai ? ai : bi;
+		});
+	}
+	
+	/**
+	 * Compares two V128 vectors for equality across 4 lanes of 32-bit floats.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 where each lane contains -1 if equal, 0 if not equal
+	 */
+	public V128 equalsF32(V128 b) {
+		return build32(i -> this.extractLaneF32(i) == b.extractLaneF32(i) ? -1 : 0);
+	}
+
+	/**
+	 * Compares two V128 vectors for inequality across 4 lanes of 32-bit floats.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 where each lane contains -1 if not equal, 0 if equal
+	 */
+	public V128 notEqualsF32(V128 b) {
+		return build32(i -> this.extractLaneF32(i) != b.extractLaneF32(i) ? -1 : 0);
+	}
+
+	/**
+	 * Compares two V128 vectors for less-than across 4 lanes of 32-bit floats.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 where each lane contains -1 if less than, 0 otherwise
+	 */
+	public V128 lessThanF32(V128 b) {
+		return build32(i -> this.extractLaneF32(i) < b.extractLaneF32(i) ? -1 : 0);
+	}
+
+	/**
+	 * Compares two V128 vectors for greater-than across 4 lanes of 32-bit floats.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 where each lane contains -1 if greater than, 0 otherwise
+	 */
+	public V128 greaterThanF32(V128 b) {
+		return build32(i -> this.extractLaneF32(i) > b.extractLaneF32(i) ? -1 : 0);
+	}
+
+	/**
+	 * Compares two V128 vectors for less-than-or-equal across 4 lanes of 32-bit floats.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 where each lane contains -1 if less than or equal, 0 otherwise
+	 */
+	public V128 lessThanOrEqualF32(V128 b) {
+		return build32(i -> this.extractLaneF32(i) <= b.extractLaneF32(i) ? -1 : 0);
+	}
+
+	/**
+	 * Compares two V128 vectors for greater-than-or-equal across 4 lanes of 32-bit floats.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 where each lane contains -1 if greater than or equal, 0 otherwise
+	 */
+	public V128 greaterThanOrEqualF32(V128 b) {
+		return build32(i -> this.extractLaneF32(i) >= b.extractLaneF32(i) ? -1 : 0);
+	}
+
+	/**
+	 * Compares two V128 vectors for equality across 2 lanes of 64-bit floats.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 where each lane contains -1 if equal, 0 if not equal
+	 */
+	public V128 equalsF64(V128 b) {
+		return build64(i -> this.extractLaneF64(i) == b.extractLaneF64(i) ? -1 : 0);
+	}
+
+	/**
+	 * Compares two V128 vectors for inequality across 2 lanes of 64-bit floats.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 where each lane contains -1 if not equal, 0 if equal
+	 */
+	public V128 notEqualsF64(V128 b) {
+		return build64(i -> this.extractLaneF64(i) != b.extractLaneF64(i) ? -1 : 0);
+	}
+
+	/**
+	 * Compares two V128 vectors for less-than across 2 lanes of 64-bit floats.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 where each lane contains -1 if less than, 0 otherwise
+	 */
+	public V128 lessThanF64(V128 b) {
+		return build64(i -> this.extractLaneF64(i) < b.extractLaneF64(i) ? -1 : 0);
+	}
+
+	/**
+	 * Compares two V128 vectors for greater-than across 2 lanes of 64-bit floats.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 where each lane contains -1 if greater than, 0 otherwise
+	 */
+	public V128 greaterThanF64(V128 b) {
+		return build64(i -> this.extractLaneF64(i) > b.extractLaneF64(i) ? -1 : 0);
+	}
+
+	/**
+	 * Compares two V128 vectors for less-than-or-equal across 2 lanes of 64-bit floats.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 where each lane contains -1 if less than or equal, 0 otherwise
+	 */
+	public V128 lessThanOrEqualF64(V128 b) {
+		return build64(i -> this.extractLaneF64(i) <= b.extractLaneF64(i) ? -1 : 0);
+	}
+
+	/**
+	 * Compares two V128 vectors for greater-than-or-equal across 2 lanes of 64-bit floats.
+	 * @param b The second V128 vector to compare
+	 * @return A new V128 where each lane contains -1 if greater than or equal, 0 otherwise
+	 */
+	public V128 greaterThanOrEqualF64(V128 b) {
+		return build64(i -> this.extractLaneF64(i) >= b.extractLaneF64(i) ? -1 : 0);
+	}
+
+	/**
+	 * Computes the absolute value of each 32-bit float lane in the V128 vector.
+	 * @return A new V128 with absolute values in each of the 4 lanes
+	 */
+	public V128 absF32() {
+		return unaryF32(Math::abs);
+	}
+
+	/**
+	 * Negates each 32-bit float lane in the V128 vector.
+	 * @return A new V128 with negated values in each of the 4 lanes
+	 */
+	public V128 negF32() {
+		return unaryF32(n -> -n);
+	}
+
+	/**
+	 * Computes the square root of each 32-bit float lane in the V128 vector.
+	 * @return A new V128 with square roots in each of the 4 lanes
+	 */
+	public V128 sqrtF32() {
+		return unaryF32(n -> (float)Math.sqrt(n));
+	}
+
+	/**
+	 * Rounds each 32-bit float lane in the V128 vector up to the nearest integer.
+	 * @return A new V128 with ceiling values in each of the 4 lanes
+	 */
+	public V128 ceilF32() {
+		return unaryF32(Util::ceilF32);
+	}
+
+	/**
+	 * Rounds each 32-bit float lane in the V128 vector down to the nearest integer.
+	 * @return A new V128 with floor values in each of the 4 lanes
+	 */
+	public V128 floorF32() {
+		return unaryF32(Util::floorF32);
+	}
+
+	/**
+	 * Truncates each 32-bit float lane in the V128 vector toward zero.
+	 * @return A new V128 with truncated values in each of the 4 lanes
+	 */
+	public V128 truncF32() {
+		return unaryF32(Util::truncF32);
+	}
+
+	/**
+	 * Rounds each 32-bit float lane in the V128 vector to the nearest integer,
+	 * with halfway cases rounding away from zero.
+	 * @return A new V128 with nearest integer values in each of the 4 lanes
+	 */
+	public V128 nearestF32() {
+		return unaryF32(Util::truncF32);
+	}
+
+	/**
+	 * Computes the absolute value of each 64-bit float lane in the V128 vector.
+	 * @return A new V128 with absolute values in each of the 2 lanes
+	 */
+	public V128 absF64() {
+		return unaryF64(Math::abs);
+	}
+
+	/**
+	 * Negates each 64-bit float lane in the V128 vector.
+	 * @return A new V128 with negated values in each of the 2 lanes
+	 */
+	public V128 negF64() {
+		return unaryF64(n -> -n);
+	}
+
+	/**
+	 * Computes the square root of each 64-bit float lane in the V128 vector.
+	 * @return A new V128 with square roots in each of the 2 lanes
+	 */
+	public V128 sqrtF64() {
+		return unaryF64(Math::sqrt);
+	}
+
+	/**
+	 * Rounds each 64-bit float lane in the V128 vector up to the nearest integer.
+	 * @return A new V128 with ceiling values in each of the 2 lanes
+	 */
+	public V128 ceilF64() {
+		return unaryF64(Util::ceilF64);
+	}
+
+	/**
+	 * Rounds each 64-bit float lane in the V128 vector down to the nearest integer.
+	 * @return A new V128 with floor values in each of the 2 lanes
+	 */
+	public V128 floorF64() {
+		return unaryF64(Util::floorF64);
+	}
+
+	/**
+	 * Truncates each 64-bit float lane in the V128 vector toward zero.
+	 * @return A new V128 with truncated values in each of the 2 lanes
+	 */
+	public V128 truncF64() {
+		return unaryF64(Util::truncF64);
+	}
+
+	/**
+	 * Rounds each 64-bit float lane in the V128 vector to the nearest integer,
+	 * with halfway cases rounding away from zero.
+	 * @return A new V128 with nearest integer values in each of the 2 lanes
+	 */
+	public V128 nearestF64() {
+		return unaryF64(Util::nearestF64);
+	}
+
+	/**
+	 * Performs a relaxed fused multiply-add on three V128 vectors across 4 lanes of 32-bit floats.
+	 * Computes a * b + c with relaxed precision requirements.
+	 * @param b The second V128 vector (multiplicand)
+	 * @param c The third V128 vector (addend)
+	 * @return A new V128 with the fused multiply-add results of corresponding lanes
+	 */
+	public V128 relaxedMaddF32(V128 b, V128 c) {
+		return ternaryF32(b, c, (ai, bi, ci) -> ai * bi + ci);
+	}
+
+	/**
+	 * Performs a relaxed fused negate-multiply-add on three V128 vectors across 4 lanes of 32-bit floats.
+	 * Computes -(a * b) + c with relaxed precision requirements.
+	 * @param b The second V128 vector (multiplicand)
+	 * @param c The third V128 vector (addend)
+	 * @return A new V128 with the fused negate-multiply-add results of corresponding lanes
+	 */
+	public V128 relaxedNmaddF32(V128 b, V128 c) {
+		return ternaryF32(b, c, (ai, bi, ci) -> -(ai * bi) + ci);
+	}
+
+	/**
+	 * Performs a relaxed fused multiply-add on three V128 vectors across 2 lanes of 64-bit floats.
+	 * Computes a * b + c with relaxed precision requirements.
+	 * @param b The second V128 vector (multiplicand)
+	 * @param c The third V128 vector (addend)
+	 * @return A new V128 with the fused multiply-add results of corresponding lanes
+	 */
+	public V128 relaxedMaddF64(V128 b, V128 c) {
+		return ternaryF64(b, c, (ai, bi, ci) -> ai * bi + ci);
+	}
+
+	/**
+	 * Performs a relaxed fused negate-multiply-add on three V128 vectors across 2 lanes of 64-bit floats.
+	 * Computes -(a * b) + c with relaxed precision requirements.
+	 * @param b The second V128 vector (multiplicand)
+	 * @param c The third V128 vector (addend)
+	 * @return A new V128 with the fused negate-multiply-add results of corresponding lanes
+	 */
+	public V128 relaxedNmaddF64(V128 b, V128 c) {
+		return ternaryF64(b, c, (ai, bi, ci) -> -(ai * bi) + ci);
+	}
+
+	/**
+	 * Performs a bitwise AND operation on two V128 vectors across 16 lanes of 8-bit values.
+	 * @param b The second V128 vector to AND with
+	 * @return A new V128 with the bitwise AND of corresponding lanes
+	 */
+	public V128 and(V128 b) {
+		return binary8(b, (n0, n1) -> (byte)(n0 & n1));
+	}
+
+	/**
+	 * Performs a bitwise ANDNOT operation on two V128 vectors across 16 lanes of 8-bit values.
+	 * Computes a &amp; ~b for each lane.
+	 * @param b The second V128 vector (negated before AND)
+	 * @return A new V128 with the bitwise ANDNOT of corresponding lanes
+	 */
+	public V128 andNot(V128 b) {
+		return binary8(b, (n0, n1) -> (byte)(n0 & ~n1));
+	}
+
+	/**
+	 * Performs a bitwise OR operation on two V128 vectors across 16 lanes of 8-bit values.
+	 * @param b The second V128 vector to OR with
+	 * @return A new V128 with the bitwise OR of corresponding lanes
+	 */
+	public V128 or(V128 b) {
+		return binary8(b, (n0, n1) -> (byte)(n0 | n1));
+	}
+
+	/**
+	 * Performs a bitwise XOR operation on two V128 vectors across 16 lanes of 8-bit values.
+	 * @param b The second V128 vector to XOR with
+	 * @return A new V128 with the bitwise XOR of corresponding lanes
+	 */
+	public V128 xor(V128 b) {
+		return binary8(b, (n0, n1) -> (byte)(n0 ^ n1));
+	}
+
+	/**
+	 * Performs a bitwise NOT operation on a vector.
+	 * @return The result.
+	 */
+	public V128 bitNot() {
+		return unary8(b -> (byte)~b);
+	}
+
+	/**
+	 * Performs a bitselect operation on three V128 vectors across 16 lanes of 8-bit values.
+	 * For each bit, selects from this if the corresponding bit in c is 1, from b if 0.
+	 * @param b The second V128 vector (selected when c bit is 0)
+	 * @param c The third V128 vector (control mask)
+	 * @return A new V128 with bits selected from a or b based on c
+	 */
+	public V128 bitselect(V128 b, V128 c) {
+		return ternary8(b, c, (b0, b1, b2) -> (byte)((b0 & b2) | (b1 & ~b2)));
 	}
 
 	@Override

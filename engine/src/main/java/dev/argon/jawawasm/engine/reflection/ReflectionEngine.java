@@ -100,7 +100,6 @@ public class ReflectionEngine {
 					for(var method : classModel.methods()) {
 						System.err.println(method);
 						method.code().ifPresent(code -> code.elementList().forEach(System.err::println));
-
 					}
 
 					throw new RuntimeException("Verification errors for " + classModel.thisClass() + ":\n" + errors.stream().map(VerifyError::toString).collect(Collectors.joining(",")));
