@@ -1555,49 +1555,146 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				case MemoryInstr.V128_Load(var memArg) -> {
 					doLoad(v128Type, memArg);
 				}
-//				case MemoryInstr.V128_Load16_Lane v128Load16Lane -> {
-//				}
-//				case MemoryInstr.V128_Load16_Splat v128Load16Splat -> {
-//				}
-//				case MemoryInstr.V128_Load16x4_S v128Load16x4S -> {
-//				}
-//				case MemoryInstr.V128_Load16x4_U v128Load16x4U -> {
-//				}
-//				case MemoryInstr.V128_Load32_Lane v128Load32Lane -> {
-//				}
-//				case MemoryInstr.V128_Load32_Splat v128Load32Splat -> {
-//				}
-//				case MemoryInstr.V128_Load32_Zero v128Load32Zero -> {
-//				}
-//				case MemoryInstr.V128_Load32x2_S v128Load32x2S -> {
-//				}
-//				case MemoryInstr.V128_Load32x2_U v128Load32x2U -> {
-//				}
-//				case MemoryInstr.V128_Load64_Lane v128Load64Lane -> {
-//				}
-//				case MemoryInstr.V128_Load64_Splat v128Load64Splat -> {
-//				}
-//				case MemoryInstr.V128_Load64_Zero v128Load64Zero -> {
-//				}
-//				case MemoryInstr.V128_Load8_Lane v128Load8Lane -> {
-//				}
-//				case MemoryInstr.V128_Load8_Splat v128Load8Splat -> {
-//				}
-//				case MemoryInstr.V128_Load8x8_S v128Load8x8S -> {
-//				}
-//				case MemoryInstr.V128_Load8x8_U v128Load8x8U -> {
-//				}
 				case MemoryInstr.V128_Store(var memArg) -> {
 					doStore(v128Type, memArg);
 				}
-//				case MemoryInstr.V128_Store16_Lane v128Store16Lane -> {
-//				}
-//				case MemoryInstr.V128_Store32_Lane v128Store32Lane -> {
-//				}
-//				case MemoryInstr.V128_Store64_Lane v128Store64Lane -> {
-//				}
-//				case MemoryInstr.V128_Store8_Lane v128Store8Lane -> {
-//				}
+				case MemoryInstr.V128_Load8_Lane(var memArg, var laneIdx) -> {
+					cb.astore(tempVarSlot);
+					stackTypes.removeLast();
+					doLoad(CD_byte, memArg);
+					stackTypes.removeLast();
+					cb.aload(tempVarSlot);
+					cb.swap();
+					cb.loadConstant(laneIdx);
+					cb.invokevirtual(v128Type, "replaceLane8", MethodTypeDesc.of(v128Type, CD_byte, CD_int));
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case MemoryInstr.V128_Load16_Lane(var memArg, var laneIdx) -> {
+					cb.astore(tempVarSlot);
+					stackTypes.removeLast();
+					doLoad(CD_short, memArg);
+					stackTypes.removeLast();
+					cb.aload(tempVarSlot);
+					cb.swap();
+					cb.loadConstant(laneIdx);
+					cb.invokevirtual(v128Type, "replaceLane16", MethodTypeDesc.of(v128Type, CD_short, CD_int));
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case MemoryInstr.V128_Load32_Lane(var memArg, var laneIdx) -> {
+					cb.astore(tempVarSlot);
+					stackTypes.removeLast();
+					doLoad(CD_int, memArg);
+					stackTypes.removeLast();
+					cb.aload(tempVarSlot);
+					cb.swap();
+					cb.loadConstant(laneIdx);
+					cb.invokevirtual(v128Type, "replaceLane32", MethodTypeDesc.of(v128Type, CD_int, CD_int));
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case MemoryInstr.V128_Load64_Lane(var memArg, var laneIdx) -> {
+					cb.astore(tempVarSlot);
+					stackTypes.removeLast();
+					doLoad(CD_long, memArg);
+					stackTypes.removeLast();
+					cb.aload(tempVarSlot);
+					cb.dup_x2();
+					cb.pop();
+					cb.loadConstant(laneIdx);
+					cb.invokevirtual(v128Type, "replaceLane64", MethodTypeDesc.of(v128Type, CD_long, CD_int));
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case MemoryInstr.V128_Store8_Lane(var memArg, var laneIdx) -> {
+					cb.loadConstant(laneIdx);
+					cb.invokevirtual(v128Type, "extractLane8", MethodTypeDesc.of(CD_byte, CD_int));
+					doStore(CD_byte, memArg);
+				}
+				case MemoryInstr.V128_Store16_Lane(var memArg, var laneIdx) -> {
+					cb.loadConstant(laneIdx);
+					cb.invokevirtual(v128Type, "extractLane16", MethodTypeDesc.of(CD_short, CD_int));
+					doStore(CD_short, memArg);
+				}
+				case MemoryInstr.V128_Store32_Lane(var memArg, var laneIdx) -> {
+					cb.loadConstant(laneIdx);
+					cb.invokevirtual(v128Type, "extractLane32", MethodTypeDesc.of(CD_int, CD_int));
+					doStore(CD_int, memArg);
+				}
+				case MemoryInstr.V128_Store64_Lane(var memArg, var laneIdx) -> {
+					cb.loadConstant(laneIdx);
+					cb.invokevirtual(v128Type, "extractLane64", MethodTypeDesc.of(CD_long, CD_int));
+					doStore(CD_long, memArg);
+				}
+				case MemoryInstr.V128_Load32_Zero(var memArg) -> {
+					doLoad(CD_int, memArg);
+					cb.invokestatic(v128Type, "ofIntZero", MethodTypeDesc.of(v128Type, CD_int));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case MemoryInstr.V128_Load64_Zero(var memArg) -> {
+					doLoad(CD_long, memArg);
+					cb.invokestatic(v128Type, "ofLongZero", MethodTypeDesc.of(v128Type, CD_long));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case MemoryInstr.V128_Load8x8_S(var memArg) -> {
+					doLoad(CD_long, memArg);
+					cb.invokestatic(v128Type, "of8x8S", MethodTypeDesc.of(v128Type, CD_long));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case MemoryInstr.V128_Load8x8_U(var memArg) -> {
+					doLoad(CD_long, memArg);
+					cb.invokestatic(v128Type, "of8x8U", MethodTypeDesc.of(v128Type, CD_long));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case MemoryInstr.V128_Load16x4_S(var memArg) -> {
+					doLoad(CD_long, memArg);
+					cb.invokestatic(v128Type, "of16x4S", MethodTypeDesc.of(v128Type, CD_long));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case MemoryInstr.V128_Load16x4_U(var memArg) -> {
+					doLoad(CD_long, memArg);
+					cb.invokestatic(v128Type, "of16x4U", MethodTypeDesc.of(v128Type, CD_long));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case MemoryInstr.V128_Load32x2_S(var memArg) -> {
+					doLoad(CD_long, memArg);
+					cb.invokestatic(v128Type, "of32x2S", MethodTypeDesc.of(v128Type, CD_long));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case MemoryInstr.V128_Load32x2_U(var memArg) -> {
+					doLoad(CD_long, memArg);
+					cb.invokestatic(v128Type, "of32x2U", MethodTypeDesc.of(v128Type, CD_long));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case MemoryInstr.V128_Load8_Splat(var memArg) -> {
+					doLoad(CD_byte, memArg);
+					cb.invokestatic(v128Type, "splat8", MethodTypeDesc.of(v128Type, CD_byte));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case MemoryInstr.V128_Load16_Splat(var memArg) -> {
+					doLoad(CD_short, memArg);
+					cb.invokestatic(v128Type, "splat16", MethodTypeDesc.of(v128Type, CD_short));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case MemoryInstr.V128_Load32_Splat(var memArg) -> {
+					doLoad(CD_int, memArg);
+					cb.invokestatic(v128Type, "splat32", MethodTypeDesc.of(v128Type, CD_int));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case MemoryInstr.V128_Load64_Splat(var memArg) -> {
+					doLoad(CD_long, memArg);
+					cb.invokestatic(v128Type, "splat64", MethodTypeDesc.of(v128Type, CD_long));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
 
 				default -> throw new RuntimeException("Not implemented: " + instr);
 			}
@@ -2545,7 +2642,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 						case VectorInstr.VIAverageOps viAverageOps -> {
 							switch(viAverageOps) {
 								case AVGR_U -> {
-									cb.invokevirtual(v128Type, "avgrU8", MethodTypeDesc.of(v128Type, v128Type));
+									cb.invokevirtual(v128Type, "avgrU16", MethodTypeDesc.of(v128Type, v128Type));
 									stackTypes.removeLast();
 								}
 							}
@@ -2750,7 +2847,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 							cb.invokevirtual(v128Type, "convertU32LowToF64", MethodTypeDesc.of(v128Type));
 						}
 						case VectorInstr.F64x2_Promote_Low_F32x4() -> {
-							cb.invokevirtual(v128Type, "promoteF32ToF64", MethodTypeDesc.of(v128Type));
+							cb.invokevirtual(v128Type, "promoteF32LowToF64", MethodTypeDesc.of(v128Type));
 						}
 						case VectorInstr.VFOp vfOp -> generateVectorFOp(vfOp, "F64", CD_double);
 					}
@@ -2837,7 +2934,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					stackTypes.add(TypeKind.INT);
 				}
 				case VectorInstr.BitMask() -> {
-					cb.invokevirtual(v128Type, "bitmask" + sizeSuffix, MethodTypeDesc.of(v128Type));
+					cb.invokevirtual(v128Type, "bitmask" + sizeSuffix, MethodTypeDesc.of(CD_int));
 				}
 				case VectorInstr.VIBinOp viBinOp -> {
 					String opPrefix = switch(viBinOp) {

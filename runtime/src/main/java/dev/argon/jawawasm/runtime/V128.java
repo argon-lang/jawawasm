@@ -37,6 +37,38 @@ public record V128(
 		byte b14,
 		byte b15
 ) {
+	public static V128 ofIntZero(int value) {
+		return V128.build32(j -> j == 0 ? value : 0);
+	}
+
+	public static V128 ofLongZero(long value) {
+		return V128.build64(j -> j == 0 ? value : 0);
+	}
+
+	public static V128 of8x8S(long value) {
+		return V128.build16(j -> (byte)(value >> (8 * j)));
+	}
+
+	public static V128 of8x8U(long value) {
+		return V128.build16(j -> (short)Byte.toUnsignedInt((byte)(value >> (8 * j))));
+	}
+
+	public static V128 of16x4S(long value) {
+		return V128.build32(j -> (short)(value >> (16 * j)));
+	}
+
+	public static V128 of16x4U(long value) {
+		return V128.build32(j -> Short.toUnsignedInt((short)(value >> (16 * j))));
+	}
+
+	public static V128 of32x2S(long value) {
+		return V128.build64(j -> (int)(value >> (32 * j)));
+	}
+
+	public static V128 of32x2U(long value) {
+		return V128.build64(j -> Integer.toUnsignedLong((int)(value >> (32 * j))));
+	}
+
 	/**
 	 * Get an 8-bit lane value.
 	 * @param i The lane index.
@@ -941,7 +973,7 @@ public record V128(
 	 * @return The result.
 	 */
 	public V128 demoteF64ToF32Zero() {
-		return V128.buildF32(i -> (float)extractLaneF64(i));
+		return V128.buildF32(i -> i < 2 ? (float)extractLaneF64(i) : 0.0f);
 	}
 
 	/**
@@ -964,8 +996,8 @@ public record V128(
 	 * Promote the low half of F32 vector to F64
 	 * @return The result.
 	 */
-	public V128 promoteF32ToF64() {
-		return V128.buildF32(i -> i < 2 ? (float)extractLaneF64(i) : 0.0f);
+	public V128 promoteF32LowToF64() {
+		return V128.buildF64(i -> (double)extractLaneF32(i));
 	}
 
 
@@ -2349,7 +2381,7 @@ public record V128(
 	 */
 	public V128 pminF32(V128 b) {
 		return binaryF32(b, (ai, bi) -> {
-			return ai < bi ? ai : bi;
+			return bi < ai ? bi : ai;
 		});
 	}
 
@@ -2361,7 +2393,7 @@ public record V128(
 	 */
 	public V128 pmaxF32(V128 b) {
 		return binaryF32(b, (ai, bi) -> {
-			return bi < ai ? ai : bi;
+			return ai < bi ? bi : ai;
 		});
 	}
 
@@ -2429,7 +2461,7 @@ public record V128(
 	 */
 	public V128 pminF64(V128 b) {
 		return binaryF64(b, (ai, bi) -> {
-			return ai < bi ? ai : bi;
+			return bi < ai ? bi : ai;
 		});
 	}
 
@@ -2441,7 +2473,7 @@ public record V128(
 	 */
 	public V128 pmaxF64(V128 b) {
 		return binaryF64(b, (ai, bi) -> {
-			return bi < ai ? ai : bi;
+			return ai < bi ? bi : ai;
 		});
 	}
 	
