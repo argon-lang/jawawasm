@@ -705,7 +705,7 @@ class StackFrame {
 					case VectorInstr.Shuffle(var laneIndexes) -> {
 						V128 b = popV128();
 						V128 a = popV128();
-						push(laneIndexes.shuffle8(a, b));
+						push(a.shuffle8(b, laneIndexes));
 					}
 
 					case VectorInstr.Splat() -> {
@@ -728,7 +728,7 @@ class StackFrame {
 					case VectorInstr.ReplaceLane(var laneIdx) -> {
 						int b = popInt();
 						V128 a = popV128();
-						V128 result = a.replaceLane8(laneIdx, (byte)b);
+						V128 result = a.replaceLane8((byte)b, laneIdx);
 						push(result);
 					}
 
@@ -887,7 +887,7 @@ class StackFrame {
 					case VectorInstr.ReplaceLane(var laneIdx) -> {
 						int b = popInt();
 						V128 a = popV128();
-						V128 result = a.replaceLane16(laneIdx, (short)b);
+						V128 result = a.replaceLane16((short)b, laneIdx);
 						push(result);
 					}
 
@@ -1132,7 +1132,7 @@ class StackFrame {
 					case VectorInstr.ReplaceLane(var laneIdx) -> {
 						int b = popInt();
 						V128 a = popV128();
-						V128 result = a.replaceLane32(laneIdx, b);
+						V128 result = a.replaceLane32(b, laneIdx);
 						push(result);
 					}
 
@@ -1345,7 +1345,7 @@ class StackFrame {
 					case VectorInstr.ReplaceLane(var laneIdx) -> {
 						long b = popLong();
 						V128 a = popV128();
-						V128 result = a.replaceLane64(laneIdx, b);
+						V128 result = a.replaceLane64(b, laneIdx);
 						push(result);
 					}
 
@@ -1502,7 +1502,7 @@ class StackFrame {
 					case VectorInstr.ReplaceLane(var laneIdx) -> {
 						float b = popFloat();
 						V128 a = popV128();
-						V128 result = a.replaceLaneF32(laneIdx, b);
+						V128 result = a.replaceLaneF32(b, laneIdx);
 						push(result);
 					}
 
@@ -1610,7 +1610,7 @@ class StackFrame {
 					case VectorInstr.ReplaceLane(var laneIdx) -> {
 						double b = popDouble();
 						V128 a = popV128();
-						V128 result = a.replaceLaneF64(laneIdx, b);
+						V128 result = a.replaceLaneF64(b, laneIdx);
 						push(result);
 					}
 
@@ -2703,7 +2703,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 				byte value = memory.loadI8(address);
-				V128 result = v.replaceLane8(laneIdx, value);
+				V128 result = v.replaceLane8(value, laneIdx);
 				push(result);
 			}
 
@@ -2713,7 +2713,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 				short value = memory.loadI16(address);
-				V128 result = v.replaceLane16(laneIdx, value);
+				V128 result = v.replaceLane16(value, laneIdx);
 				push(result);
 			}
 
@@ -2723,7 +2723,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 				int value = memory.loadI32(address);
-				V128 result = v.replaceLane32(laneIdx, value);
+				V128 result = v.replaceLane32(value, laneIdx);
 				push(result);
 			}
 
@@ -2733,7 +2733,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 				long value = memory.loadI64(address);
-				V128 result = v.replaceLane64(laneIdx, value);
+				V128 result = v.replaceLane64(value, laneIdx);
 				push(result);
 			}
 

@@ -28,7 +28,6 @@ abstract class ScriptTestsBase {
 
 		"gc/",
 		"relaxed-simd/",
-		"simd/",
 
 	});
 
