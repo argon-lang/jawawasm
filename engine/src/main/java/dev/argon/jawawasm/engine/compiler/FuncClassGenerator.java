@@ -8,8 +8,6 @@ import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassHierarchyResolver;
 import java.lang.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
 import java.lang.constant.ClassDesc;
-import java.lang.constant.MethodTypeDesc;
-import java.util.ArrayList;
 
 import static dev.argon.jawawasm.engine.compiler.Constants.RUNTIME_PACKAGE;
 
@@ -66,7 +64,7 @@ class FuncClassGenerator extends DefTypeClassGenerator {
 					))
 					.withMethod(
 						"invoke",
-						methodType,
+						methodType.descriptor(),
 						ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT,
 						mb -> {}
 					)

@@ -9,19 +9,21 @@ import java.lang.classfile.attribute.*;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 
+import static dev.argon.jawawasm.engine.compiler.Constants.RUNTIME_PACKAGE;
 import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.*;
 import static java.lang.constant.ConstantDescs.*;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 class ResultClassGenerator extends WasmClassGenerator {
-	public ResultClassGenerator(ModuleCompiler compiler, ResultType resultType, String className) {
+	public ResultClassGenerator(ModuleCompiler compiler, ErasedResultType resultType, String className) {
 		super(compiler);
 		this.resultType = resultType;
 		this.className = ClassDesc.of(compiler.getOptions().javaPackage(), className);
 	}
 
-	private final ResultType resultType;
+	private final ErasedResultType resultType;
 	private final ClassDesc className;
 
 	@Override
@@ -47,6 +49,7 @@ class ResultClassGenerator extends WasmClassGenerator {
 				className,
 				clb -> {
 					clb.withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_INTERFACE | ClassFile.ACC_ABSTRACT);
+					clb.withInterfaceSymbols(ClassDesc.of(RUNTIME_PACKAGE, "WasmResult"));
 					clb.with(
 						InnerClassesAttribute.of(
 							InnerClassInfo.of(stepInterface.className(), Optional.of(className), Optional.of("Step"), ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC | ClassFile.ACC_ABSTRACT),
@@ -67,57 +70,122 @@ class ResultClassGenerator extends WasmClassGenerator {
 					);
 
 					var ctorArgs = new ArrayList<ClassDesc>();
+					var sigParams = new ArrayList<Signature.TypeParam>();
+					var sigArgs = new ArrayList<Signature>();
+					var sigTypeArgs = new ArrayList<Signature.TypeArg>();
 					for(var t : resultType.types()) {
-						var realization = compiler.getValType(t);
-						ctorArgs.add(realization.type());
+						ClassDesc desc = typeKindToErased(t);
+
+						if(desc.equals(CD_Object)) {
+							int paramIndex = sigParams.size();
+							var paramName = "T" + paramIndex;
+							sigParams.add(Signature.TypeParam.of(
+								paramName,
+								Optional.empty()
+							));
+							sigTypeArgs.add(Signature.TypeArg.of(Signature.TypeVarSig.of(paramName)));
+							sigArgs.add(Signature.TypeVarSig.of(paramName));
+						}
+						else {
+							sigArgs.add(Signature.BaseTypeSig.of(desc));
+						}
+
+						ctorArgs.add(desc);
 					}
 
-					clb.withMethodBody(
+					var resultSig = Signature.ClassTypeSig.of(className, sigTypeArgs.toArray(Signature.TypeArg[]::new));
+					var endResultSig = Signature.ClassTypeSig.of(resultSig, endResultClass.className);
+
+					clb.with(SignatureAttribute.of(
+						ClassSignature.of(
+							sigParams,
+							Signature.ClassTypeSig.of(CD_Object),
+							Signature.ClassTypeSig.of(ClassDesc.of(RUNTIME_PACKAGE, "WasmResult"))
+						)
+					));
+
+					clb.withMethod(
 						"of",
 						MethodTypeDesc.of(className, ctorArgs),
 						ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC,
-						cb -> {
-							cb.new_(endResultClass.className());
-							cb.dup();
+						mb -> {
+							mb.with(SignatureAttribute.of(
+								MethodSignature.of(
+									sigParams,
+									List.of(),
+									resultSig,
+									sigArgs.toArray(Signature[]::new)
+								)
+							));
 
-							int slotIndex = 0;
+							mb.withCode(cb -> {
+								cb.new_(endResultClass.className());
+								cb.dup();
 
-							for(int i = 0; i < resultType.types().size(); ++i) {
-								cb.loadLocal(typeKind(ctorArgs.get(i)), slotIndex);
-								slotIndex += slotSize(ctorArgs.get(i));
-							}
+								int slotIndex = 0;
 
-							cb.invokespecial(endResultClass.className(), "<init>", MethodTypeDesc.of(CD_void, ctorArgs));
-							cb.areturn();
+								for(int i = 0; i < resultType.types().size(); ++i) {
+									cb.loadLocal(typeKind(ctorArgs.get(i)), slotIndex);
+									slotIndex += slotSize(ctorArgs.get(i));
+								}
+
+								cb.invokespecial(endResultClass.className(), "<init>", MethodTypeDesc.of(CD_void, ctorArgs));
+								cb.areturn();
+							});
 						}
 					);
 
-					clb.withMethodBody(
+					clb.withMethod(
 						"get",
 						MethodTypeDesc.of(endResultClass.className(), className),
 						ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC,
-						cb -> {
+						mb -> {
+							mb.with(SignatureAttribute.of(
+								MethodSignature.of(
+									sigParams,
+									List.of(),
+									endResultSig,
+									resultSig
+								)
+							));
 
-							var startLabel = cb.newLabel();
-							var endResultLabel = cb.newLabel();
+							mb.withCode(cb -> {
+								var startLabel = cb.newLabel();
+								var endResultLabel = cb.newLabel();
 
-							cb.labelBinding(startLabel);
-							cb.aload(0);
-							cb.instanceOf(stepInterface.className());
-							cb.ifeq(endResultLabel);
-							cb.aload(0);
-							cb.checkcast(stepInterface.className());
-							cb.invokeinterface(stepInterface.className(), "step", MethodTypeDesc.of(className));
-							cb.astore(0);
-							cb.goto_(startLabel);
-							cb.labelBinding(endResultLabel);
-							cb.aload(0);
-							cb.checkcast(endResultClass.className());
-							cb.areturn();
+								cb.labelBinding(startLabel);
+								cb.aload(0);
+								cb.instanceOf(stepInterface.className());
+								cb.ifeq(endResultLabel);
+								cb.aload(0);
+								cb.checkcast(stepInterface.className());
+								cb.invokeinterface(stepInterface.className(), "step", MethodTypeDesc.of(className));
+								cb.astore(0);
+								cb.goto_(startLabel);
+								cb.labelBinding(endResultLabel);
+								cb.aload(0);
+								cb.checkcast(endResultClass.className());
+								cb.areturn();
+							});
 						}
 					);
 				}
 			);
+	}
+
+	private static ClassDesc typeKindToErased(TypeKind t) {
+		return switch(t) {
+			case BOOLEAN -> CD_boolean;
+			case BYTE -> CD_byte;
+			case CHAR -> CD_char;
+			case SHORT -> CD_short;
+			case INT -> CD_int;
+			case LONG -> CD_long;
+			case FLOAT -> CD_float;
+			case DOUBLE -> CD_double;
+			case REFERENCE -> CD_Object;
+			case VOID -> CD_void;
+		};
 	}
 
 	private final class EndResultClassGenerator extends WasmClassGenerator {
@@ -157,11 +225,28 @@ class ResultClassGenerator extends WasmClassGenerator {
 
 						{
 							int i = 0;
+							int typeParamIndex = 0;
 							for(var t : resultType.types()) {
-								var realization = compiler.getValType(t);
-								ctorArgs.add(realization.type());
+								var desc = typeKindToErased(t);
+								Signature sig;
 
-								clb.withField("item" + i, realization.type(), ClassFile.ACC_PUBLIC | ClassFile.ACC_FINAL);
+								if(desc.isPrimitive()) {
+									sig = Signature.of(desc);
+								}
+								else {
+									sig = Signature.TypeVarSig.of("T" + typeParamIndex);
+								}
+
+								ctorArgs.add(desc);
+
+								clb.withField(
+									"item" + i,
+									desc,
+									fb -> {
+										fb.withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_FINAL);
+										fb.with(SignatureAttribute.of(sig));
+									}
+								);
 
 								++i;
 							}
@@ -170,7 +255,7 @@ class ResultClassGenerator extends WasmClassGenerator {
 						clb.withMethodBody(
 							"<init>",
 							MethodTypeDesc.of(CD_void, ctorArgs),
-							ClassFile.ACC_PUBLIC,
+							ClassFile.ACC_PRIVATE,
 							cb -> {
 								int slotIndex = 1;
 

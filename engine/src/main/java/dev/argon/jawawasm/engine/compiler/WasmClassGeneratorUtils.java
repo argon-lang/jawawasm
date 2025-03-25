@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.engine.compiler;
 
+import java.lang.classfile.Annotation;
 import java.lang.classfile.TypeKind;
 import java.lang.constant.ClassDesc;
 
@@ -19,6 +20,10 @@ final class WasmClassGeneratorUtils {
 	public static final ClassDesc wasmArrayMutable = ClassDesc.of(RUNTIME_PACKAGE, "WasmArrayMutable");
 	public static final ClassDesc wasmArrayImmutable = ClassDesc.of(RUNTIME_PACKAGE, "WasmArrayImmutable");
 	public static final ClassDesc i31Type = ClassDesc.of(RUNTIME_PACKAGE, "I31");
+
+	public static final Annotation nullableAnn = Annotation.of(
+		ClassDesc.of("org.jspecify.annotations.Nullable")
+	);
 
 
 	public static TypeKind typeKind(ClassDesc t) {

@@ -1,6 +1,7 @@
 package dev.argon.jawawasm.engine.reflection;
 
 import com.google.common.collect.ImmutableList;
+import dev.argon.jawawasm.engine.compiler.ErasedResultType;
 import dev.argon.jawawasm.engine.compiler.ModuleCompiler;
 import dev.argon.jawawasm.engine.compiler.WasmExportRealization;
 import dev.argon.jawawasm.engine.compiler.WasmModuleRealization;
@@ -9,6 +10,7 @@ import dev.argon.jawawasm.format.types.*;
 import dev.argon.jawawasm.runtime.*;
 import org.jspecify.annotations.Nullable;
 
+import java.lang.classfile.TypeKind;
 import java.lang.classfile.attribute.InnerClassInfo;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
@@ -68,7 +70,59 @@ public class ReflectionModuleLoader {
 	 * @return The WebAssembly result type that the type defines.
 	 * @throws ModuleFormatException If the type is not a valid result type.
 	 */
-	public ResultType loadResultType(Class<?> t) throws ModuleFormatException {
+	public ResultType loadResultType(AnnotatedType t) throws ModuleFormatException {
+		Class<?> tClass;
+		AnnotatedType[] typeArgs;
+
+		switch(t.getType()) {
+			case ParameterizedType pt -> {
+				tClass = (Class<?>)pt.getRawType();
+				typeArgs = ((AnnotatedParameterizedType)t).getAnnotatedActualTypeArguments();
+			}
+
+			case Class<?> ct -> {
+				tClass = ct;
+				typeArgs = new AnnotatedType[] {};
+			}
+
+			default -> {
+				throw new ModuleFormatException("Unexpected result type: " + t);
+			}
+		}
+
+		var erasedResultType = loadResultClass(tClass);
+
+		var elementTypes = ImmutableList.<ValType>builder();
+		int typeArgIndex = 0;
+		for(var elementKind : erasedResultType.types()) {
+			var elementType = switch(elementKind) {
+				case INT -> NumType.I32;
+				case LONG -> NumType.I64;
+				case FLOAT -> NumType.F32;
+				case DOUBLE -> NumType.F64;
+				case REFERENCE -> {
+					if(typeArgIndex >= typeArgs.length) {
+						throw new ModuleFormatException("Result type argument mismatch. Not enough arguments: " + t);
+					}
+
+					var elemType = loadValType(typeArgs[typeArgIndex]);
+					++typeArgIndex;
+					yield elemType;
+				}
+				default -> throw new ModuleFormatException("Unexpected result type element: " + elementKind);
+			};
+
+			elementTypes.add(elementType);
+		}
+
+		if(typeArgIndex != typeArgs.length) {
+			throw new ModuleFormatException("Result type argument mismatch. Too many arguments: " + t);
+		}
+
+		return new ResultType(elementTypes.build());
+	}
+
+	private ErasedResultType loadResultClass(Class<?> t) throws ModuleFormatException {
 		var endResultClass = Arrays.stream(t.getDeclaredClasses())
 			.filter(nested -> nested.getSimpleName().equals("EndResult"))
 			.findAny()
@@ -83,7 +137,7 @@ public class ReflectionModuleLoader {
 				m.getName().equals("of") &&
 					Modifier.isPublic(m.getModifiers()) &&
 					Modifier.isStatic(m.getModifiers())
-				)
+			)
 			.toList();
 		if(ofMethods.size() != 1) {
 			throw new ModuleFormatException("Invalid result type. It must have exactly one static public method named of.");
@@ -95,12 +149,48 @@ public class ReflectionModuleLoader {
 			throw new ModuleFormatException("Invalid result type. \"of\" method must return the result type. Result type: " + t + ", Return type: " + ofMethod.getReturnType());
 		}
 
-		var resTypes = ImmutableList.<ValType>builder();
+		var typeParams = t.getTypeParameters();
+		int typeParamIndex = 0;
+
+		var resTypes = ImmutableList.<TypeKind>builder();
 		for(var ctorParamType : ofMethod.getAnnotatedParameterTypes()) {
-			resTypes.add(loadValType(ctorParamType));
+			TypeKind typeKind;
+			if(ctorParamType.getType() == int.class) {
+				typeKind = TypeKind.INT;
+			}
+			else if(ctorParamType.getType() == long.class) {
+				typeKind = TypeKind.LONG;
+			}
+			else if(ctorParamType.getType() == float.class) {
+				typeKind = TypeKind.FLOAT;
+			}
+			else if(ctorParamType.getType() == double.class) {
+				typeKind = TypeKind.DOUBLE;
+			}
+			else if(ctorParamType instanceof TypeVariable<?> tv) {
+				if(typeParamIndex >= typeParams.length) {
+					throw new ModuleFormatException("Not enough type parameters on result type: " + t.getName());
+				}
+
+				if(tv != typeParams[typeParamIndex]) {
+					throw new ModuleFormatException("Type parameters must match one to one with usages in 'of' method.");
+				}
+
+				typeKind = TypeKind.REFERENCE;
+				++typeParamIndex;
+			}
+			else {
+				throw new ModuleFormatException("Unexpected type in result type. Expected int, long, float, double, or type variable");
+			}
+
+			resTypes.add(typeKind);
 		}
 
-		var resultType = new ResultType(resTypes.build());
+		if(typeParamIndex != typeParams.length) {
+			throw new ModuleFormatException("Too many type parameters for result type: " + t.getName());
+		}
+
+		var resultType = new ErasedResultType(resTypes.build());
 
 		var resTypeDesc = ClassDesc.ofDescriptor(t.descriptorString());
 
@@ -230,7 +320,7 @@ public class ReflectionModuleLoader {
 			paramTypes.add(loadValType(param));
 		}
 
-		var resultType = loadResultType(method.getReturnType());
+		var resultType = loadResultType(method.getAnnotatedReturnType());
 
 		var funcType = new FuncType(new ResultType(paramTypes.build()), resultType);
 

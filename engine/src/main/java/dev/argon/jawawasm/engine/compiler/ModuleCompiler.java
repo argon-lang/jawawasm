@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.engine.compiler;
 
+import com.google.common.collect.ImmutableList;
 import dev.argon.jawawasm.engine.ModuleResolver;
 import dev.argon.jawawasm.engine.internal.TypeUnroll;
 import dev.argon.jawawasm.engine.reflection.ReflectionEngine;
@@ -11,8 +12,7 @@ import dev.argon.jawawasm.runtime.ModuleLinkException;
 import dev.argon.jawawasm.runtime.ModuleResolutionException;
 import org.jspecify.annotations.Nullable;
 
-import java.lang.classfile.ClassFile;
-import java.lang.classfile.ClassHierarchyResolver;
+import java.lang.classfile.*;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.util.*;
@@ -21,8 +21,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static dev.argon.jawawasm.engine.compiler.Constants.RUNTIME_PACKAGE;
-import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.i31Type;
-import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.wasmArray;
+import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.*;
 import static java.lang.constant.ConstantDescs.*;
 
 /**
@@ -56,7 +55,7 @@ public class ModuleCompiler {
 	private final AtomicInteger arrayTypeIndex = new AtomicInteger(0);
 	private final AtomicInteger structTypeIndex = new AtomicInteger(0);
 
-	private final Map<ResultType, ClassDesc> resultTypeCache = new ConcurrentHashMap<>();
+	private final Map<ErasedResultType, ClassDesc> resultTypeCache = new ConcurrentHashMap<>();
 
 	/**
 	 * Enqueue a module for compilation.
@@ -94,7 +93,7 @@ public class ModuleCompiler {
 	 * @param classDesc The class type.
 	 * @throws ModuleFormatException if there is already a known class for this result type.
 	 */
-	public void registerResultType(ResultType resultType, ClassDesc classDesc) throws ModuleFormatException {
+	public void registerResultType(ErasedResultType resultType, ClassDesc classDesc) throws ModuleFormatException {
 		var cachedClassDesc = resultTypeCache.putIfAbsent(resultType, classDesc);
 		if(cachedClassDesc != null && !classDesc.equals(cachedClassDesc)) {
 			throw new ModuleFormatException("Conflicting types for result type " + resultType + ": " + classDesc + " and " + cachedClassDesc);
@@ -186,25 +185,50 @@ public class ModuleCompiler {
 				case STRUCT -> ClassDesc.of(RUNTIME_PACKAGE, "WasmStruct");
 				case ARRAY -> wasmArray;
 			};
+			case DefType defType -> getDefType(defType).classDesc();
 
 			case TypeIdx _ -> throw new RuntimeException("Unexpected type index");
 			case BotType _ -> throw new RuntimeException("Unexpected bot type");
-			case DefType defType -> getDefType(defType).classDesc();
-
-			case RecTypeIdx recTypeIdx -> throw new RuntimeException("Not implemented");
+			case RecTypeIdx _ -> throw new RuntimeException("Unexpected rec type index");
 		};
 	}
 
-	ClassDesc getResultType(ResultType type) {
-		return resultTypeCache.computeIfAbsent(type, t -> {
+	ResultTypeRealization getResultType(ResultType type) {
+		var elementTypeKinds = ImmutableList.<TypeKind>builder();
+		var elementTypes = ImmutableList.<TypeRealization>builder();
+		var typeArgRealizations = ImmutableList.<TypeRealization>builder();
+		List<Signature.TypeArg> typeArgs = new ArrayList<>();
+
+		for(var elem : type.types()) {
+			var realizedElem = getValType(elem);
+
+			elementTypes.add(realizedElem);
+			elementTypeKinds.add(typeKind(realizedElem.type()));
+
+			if(!realizedElem.type().isPrimitive()) {
+				typeArgs.add(Signature.TypeArg.extendsOf(Signature.ClassTypeSig.of(realizedElem.type())));
+				typeArgRealizations.add(realizedElem);
+			}
+		}
+
+		var erasedResType = new ErasedResultType(elementTypeKinds.build());
+
+		var resTypeClass = resultTypeCache.computeIfAbsent(erasedResType, t -> {
 			var className = "Result" + funcTypeIndex.getAndIncrement();
 			var generator = new ResultClassGenerator(this, t, className);
 			enqueueGenerator(generator);
 			return generator.className();
 		});
+
+		return new ResultTypeRealization(
+			resTypeClass,
+			Signature.ClassTypeSig.of(resTypeClass, typeArgs.toArray(Signature.TypeArg[]::new)),
+			elementTypes.build(),
+			typeArgRealizations.build()
+		);
 	}
 
-	MethodTypeDesc getMethodType(DefType t) {
+	MethodTypeRealization getMethodType(DefType t) {
 		var subtype = TypeUnroll.unroll(t);
 		return switch(subtype.compositeType()) {
 			case AggregateType _ -> throw new RuntimeException("Unexpected aggregate type");
@@ -212,15 +236,38 @@ public class ModuleCompiler {
 		};
 	}
 
-	MethodTypeDesc getMethodType(FuncType funcType) {
+	MethodTypeRealization getMethodType(FuncType funcType) {
+		var paramTypes = ImmutableList.<TypeRealization>builder();
 		var argTypes = new ArrayList<ClassDesc>();
-		for(var t : funcType.args().types()) {
-			argTypes.add(getValType(t).type());
+		Signature[] sigTypes = new Signature[funcType.args().types().size()];
+		for(int i = 0; i < funcType.args().types().size(); ++i) {
+			var t = funcType.args().types().get(i);
+			var realizedType = getValType(t);
+			paramTypes.add(realizedType);
+			argTypes.add(realizedType.type());
+			sigTypes[i] = classDescToSig(realizedType.type());
 		}
 
 		var returnType = getResultType(funcType.results());
 
-		return MethodTypeDesc.of(returnType, argTypes);
+		return new MethodTypeRealization(
+			MethodTypeDesc.of(returnType.classDesc(), argTypes),
+			MethodSignature.of(returnType.signature(), sigTypes),
+			returnType,
+			paramTypes.build()
+		);
+	}
+
+	private Signature classDescToSig(ClassDesc desc) {
+		if(desc.isPrimitive()) {
+			return Signature.BaseTypeSig.of(desc);
+		}
+		else if(desc.isArray()) {
+			return Signature.ArrayTypeSig.of(classDescToSig(desc.componentType()));
+		}
+		else {
+			return Signature.ClassTypeSig.of(desc);
+		}
 	}
 
 	ClassDesc getGlobalType(ValType elementType) {
