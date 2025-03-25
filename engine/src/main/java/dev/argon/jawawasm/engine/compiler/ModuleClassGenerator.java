@@ -316,7 +316,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			}
 		}
 
-		int constructorTempVarSlot = importModules.size() + 1;
+		int constructorTempVarSlot = importModules.size() + 2;
 
 		List<Runnable> functionCodegens = new ArrayList<>();
 
@@ -2601,14 +2601,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var elementType = arrayType.fieldType().storageType();
 					var elementClass = compiler.getStorageType(elementType);
 
-					cb.istore(tempVarSlot);
-					cb.storeLocal(typeKind(elementClass.type()), tempVarSlot + 1);
-
-					cb.new_(realization.classDesc());
-					cb.dup();
-					cb.iload(tempVarSlot);
-					cb.loadLocal(typeKind(elementClass.type()), tempVarSlot + 1);
-					cb.invokespecial(realization.classDesc(), "<init>", MethodTypeDesc.of(CD_void, CD_int, elementClass.type()));
+					cb.invokestatic(realization.classDesc(), "nCopies", MethodTypeDesc.of(realization.classDesc(), elementClass.type(), CD_int));
 
 					stackTypes.removeLast();
 					stackTypes.removeLast();
@@ -2618,16 +2611,8 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var defType = types.get(typeIdx.index());
 					var arrayType = getArrayType(defType);
 					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
-					var elementType = arrayType.fieldType().storageType();
-					var elementClass = realization.elementType().get();
 
-					cb.istore(tempVarSlot);
-
-					cb.new_(realization.classDesc());
-					cb.dup();
-					cb.iload(tempVarSlot);
-					pushDefaultValue(elementType);
-					cb.invokespecial(realization.classDesc(), "<init>", MethodTypeDesc.of(CD_void, CD_int, elementClass));
+					cb.invokestatic(realization.classDesc(), "ofDefault", MethodTypeDesc.of(realization.classDesc(), CD_int));
 
 					stackTypes.removeLast();
 					stackTypes.add(TypeKind.REFERENCE);
@@ -2640,9 +2625,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var elementClass = compiler.getStorageType(elementType);
 
 					if(n == 0) {
-						cb.new_(realization.classDesc());
-						cb.dup();
-						cb.invokespecial(realization.classDesc(), "<init>", MethodTypeDesc.of(CD_void));
+						cb.invokestatic(realization.classDesc(), "empty", MethodTypeDesc.of(realization.classDesc()));
 					}
 					else {
 						cb.loadConstant(n);
@@ -2662,10 +2645,8 @@ class ModuleClassGenerator extends WasmClassGenerator {
 							cb.arrayStore(typeKind(elementClass.type()));
 						}
 
-						cb.new_(realization.classDesc());
-						cb.dup();
 						cb.aload(tempVarSlot);
-						cb.invokespecial(realization.classDesc(), "<init>", MethodTypeDesc.of(CD_void, elementClass.type().arrayType()));
+						cb.invokestatic(realization.classDesc(), "copyOfJavaArray", MethodTypeDesc.of(realization.classDesc(), elementClass.type().arrayType()));
 					}
 
 					for(int i = 0; i < n; ++i) {
@@ -2677,16 +2658,10 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var defType = types.get(typeIdx.index());
 					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
 
-					cb.istore(tempVarSlot);
-					cb.istore(tempVarSlot + 1);
-
-					cb.new_(realization.classDesc());
-					cb.dup();
 					cb.aload(0);
 					cb.getfield(className, "data" + dataIdx.index(), CD_byte.arrayType());
-					cb.iload(tempVarSlot + 1);
-					cb.iload(tempVarSlot);
-					cb.invokespecial(realization.classDesc(), "<init>", MethodTypeDesc.of(CD_void, CD_byte.arrayType(), CD_int, CD_int));
+
+					cb.invokestatic(realization.classDesc(), "copyOfData", MethodTypeDesc.of(realization.classDesc(), CD_int, CD_int, CD_byte.arrayType()));
 
 					stackTypes.removeLast();
 					stackTypes.removeLast();
@@ -2697,16 +2672,9 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
 					var elemInfo = elems.get(elemIdx.index());
 
-					cb.istore(tempVarSlot);
-					cb.istore(tempVarSlot + 1);
-
-					cb.new_(realization.classDesc());
-					cb.dup();
 					cb.aload(0);
 					cb.getfield(className, elemInfo.fieldName, elemInfo.fieldType);
-					cb.iload(tempVarSlot + 1);
-					cb.iload(tempVarSlot);
-					cb.invokespecial(realization.classDesc(), "<init>", MethodTypeDesc.of(CD_void, realization.elementType().get().arrayType(), CD_int, CD_int));
+					cb.invokestatic(realization.classDesc(), "copyOfJavaArray", MethodTypeDesc.of(realization.classDesc(), CD_int, CD_int, realization.elementType().get().arrayType()));
 
 					stackTypes.removeLast();
 					stackTypes.removeLast();
@@ -2825,7 +2793,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				case NumType.I64 -> cb.lconst_0();
 				case NumType.F32 -> cb.fconst_0();
 				case NumType.F64 -> cb.dconst_0();
-				case VecType.V128 -> loadV128(V128.ZERO);
+				case VecType.V128 -> loadV128(cb, V128.ZERO);
 				case RefType _ -> cb.aconst_null();
 				case BotType _ -> throw new RuntimeException("Unexpected bot type");
 			}
@@ -3040,7 +3008,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 		private void generateVectorInstr(VectorInstr instr) {
 			switch(instr) {
 				case VectorInstr.V128_Const(var value) -> {
-					loadV128(value);
+					loadV128(cb, value);
 					stackTypes.add(TypeKind.REFERENCE);
 				}
 
@@ -3051,7 +3019,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 							stackTypes.removeLast();
 						}
 						case VectorInstr.Shuffle(var laneIndexes) -> {
-							loadV128(laneIndexes);
+							loadV128(cb, laneIndexes);
 							cb.invokevirtual(v128Type, "shuffle8", MethodTypeDesc.of(v128Type, v128Type, v128Type));
 							stackTypes.removeLast();
 						}
@@ -3886,20 +3854,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				cb.loadLocal(t, slot);
 				slot += t.slotSize();
 				stackTypes.add(t);
-			}
-		}
-
-		private void loadV128(V128 value) {
-			if(value.equals(V128.ZERO)) {
-				cb.getstatic(v128Type, "ZERO", v128Type);
-			}
-			else {
-				cb.new_(v128Type);
-				cb.dup();
-				for(int i = 0; i < 16; ++i) {
-					cb.loadConstant(value.extractLane8(i));
-				}
-				cb.invokespecial(v128Type, "<init>", MethodTypeDesc.of(CD_void, Collections.nCopies(16, CD_byte)));
 			}
 		}
 

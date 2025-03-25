@@ -1,10 +1,17 @@
 package dev.argon.jawawasm.engine.compiler;
 
+import dev.argon.jawawasm.runtime.V128;
+
 import java.lang.classfile.Annotation;
+import java.lang.classfile.CodeBuilder;
 import java.lang.classfile.TypeKind;
 import java.lang.constant.ClassDesc;
+import java.lang.constant.MethodTypeDesc;
+import java.util.Collections;
 
 import static dev.argon.jawawasm.engine.compiler.Constants.*;
+import static java.lang.constant.ConstantDescs.CD_byte;
+import static java.lang.constant.ConstantDescs.CD_void;
 
 
 final class WasmClassGeneratorUtils {
@@ -34,4 +41,17 @@ final class WasmClassGeneratorUtils {
 		return typeKind(t).slotSize();
 	}
 
+	public static void loadV128(CodeBuilder cb, V128 value) {
+		if(value.equals(V128.ZERO)) {
+			cb.getstatic(v128Type, "ZERO", v128Type);
+		}
+		else {
+			cb.new_(v128Type);
+			cb.dup();
+			for(int i = 0; i < 16; ++i) {
+				cb.loadConstant(value.extractLane8(i));
+			}
+			cb.invokespecial(v128Type, "<init>", MethodTypeDesc.of(CD_void, Collections.nCopies(16, CD_byte)));
+		}
+	}
 }

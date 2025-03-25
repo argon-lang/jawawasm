@@ -6,7 +6,6 @@ import java.util.function.Supplier;
 
 public record ArrayTypeRealization(
 	ClassDesc classDesc,
-	boolean isInterface,
 	Supplier<ClassDesc> elementType
 ) implements DefTypeRealization {
 }
