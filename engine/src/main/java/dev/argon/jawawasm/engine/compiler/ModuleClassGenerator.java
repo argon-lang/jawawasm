@@ -1061,53 +1061,93 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				}
 				case ControlInstr.Br_OnCast(var labelIdx, var _, var t2) -> {
 					var label = getLabel(labelIdx);
-					jumpedLabels.add(label.label);
-					var classType = compiler.getValType(closure.resolveRefType(t2));
+					var refType = closure.resolveRefType(t2);
+					var classType = compiler.getValType(refType);
 
-					var castFailLabel = cb.newLabel();
-					var castSuccessLabel = cb.newLabel();
+					if(isBottomType(refType.heapType())) {
+						if(t2.isNullable()) {
+							jumpedLabels.add(label.label);
 
-					if(t2.isNullable()) {
+							var nonNullLabel = cb.newLabel();
+
+							cb.dup();
+							cb.ifnonnull(nonNullLabel);
+							// Do this so the verifier knows the value is null.
+							cb.pop();
+							cb.aconst_null();
+							cb.goto_(label.label);
+							cb.labelBinding(nonNullLabel);
+						}
+						else {
+							// The type is empty so the check always fails.
+							cb.pop();
+						}
+					}
+					else {
+						jumpedLabels.add(label.label);
+
+						var castFailLabel = cb.newLabel();
+						var castSuccessLabel = cb.newLabel();
+
+						if(t2.isNullable()) {
+							cb.dup();
+							cb.ifnull(castSuccessLabel);
+						}
+
 						cb.dup();
-						cb.ifnull(castSuccessLabel);
+						cb.instanceOf(classType.type());
+						cb.ifeq(castFailLabel);
+						cb.labelBinding(castSuccessLabel);
+						if(jumpNeedsStackFix(label.labelType)) {
+							fixJumpStack(label.labelType);
+						}
+						cb.checkcast(classType.type());
+						cb.goto_(label.label);
+
+						cb.labelBinding(castFailLabel);
 					}
 
-					cb.dup();
-					cb.instanceOf(classType.type());
-					cb.ifeq(castFailLabel);
-					cb.labelBinding(castSuccessLabel);
-					if(jumpNeedsStackFix(label.labelType)) {
-						fixJumpStack(label.labelType);
-					}
-					cb.checkcast(classType.type());
-					cb.goto_(label.label);
-
-					cb.labelBinding(castFailLabel);
 				}
 				case ControlInstr.Br_OnCastFail(var labelIdx, var _, var t2) -> {
 					var label = getLabel(labelIdx);
 					jumpedLabels.add(label.label);
 					var classType = compiler.getValType(closure.resolveRefType(t2));
 
-					var castSuccessLabel = cb.newLabel();
-
-					if(t2.isNullable()) {
-						cb.dup();
-						cb.ifnull(castSuccessLabel);
-					}
-
-					cb.dup();
-					cb.instanceOf(classType.type());
-					if(jumpNeedsStackFix(label.labelType)) {
-						cb.ifne(castSuccessLabel);
-						fixJumpStack(label.labelType);
-						cb.goto_(label.label);
+					if(isBottomType(t2.heapType())) {
+						if(t2.isNullable()) {
+							cb.dup();
+							cb.ifnonnull(label.label);
+							// Do this so the verifier knows the value is null.
+							cb.pop();
+							cb.aconst_null();
+						}
+						else {
+							cb.goto_(label.label);
+							stackTypes.clear();
+							isUnreachable = true;
+						}
 					}
 					else {
-						cb.ifeq(label.label);
+						var castSuccessLabel = cb.newLabel();
+
+						if(t2.isNullable()) {
+							cb.dup();
+							cb.ifnull(castSuccessLabel);
+						}
+
+						cb.dup();
+						cb.instanceOf(classType.type());
+						if(jumpNeedsStackFix(label.labelType)) {
+							cb.ifne(castSuccessLabel);
+							fixJumpStack(label.labelType);
+							cb.goto_(label.label);
+						}
+						else {
+							cb.ifeq(label.label);
+						}
+						cb.labelBinding(castSuccessLabel);
+						cb.checkcast(classType.type());
 					}
-					cb.labelBinding(castSuccessLabel);
-					cb.checkcast(classType.type());
 				}
 
 				case ControlInstr.Return() -> generateReturn();
@@ -2342,21 +2382,51 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 
 				case ReferenceInstr.Ref_Cast(var refType) -> {
-					var realized = compiler.getValType(closure.resolveRefType(refType));
-					if(!realized.isNullable()) {
-						var notNullLabel = cb.newLabel();
-						var classCast = ClassDesc.of("java.lang.ClassCastException");
+					var refType2 = closure.resolveRefType(refType);
+					var realized = compiler.getValType(refType2);
 
-						cb.dup();
-						cb.ifnonnull(notNullLabel);
-						cb.new_(classCast);
-						cb.dup();
-						cb.invokespecial(classCast, "<init>", MethodTypeDesc.of(CD_void));
-						cb.athrow();
-						cb.labelBinding(notNullLabel);
+					var classCast = ClassDesc.of("java.lang.ClassCastException");
+
+					if(isBottomType(refType2.heapType())) {
+						if(realized.isNullable()) {
+							var nullLabel = cb.newLabel();
+
+							cb.dup();
+							cb.ifnull(nullLabel);
+							cb.new_(classCast);
+							cb.dup();
+							cb.invokespecial(classCast, "<init>", MethodTypeDesc.of(CD_void));
+							cb.athrow();
+							cb.labelBinding(nullLabel);
+
+							// Do this so the verifier knows the value is null.
+							cb.pop();
+							cb.aconst_null();
+						}
+						else {
+							// Empty type so always throw.
+							cb.new_(classCast);
+							cb.dup();
+							cb.invokespecial(classCast, "<init>", MethodTypeDesc.of(CD_void));
+							isUnreachable = true;
+							stackTypes.clear();
+						}
 					}
+					else {
+						if(!realized.isNullable()) {
+							var notNullLabel = cb.newLabel();
 
-					cb.checkcast(realized.type());
+							cb.dup();
+							cb.ifnonnull(notNullLabel);
+							cb.new_(classCast);
+							cb.dup();
+							cb.invokespecial(classCast, "<init>", MethodTypeDesc.of(CD_void));
+							cb.athrow();
+							cb.labelBinding(notNullLabel);
+						}
+
+						cb.checkcast(realized.type());
+					}
 				}
 				case ReferenceInstr.Ref_Eq() -> {
 					cb.invokestatic(wasmEq, "isEqual", MethodTypeDesc.of(CD_boolean, wasmEq, wasmEq), true);
@@ -2387,12 +2457,41 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var t2 = closure.resolveRefType(t);
 					var realization = compiler.getValType(t2);
 
-					if(t.isNullable()) {
-
+					if(isBottomType(t2.heapType())) {
+						if(t.isNullable()) {
+							cb.invokestatic(
+								ClassDesc.of("java.util.Objects"),
+								"isNull",
+								MethodTypeDesc.of(CD_boolean, CD_Object)
+							);
+						}
+						else {
+							// Empty type so always false.
+							cb.pop();
+							cb.iconst_0();
+						}
 					}
 					else {
+						if(t.isNullable()) {
+							var notNullLabel = cb.newLabel();
+							var resultLabel = cb.newLabel();
 
+							cb.dup();
+							cb.ifnonnull(notNullLabel);
+							cb.pop();
+							cb.iconst_1();
+							cb.goto_(resultLabel);
+							cb.labelBinding(notNullLabel);
+							cb.instanceOf(realization.type());
+							cb.labelBinding(resultLabel);
+						}
+						else {
+							cb.instanceOf(realization.type());
+						}
 					}
+
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.INT);
 				}
 				case ReferenceInstr.Any_Convert_Extern(), ReferenceInstr.Extern_Convert_Any() -> {}
 
@@ -2717,8 +2816,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					stackTypes.removeLast();
 					stackTypes.removeLast();
 				}
-
-				default -> throw new RuntimeException("Not implemented: " + instr);
 			}
 		}
 
@@ -3804,6 +3901,16 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				}
 				cb.invokespecial(v128Type, "<init>", MethodTypeDesc.of(CD_void, Collections.nCopies(16, CD_byte)));
 			}
+		}
+
+		private boolean isBottomType(HeapType t) {
+			return switch(t) {
+				case HeapType.AbstractHeapType.NONE,
+					 HeapType.AbstractHeapType.NOFUNC,
+					 HeapType.AbstractHeapType.NOEXN,
+					 HeapType.AbstractHeapType.NOEXTERN -> true;
+				default -> false;
+			};
 		}
 	}
 
