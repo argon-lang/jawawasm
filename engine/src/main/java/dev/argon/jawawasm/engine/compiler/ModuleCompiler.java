@@ -21,6 +21,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static dev.argon.jawawasm.engine.compiler.Constants.RUNTIME_PACKAGE;
+import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.i31Type;
+import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.wasmArray;
 import static java.lang.constant.ConstantDescs.*;
 
 /**
@@ -180,9 +182,9 @@ public class ModuleCompiler {
 				case FUNC, NOFUNC -> ClassDesc.of(RUNTIME_PACKAGE, "WasmFunction");
 				case EXTERN, NOEXTERN, ANY, NONE -> CD_Object;
 				case EQ -> ClassDesc.of(RUNTIME_PACKAGE, "WasmEq");
-				case I31 -> ClassDesc.of(RUNTIME_PACKAGE, "I32");
+				case I31 -> i31Type;
 				case STRUCT -> ClassDesc.of(RUNTIME_PACKAGE, "WasmStruct");
-				case ARRAY -> ClassDesc.of(RUNTIME_PACKAGE, "WasmArray");
+				case ARRAY -> wasmArray;
 			};
 
 			case TypeIdx _ -> throw new RuntimeException("Unexpected type index");

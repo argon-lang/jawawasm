@@ -2270,21 +2270,34 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				}
 
 
-//				case ReferenceInstr.Any_Convert_Extern anyConvertExtern -> {
-//				}
-//				case ReferenceInstr.Extern_Convert_Any externConvertAny -> {
-//				}
-//				case ReferenceInstr.I31_Get_S i31GetS -> {
-//				}
-//				case ReferenceInstr.I31_Get_U i31GetU -> {
-//				}
 //				case ReferenceInstr.Ref_Cast refCast -> {
 //				}
 //				case ReferenceInstr.Ref_Eq refEq -> {
 //				}
-//				case ReferenceInstr.Ref_I31 refI31 -> {
-//				}
+				case ReferenceInstr.Ref_I31() -> {
+					cb.istore(tempVarSlot);
+					cb.new_(i31Type);
+					cb.dup();
+					cb.iload(tempVarSlot);
+					cb.invokespecial(i31Type, "<init>", MethodTypeDesc.of(CD_void, CD_int));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case ReferenceInstr.I31_Get_S() -> {
+					cb.invokevirtual(i31Type, "signedValue", MethodTypeDesc.of(CD_int));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.INT);
+				}
+				case ReferenceInstr.I31_Get_U() -> {
+					cb.invokevirtual(i31Type, "unsignedValue", MethodTypeDesc.of(CD_int));
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.INT);
+				}
 //				case ReferenceInstr.Ref_Test refTest -> {
+//				}
+//				case ReferenceInstr.Any_Convert_Extern anyConvertExtern -> {
+//				}
+//				case ReferenceInstr.Extern_Convert_Any externConvertAny -> {
 //				}
 //				case ReferenceInstr.StructInstr structInstr -> {
 //				}
