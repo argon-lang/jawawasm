@@ -112,7 +112,7 @@ class StructClassGenerator extends DefTypeClassGenerator {
 			constructorArgs.add(t.type());
 
 			int flags = ClassFile.ACC_PRIVATE;
-			if(fieldType.mut() == Mut.Var) {
+			if(fieldType.mut() == Mut.Const) {
 				flags |= ClassFile.ACC_FINAL;
 			}
 
@@ -139,7 +139,7 @@ class StructClassGenerator extends DefTypeClassGenerator {
 					ClassFile.ACC_PUBLIC,
 					cb -> {
 						cb.aload(0);
-						cb.loadLocal(tk, 2);
+						cb.loadLocal(tk, 1);
 						cb.putfield(thisClass, fieldName, t.type());
 						cb.return_();
 					}

@@ -68,7 +68,7 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 			.build(className, clb -> generateFinalArray(clb, className, superClass));
 	}
 
-	private void generateFinalArray(ClassBuilder clb, ClassDesc thisClass, @Nullable ClassDesc superClass) {
+	private void generateFinalArray(ClassBuilder clb, ClassDesc thisClass, ClassDesc superClass) {
 		var elementTypeRealization = compiler.getStorageType(arrayType.fieldType().storageType()).type();
 
 		clb.withFlags(ClassFile.ACC_PUBLIC);
@@ -128,65 +128,7 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 			}
 		);
 
-		// For primitive types, we want to have a constructor overload that copies from a byte array.
-		// We will generate one for byte[] anyway, so skip that.
-		if(elementTypeRealization.isPrimitive() && elementTypeRealization != CD_byte) {
-			int byteSize;
-			if(elementTypeRealization == CD_short) {
-				byteSize = 2;
-			}
-			else if(elementTypeRealization == CD_int || elementTypeRealization == CD_float) {
-				byteSize = 4;
-			}
-			else if(elementTypeRealization == CD_long || elementTypeRealization == CD_double) {
-				byteSize = 8;
-			}
-			else {
-				throw new RuntimeException("Unexpected primitive type for array.");
-			}
-
-			clb.withMethodBody(
-				"<init>",
-				MethodTypeDesc.of(CD_void, CD_byte.arrayType(), CD_int, CD_int),
-				ClassFile.ACC_PUBLIC,
-				cb -> {
-					// Create the Array.
-					cb.iload(3);
-					cb.newarray(typeKind(elementTypeRealization));
-					cb.astore(4);
-
-					cb.aload(4);
-					cb.aload(1);
-					cb.iload(2);
-					cb.iload(3);
-					cb.invokestatic(utilClass, "initArrayFromData", MethodTypeDesc.of(CD_void, elementTypeRealization.arrayType(), CD_byte.arrayType(), CD_int, CD_int));
-
-					cb.aload(0);
-					cb.aload(4);
-					cb.putfield(thisClass, "array", elementTypeRealization.arrayType());
-
-					cb.aload(0);
-					cb.invokespecial(superClass, "<init>", MethodTypeDesc.of(CD_void));
-					cb.return_();
-				}
-			);
-
-			// Calls byte[] constructor with 0 and length
-			clb.withMethodBody(
-				"<init>",
-				MethodTypeDesc.of(CD_void, CD_byte.arrayType()),
-				ClassFile.ACC_PUBLIC,
-				cb -> {
-					cb.aload(0);
-					cb.aload(1);
-					cb.iconst_0();
-					cb.aload(1);
-					cb.arraylength();
-					cb.invokespecial(className, "<init>", MethodTypeDesc.of(CD_void, CD_byte.arrayType(), CD_int, CD_int));
-					cb.return_();
-				}
-			);
-		}
+		generateNewDataConstructors(clb, thisClass, superClass, elementTypeRealization);
 
 		// Copy from another array.
 		clb.withMethodBody(
@@ -278,12 +220,33 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 					cb.return_();
 				}
 			);
+			if(isInitDataType(elementTypeRealization)) {
+				clb.withMethodBody(
+					"copyFromData",
+					MethodTypeDesc.of(CD_void, CD_int, CD_int, CD_int, CD_byte.arrayType()),
+					ClassFile.ACC_PUBLIC,
+					cb -> {
+						cb.aload(0);
+						cb.getfield(thisClass, "array", elementTypeRealization.arrayType());
+						cb.iload(1);
+						cb.aload(4);
+						cb.iload(2);
+						cb.iload(3);
+						cb.invokestatic(
+							wasmArray,
+							"initArrayFromData",
+							MethodTypeDesc.of(CD_void, elementTypeRealization.arrayType(), CD_int, CD_byte.arrayType(), CD_int, CD_int)
+						);
+						cb.return_();
+					}
+				);
+			}
 		}
 
 		clb.withMethodBody(
 			"unsafeGetArray",
 			MethodTypeDesc.of(CD_Object),
-			ClassFile.ACC_PUBLIC,
+			ClassFile.ACC_PROTECTED,
 			cb -> {
 				cb.aload(0);
 				cb.getfield(thisClass, "array", elementTypeRealization.arrayType());
@@ -291,5 +254,71 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 			}
 		);
 
+	}
+
+	private boolean isInitDataType(ClassDesc elementType) {
+		return elementType == CD_byte ||
+			elementType == CD_short ||
+			elementType == CD_int ||
+			elementType == CD_float ||
+			elementType == CD_long ||
+			elementType == CD_double ||
+			elementType.equals(v128Type);
+	}
+
+	private void generateNewDataConstructors(ClassBuilder clb, ClassDesc thisClass, ClassDesc superClass, ClassDesc elementTypeRealization) {
+		// For compatible types, we want to have a constructor overload that copies from a byte array.
+		// We will generate one for byte[] anyway, so skip that.
+		if(!isInitDataType(elementTypeRealization) || elementTypeRealization == CD_byte) {
+			return;
+		}
+
+		clb.withMethodBody(
+			"<init>",
+			MethodTypeDesc.of(CD_void, CD_byte.arrayType(), CD_int, CD_int),
+			ClassFile.ACC_PUBLIC,
+			cb -> {
+				// Create the Array.
+				cb.iload(3);
+				if(elementTypeRealization.isPrimitive()) {
+					cb.newarray(typeKind(elementTypeRealization));
+				}
+				else {
+					cb.anewarray(elementTypeRealization);
+				}
+				cb.astore(4);
+
+				cb.aload(4);
+				cb.iconst_0();
+				cb.aload(1);
+				cb.iload(2);
+				cb.iload(3);
+				cb.invokestatic(wasmArray, "initArrayFromData", MethodTypeDesc.of(CD_void, elementTypeRealization.arrayType(), CD_int, CD_byte.arrayType(), CD_int, CD_int));
+
+				cb.aload(0);
+				cb.aload(4);
+				cb.putfield(thisClass, "array", elementTypeRealization.arrayType());
+
+				cb.aload(0);
+				cb.invokespecial(superClass, "<init>", MethodTypeDesc.of(CD_void));
+				cb.return_();
+			}
+		);
+
+		// Calls byte[] constructor with 0 and length
+		clb.withMethodBody(
+			"<init>",
+			MethodTypeDesc.of(CD_void, CD_byte.arrayType()),
+			ClassFile.ACC_PUBLIC,
+			cb -> {
+				cb.aload(0);
+				cb.aload(1);
+				cb.iconst_0();
+				cb.aload(1);
+				cb.arraylength();
+				cb.invokespecial(className, "<init>", MethodTypeDesc.of(CD_void, CD_byte.arrayType(), CD_int, CD_int));
+				cb.return_();
+			}
+		);
 	}
 }

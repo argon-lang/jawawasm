@@ -2330,8 +2330,12 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 					cb.checkcast(realized.type());
 				}
-//				case ReferenceInstr.Ref_Eq refEq -> {
-//				}
+				case ReferenceInstr.Ref_Eq() -> {
+					cb.invokestatic(wasmEq, "isEqual", MethodTypeDesc.of(CD_boolean, wasmEq, wasmEq), true);
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.add(TypeKind.INT);
+				}
 				case ReferenceInstr.Ref_I31() -> {
 					cb.istore(tempVarSlot);
 					cb.new_(i31Type);
@@ -2354,7 +2358,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 //				case ReferenceInstr.Ref_Test refTest -> {
 //				}
 				case ReferenceInstr.Any_Convert_Extern(), ReferenceInstr.Extern_Convert_Any() -> {}
-//
+
 				case ReferenceInstr.Struct_New(var typeIdx) -> {
 					var defType = types.get(typeIdx.index());
 					var realization = (StructTypeRealization)compiler.getDefType(defType);
@@ -2439,6 +2443,19 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 					stackTypes.removeLast();
 					stackTypes.add(typeKind(fieldRealization.fieldType().get()));
+				}
+				case ReferenceInstr.Struct_Set(var typeIdx, var fieldIdx) -> {
+					var defType = types.get(typeIdx.index());
+					var realization = (StructTypeRealization)compiler.getDefType(defType);
+
+					var fieldRealization = realization.fields().get(fieldIdx.index());
+					var setMethod = fieldRealization.setMethod();
+					Objects.requireNonNull(setMethod);
+
+					cb.invokevirtual(realization.classDesc(), setMethod.methodName(), setMethod.methodType().get());
+
+					stackTypes.removeLast();
+					stackTypes.removeLast();
 				}
 
 				case ReferenceInstr.Array_New(var typeIdx) -> {
@@ -2620,6 +2637,31 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				}
 				case ReferenceInstr.Array_Copy _ -> {
 					cb.invokestatic(wasmArray, "copy", MethodTypeDesc.of(CD_void, wasmArrayMutable, CD_int, wasmArray, CD_int, CD_int));
+				}
+				case ReferenceInstr.Array_Init_Data(var typeIdx, var dataIdx) -> {
+					var defType = types.get(typeIdx.index());
+					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
+
+					cb.aload(0);
+					cb.getfield(className, "data" + dataIdx.index(), CD_byte.arrayType());
+					cb.invokevirtual(realization.classDesc(), "copyFromData", MethodTypeDesc.of(CD_void, CD_int, CD_int, CD_int, CD_byte.arrayType()));
+
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+				}
+				case ReferenceInstr.Array_Init_Elem(var _, var elemIdx) -> {
+					var elemInfo = elems.get(elemIdx.index());
+
+					cb.aload(0);
+					cb.getfield(className, elemInfo.fieldName, elemInfo.fieldType);
+					cb.invokestatic(wasmArray, "copyFromArray", MethodTypeDesc.of(CD_void, wasmArrayMutable, CD_int, CD_int, CD_int, CD_Object.arrayType()));
+
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.removeLast();
 				}
 
 				default -> throw new RuntimeException("Not implemented: " + instr);
