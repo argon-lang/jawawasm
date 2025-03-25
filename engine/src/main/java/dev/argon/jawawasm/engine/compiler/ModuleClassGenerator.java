@@ -1031,6 +1031,56 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					cb.pop();
 					stackTypes.removeLast();
 				}
+				case ControlInstr.Br_OnCast(var labelIdx, var _, var t2) -> {
+					var label = getLabel(labelIdx);
+					jumpedLabels.add(label.label);
+					var classType = compiler.getValType(closure.resolveRefType(t2));
+
+					var castFailLabel = cb.newLabel();
+					var castSuccessLabel = cb.newLabel();
+
+					if(t2.isNullable()) {
+						cb.dup();
+						cb.ifnull(castSuccessLabel);
+					}
+
+					cb.dup();
+					cb.instanceOf(classType.type());
+					cb.ifeq(castFailLabel);
+					cb.labelBinding(castSuccessLabel);
+					if(jumpNeedsStackFix(label.labelType)) {
+						fixJumpStack(label.labelType);
+					}
+					cb.checkcast(classType.type());
+					cb.goto_(label.label);
+
+					cb.labelBinding(castFailLabel);
+				}
+				case ControlInstr.Br_OnCastFail(var labelIdx, var _, var t2) -> {
+					var label = getLabel(labelIdx);
+					jumpedLabels.add(label.label);
+					var classType = compiler.getValType(closure.resolveRefType(t2));
+
+					var castSuccessLabel = cb.newLabel();
+
+					if(t2.isNullable()) {
+						cb.dup();
+						cb.ifnull(castSuccessLabel);
+					}
+
+					cb.dup();
+					cb.instanceOf(classType.type());
+					if(jumpNeedsStackFix(label.labelType)) {
+						cb.ifne(castSuccessLabel);
+						fixJumpStack(label.labelType);
+						cb.goto_(label.label);
+					}
+					else {
+						cb.ifeq(label.label);
+					}
+					cb.labelBinding(castSuccessLabel);
+					cb.checkcast(classType.type());
+				}
 
 				case ControlInstr.Return() -> generateReturn();
 
@@ -1335,13 +1385,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 
 				}
-
-//				case ControlInstr.Br_OnCast brOnCast -> {
-//				}
-//				case ControlInstr.Br_OnCastFail brOnCastFail -> {
-//				}
-
-				default -> throw new RuntimeException("Not implemented: " + instr);
 			}
 		}
 
@@ -2310,12 +2353,93 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				}
 //				case ReferenceInstr.Ref_Test refTest -> {
 //				}
-//				case ReferenceInstr.Any_Convert_Extern anyConvertExtern -> {
-//				}
-//				case ReferenceInstr.Extern_Convert_Any externConvertAny -> {
-//				}
-//				case ReferenceInstr.StructInstr structInstr -> {
-//				}
+				case ReferenceInstr.Any_Convert_Extern(), ReferenceInstr.Extern_Convert_Any() -> {}
+//
+				case ReferenceInstr.Struct_New(var typeIdx) -> {
+					var defType = types.get(typeIdx.index());
+					var realization = (StructTypeRealization)compiler.getDefType(defType);
+
+					var createMethodType = realization.createMethodType().get();
+
+					cb.invokestatic(
+						realization.classDesc(),
+						realization.createMethodName(),
+						createMethodType,
+						realization.isInterface()
+					);
+
+					for(var _ : createMethodType.parameterList()) {
+						stackTypes.removeLast();
+					}
+
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case ReferenceInstr.Struct_New_Default(var typeIdx) -> {
+					var defType = types.get(typeIdx.index());
+					var structType = getStructType(defType);
+					var realization = (StructTypeRealization)compiler.getDefType(defType);
+
+					var createMethodType = realization.createMethodType().get();
+
+					for(var t : structType.fields()) {
+						pushDefaultValue(t.storageType());
+					}
+
+					cb.invokestatic(
+						realization.classDesc(),
+						realization.createMethodName(),
+						createMethodType,
+						realization.isInterface()
+					);
+
+					stackTypes.add(TypeKind.REFERENCE);
+				}
+				case ReferenceInstr.Struct_Get(var typeIdx, var fieldIdx) -> {
+					var defType = types.get(typeIdx.index());
+					var realization = (StructTypeRealization)compiler.getDefType(defType);
+
+					var fieldRealization = realization.fields().get(fieldIdx.index());
+					var getMethod = fieldRealization.getMethod();
+
+					cb.invokevirtual(realization.classDesc(), getMethod.methodName(), getMethod.methodType().get());
+
+					stackTypes.removeLast();
+					stackTypes.add(typeKind(fieldRealization.fieldType().get()));
+				}
+				case ReferenceInstr.Struct_Get_S(var typeIdx, var fieldIdx) -> {
+					var defType = types.get(typeIdx.index());
+					var realization = (StructTypeRealization)compiler.getDefType(defType);
+
+					var fieldRealization = realization.fields().get(fieldIdx.index());
+					var getMethod = fieldRealization.getMethod();
+
+					cb.invokevirtual(realization.classDesc(), getMethod.methodName(), getMethod.methodType().get());
+
+					stackTypes.removeLast();
+					stackTypes.add(typeKind(fieldRealization.fieldType().get()));
+				}
+				case ReferenceInstr.Struct_Get_U(var typeIdx, var fieldIdx) -> {
+					var defType = types.get(typeIdx.index());
+					var realization = (StructTypeRealization)compiler.getDefType(defType);
+
+					var fieldRealization = realization.fields().get(fieldIdx.index());
+					var fieldClass = fieldRealization.fieldType().get();
+					var getMethod = fieldRealization.getMethod();
+
+					cb.invokevirtual(realization.classDesc(), getMethod.methodName(), getMethod.methodType().get());
+					if(fieldClass == CD_byte) {
+						cb.invokestatic(CD_Byte, "toUnsignedInt", MethodTypeDesc.ofDescriptor("(B)I"));
+					}
+					else if(fieldClass == CD_short) {
+						cb.invokestatic(CD_Short, "toUnsignedInt", MethodTypeDesc.ofDescriptor("(S)I"));
+					}
+					else {
+						throw new RuntimeException("Unexpected type for Array_Get_U");
+					}
+
+					stackTypes.removeLast();
+					stackTypes.add(typeKind(fieldRealization.fieldType().get()));
+				}
 
 				case ReferenceInstr.Array_New(var typeIdx) -> {
 					var defType = types.get(typeIdx.index());
@@ -2349,15 +2473,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					cb.new_(realization.classDesc());
 					cb.dup();
 					cb.iload(tempVarSlot);
-					switch(elementType) {
-						case PackedType.I8, PackedType.I16, NumType.I32 -> cb.iconst_0();
-						case NumType.I64 -> cb.lconst_0();
-						case NumType.F32 -> cb.fconst_0();
-						case NumType.F64 -> cb.dconst_0();
-						case VecType.V128 -> loadV128(V128.ZERO);
-						case RefType _ -> cb.aconst_null();
-						case BotType _ -> throw new RuntimeException("Unexpected bot type");
-					}
+					pushDefaultValue(elementType);
 					cb.invokespecial(realization.classDesc(), "<init>", MethodTypeDesc.of(CD_void, CD_int, elementClass));
 
 					stackTypes.removeLast();
@@ -2507,6 +2623,18 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				}
 
 				default -> throw new RuntimeException("Not implemented: " + instr);
+			}
+		}
+
+		private void pushDefaultValue(StorageType elementType) {
+			switch(elementType) {
+				case PackedType.I8, PackedType.I16, NumType.I32 -> cb.iconst_0();
+				case NumType.I64 -> cb.lconst_0();
+				case NumType.F32 -> cb.fconst_0();
+				case NumType.F64 -> cb.dconst_0();
+				case VecType.V128 -> loadV128(V128.ZERO);
+				case RefType _ -> cb.aconst_null();
+				case BotType _ -> throw new RuntimeException("Unexpected bot type");
 			}
 		}
 
@@ -3613,6 +3741,14 @@ class ModuleClassGenerator extends WasmClassGenerator {
 		return switch(subtype.compositeType()) {
 			case ArrayType arrayType -> arrayType;
 			default -> throw new RuntimeException("Expected an array type");
+		};
+	}
+
+	private StructType getStructType(DefType t) {
+		var subtype = TypeUnroll.unroll(t);
+		return switch(subtype.compositeType()) {
+			case StructType structType -> structType;
+			default -> throw new RuntimeException("Expected a struct type");
 		};
 	}
 

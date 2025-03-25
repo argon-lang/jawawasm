@@ -51,17 +51,17 @@ class StructClassGenerator extends DefTypeClassGenerator {
 			var fieldType = structType.fields().get(i);
 			Supplier<ClassDesc> t = () -> compiler.getStorageType(fieldType.storageType()).type();
 
-			new StructTypeRealization.Field(
+			fields[i] = new StructTypeRealization.Field(
 				t,
 				new StructTypeRealization.AccessMethod(
 					"get" + i,
-					() -> MethodTypeDesc.of(t.get(), CD_int)
+					() -> MethodTypeDesc.of(t.get())
 				),
 				switch(fieldType.mut()) {
 					case Const -> null;
 					case Var -> new StructTypeRealization.AccessMethod(
 						"set" + i,
-						() -> MethodTypeDesc.of(CD_void, CD_int, t.get())
+						() -> MethodTypeDesc.of(CD_void, t.get())
 					);
 				}
 			);
@@ -70,6 +70,14 @@ class StructClassGenerator extends DefTypeClassGenerator {
 		return new StructTypeRealization(
 			className,
 			!subtype.isFinal(),
+			"create",
+			() -> {
+				var paramTypes = structType.fields().stream()
+					.map(fieldType -> compiler.getStorageType(fieldType.storageType()).type())
+					.toList();
+
+				return MethodTypeDesc.of(className, paramTypes);
+			},
 			List.of(fields)
 		);
 	}
@@ -90,7 +98,7 @@ class StructClassGenerator extends DefTypeClassGenerator {
 
 		var fields = structType.fields();
 
-		clb.withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT);
+		clb.withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_FINAL);
 		clb.withInterfaceSymbols(superInterface);
 
 		TypeRealization[] fieldTypes = new TypeRealization[fields.size()];
@@ -143,7 +151,7 @@ class StructClassGenerator extends DefTypeClassGenerator {
 		clb.withMethodBody(
 			"<init>",
 			MethodTypeDesc.of(CD_void, constructorArgs),
-			ClassFile.ACC_PUBLIC,
+			ClassFile.ACC_PRIVATE,
 			cb -> {
 				int slot = 1;
 				for(int i = 0; i < fields.size(); ++i) {
@@ -154,11 +162,37 @@ class StructClassGenerator extends DefTypeClassGenerator {
 					cb.loadLocal(tk, slot);
 
 					cb.putfield(thisClass, "field" + i, t);
+
+					slot += tk.slotSize();
 				}
 
 				cb.aload(0);
 				cb.invokespecial(CD_Object, "<init>", MethodTypeDesc.of(CD_void));
 				cb.return_();
+			}
+		);
+
+		clb.withMethodBody(
+			"create",
+			MethodTypeDesc.of(className, constructorArgs),
+			ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC,
+			cb -> {
+				cb.new_(className);
+				cb.dup();
+				cb.dup();
+
+				int slot = 0;
+				for(int i = 0; i < fields.size(); ++i) {
+					var t = fieldTypes[i].type();
+					var tk = typeKind(t);
+
+					cb.loadLocal(tk, slot);
+
+					slot += tk.slotSize();
+				}
+
+				cb.invokespecial(className, "<init>", MethodTypeDesc.of(CD_void, constructorArgs));
+				cb.areturn();
 			}
 		);
 

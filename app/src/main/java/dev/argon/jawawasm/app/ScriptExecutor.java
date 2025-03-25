@@ -444,7 +444,7 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 			}
 
 			case "cast", "cast failure" -> {
-				if(error instanceof WebAssemblyCastTrap) {
+				if(error instanceof WebAssemblyCastTrap || error instanceof ClassCastException) {
 					gotExpectedError = true;
 				}
 			}

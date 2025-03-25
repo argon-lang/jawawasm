@@ -10,6 +10,8 @@ import java.util.function.Supplier;
 public record StructTypeRealization(
 	ClassDesc classDesc,
 	boolean isInterface,
+	String createMethodName,
+	Supplier<MethodTypeDesc> createMethodType,
 	List<Field> fields
 ) implements DefTypeRealization {
 
