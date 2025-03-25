@@ -2383,8 +2383,17 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					stackTypes.removeLast();
 					stackTypes.add(TypeKind.INT);
 				}
-//				case ReferenceInstr.Ref_Test refTest -> {
-//				}
+				case ReferenceInstr.Ref_Test(var t) -> {
+					var t2 = closure.resolveRefType(t);
+					var realization = compiler.getValType(t2);
+
+					if(t.isNullable()) {
+
+					}
+					else {
+
+					}
+				}
 				case ReferenceInstr.Any_Convert_Extern(), ReferenceInstr.Extern_Convert_Any() -> {}
 
 				case ReferenceInstr.Struct_New(var typeIdx) -> {
@@ -2663,8 +2672,25 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					stackTypes.removeLast();
 					stackTypes.add(TypeKind.INT);
 				}
+				case ReferenceInstr.Array_Fill(var typeIdx) -> {
+					var defType = types.get(typeIdx.index());
+					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
+					var elementClass = realization.elementType().get();
+
+					cb.invokevirtual(realization.classDesc(), "fill", MethodTypeDesc.of(CD_void, CD_int, elementClass, CD_int));
+
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+				}
 				case ReferenceInstr.Array_Copy _ -> {
 					cb.invokestatic(wasmArray, "copy", MethodTypeDesc.of(CD_void, wasmArrayMutable, CD_int, wasmArray, CD_int, CD_int));
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+					stackTypes.removeLast();
 				}
 				case ReferenceInstr.Array_Init_Data(var typeIdx, var dataIdx) -> {
 					var defType = types.get(typeIdx.index());

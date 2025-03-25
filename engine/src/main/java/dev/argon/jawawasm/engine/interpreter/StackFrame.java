@@ -1768,8 +1768,8 @@ class StackFrame {
 				push(o);
 			}
 
-			case ReferenceInstr.Ref_Test(var typeIdx) -> {
-				var t = module.closure.resolveRefType(typeIdx);
+			case ReferenceInstr.Ref_Test(var refType) -> {
+				var t = module.closure.resolveRefType(refType);
 				var o = pop();
 				push(refIsInstance(t, o) ? 1 : 0);
 			}

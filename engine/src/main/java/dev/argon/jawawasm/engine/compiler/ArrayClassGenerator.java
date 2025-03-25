@@ -220,6 +220,39 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 					cb.return_();
 				}
 			);
+
+			clb.withMethodBody(
+				"fill",
+				MethodTypeDesc.of(CD_void, CD_int, elementTypeRealization, CD_int),
+				ClassFile.ACC_PUBLIC,
+				cb -> {
+					cb.iload(1);
+					cb.iload(2 + typeKind(elementTypeRealization).slotSize());
+					cb.aload(0);
+					cb.getfield(thisClass, "array", elementTypeRealization.arrayType());
+					cb.arraylength();
+					cb.invokestatic(ClassDesc.of("java.util.Objects"), "checkFromIndexSize", MethodTypeDesc.of(CD_int, CD_int, CD_int, CD_int));
+					cb.pop();
+
+
+					cb.aload(0);
+					cb.getfield(thisClass, "array", elementTypeRealization.arrayType());
+					cb.iload(1);
+					cb.iload(1);
+					cb.iload(2 + typeKind(elementTypeRealization).slotSize());
+					cb.iadd();
+					cb.loadLocal(typeKind(elementTypeRealization), 2);
+					if(elementTypeRealization.isPrimitive()) {
+						cb.invokestatic(ClassDesc.of("java.util.Arrays"), "fill", MethodTypeDesc.of(CD_void, elementTypeRealization.arrayType(), CD_int, CD_int, elementTypeRealization));
+					}
+					else {
+						cb.invokestatic(ClassDesc.of("java.util.Arrays"), "fill", MethodTypeDesc.of(CD_void, CD_Object.arrayType(), CD_int, CD_int, CD_Object));
+					}
+
+					cb.return_();
+				}
+			);
+
 			if(isInitDataType(elementTypeRealization)) {
 				clb.withMethodBody(
 					"copyFromData",
