@@ -132,18 +132,14 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 		// We will generate one for byte[] anyway, so skip that.
 		if(elementTypeRealization.isPrimitive() && elementTypeRealization != CD_byte) {
 			int byteSize;
-			int shiftFactor;
 			if(elementTypeRealization == CD_short) {
 				byteSize = 2;
-				shiftFactor = 1;
 			}
 			else if(elementTypeRealization == CD_int || elementTypeRealization == CD_float) {
 				byteSize = 4;
-				shiftFactor = 2;
 			}
 			else if(elementTypeRealization == CD_long || elementTypeRealization == CD_double) {
 				byteSize = 8;
-				shiftFactor = 3;
 			}
 			else {
 				throw new RuntimeException("Unexpected primitive type for array.");
@@ -159,76 +155,11 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 					cb.newarray(typeKind(elementTypeRealization));
 					cb.astore(4);
 
-					// java.util.Objects.checkFromIndexSize(s, n, data.length / byteSize);
+					cb.aload(4);
+					cb.aload(1);
 					cb.iload(2);
 					cb.iload(3);
-					cb.aload(1);
-					cb.arraylength();
-					cb.loadConstant(shiftFactor);
-					cb.ishr();
-					cb.invokestatic(ClassDesc.of("java.util.Objects"), "checkFromIndexSize", MethodTypeDesc.of(CD_int, CD_int, CD_int, CD_int));
-					cb.pop();
-
-					// for(int i = 0; i < n; ++i)
-					var loopStart = cb.newLabel();
-					var loopEnd = cb.newLabel();
-					cb.iconst_0();
-					cb.istore(5);
-					cb.labelBinding(loopStart);
-					cb.iload(5);
-					cb.iload(3);
-					cb.isub();
-					cb.ifge(loopEnd);
-
-					// a[i] = (data[s + i * byteSize] & 0xFF) | ((data[s + i * byteSize + 1] & 0xFF) << 8) | ...
-					cb.aload(4);
-					cb.iload(5);
-					for(int i = 0; i < byteSize; ++i) {
-						cb.aload(1);
-						cb.iload(5);
-						cb.loadConstant(shiftFactor);
-						cb.ishl();
-						cb.iload(3);
-						cb.iadd();
-						if(i > 0) {
-							cb.loadConstant(i);
-							cb.iadd();
-						}
-						cb.baload();
-
-						if(byteSize == 8) {
-							cb.loadConstant(0xFFL);
-							cb.land();
-							if(i > 0) {
-								cb.loadConstant(8 * i);
-								cb.lshl();
-								cb.lor();
-							}
-
-						}
-						else {
-							cb.loadConstant(0xFF);
-							cb.iand();
-							if(i > 0) {
-								cb.loadConstant(8 * i);
-								cb.ishl();
-								cb.ior();
-							}
-
-						}
-					}
-					if(elementTypeRealization == CD_float) {
-						cb.invokestatic(CD_Float, "intBitsToFloat", MethodTypeDesc.of(CD_float, CD_int));
-					}
-					else if(elementTypeRealization == CD_double) {
-						cb.invokestatic(CD_Double, "longBitsToDouble", MethodTypeDesc.of(CD_double, CD_long));
-					}
-					cb.arrayStore(typeKind(elementTypeRealization));
-
-					// end loop
-					cb.goto_(loopStart);
-					cb.labelBinding(loopEnd);
-
+					cb.invokestatic(utilClass, "initArrayFromData", MethodTypeDesc.of(CD_void, elementTypeRealization.arrayType(), CD_byte.arrayType(), CD_int, CD_int));
 
 					cb.aload(0);
 					cb.aload(4);

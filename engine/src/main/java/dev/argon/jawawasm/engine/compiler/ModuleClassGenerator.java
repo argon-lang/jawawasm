@@ -2270,8 +2270,23 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				}
 
 
-//				case ReferenceInstr.Ref_Cast refCast -> {
-//				}
+				case ReferenceInstr.Ref_Cast(var refType) -> {
+					var realized = compiler.getValType(closure.resolveRefType(refType));
+					if(!realized.isNullable()) {
+						var notNullLabel = cb.newLabel();
+						var classCast = ClassDesc.of("java.lang.ClassCastException");
+
+						cb.dup();
+						cb.ifnonnull(notNullLabel);
+						cb.new_(classCast);
+						cb.dup();
+						cb.invokespecial(classCast, "<init>", MethodTypeDesc.of(CD_void));
+						cb.athrow();
+						cb.labelBinding(notNullLabel);
+					}
+
+					cb.checkcast(realized.type());
+				}
 //				case ReferenceInstr.Ref_Eq refEq -> {
 //				}
 				case ReferenceInstr.Ref_I31() -> {

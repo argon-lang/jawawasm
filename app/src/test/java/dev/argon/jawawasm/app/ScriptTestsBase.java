@@ -50,7 +50,7 @@ abstract class ScriptTestsBase {
 			}
 		}
 
-//		if(!path.toString().equals("gc/array.wast")) {
+//		if(!path.toString().equals("gc/array_new_data.wast")) {
 //			return true;
 //		}
 
