@@ -576,31 +576,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 						methodType.descriptor(),
 						ClassFile.ACC_PUBLIC,
 						mb -> {
-							var anns = new ArrayList<TypeAnnotation>();
-							for(int i = 0; i < methodType.parameterTypes().size(); ++i) {
-								var paramType = methodType.parameterTypes().get(i);
-								if(paramType.isNullable()) {
-									anns.add(TypeAnnotation.of(
-										TypeAnnotation.TargetInfo.ofMethodFormalParameter(i),
-										List.of(),
-										nullableAnn
-									));
-								}
-							}
-							for(int i = 0; i < methodType.resultType().typeArguments().size(); i++) {
-								var typeArg = methodType.resultType().typeArguments().get(i);
-								if(typeArg.isNullable()) {
-									anns.add(TypeAnnotation.of(
-										TypeAnnotation.TargetInfo.ofMethodReturn(),
-										List.of(
-											TypeAnnotation.TypePathComponent.of(TypeAnnotation.TypePathComponent.Kind.TYPE_ARGUMENT, i)
-										),
-										nullableAnn
-									));
-								}
-							}
-
-							mb.with(RuntimeVisibleTypeAnnotationsAttribute.of(anns));
+							mb.with(RuntimeVisibleTypeAnnotationsAttribute.of(methodType.methodTypeAnnotations()));
 							mb.withCode(cb -> {
 								cb.aload(0);
 

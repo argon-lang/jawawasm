@@ -13,6 +13,7 @@ import dev.argon.jawawasm.runtime.ModuleResolutionException;
 import org.jspecify.annotations.Nullable;
 
 import java.lang.classfile.*;
+import java.lang.classfile.attribute.RuntimeVisibleTypeAnnotationsAttribute;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.util.*;
@@ -250,11 +251,38 @@ public class ModuleCompiler {
 
 		var returnType = getResultType(funcType.results());
 
+		var paramTypes2 = paramTypes.build();
+
+		var anns = ImmutableList.<TypeAnnotation>builder();
+		for(int i = 0; i < paramTypes2.size(); ++i) {
+			var paramType = paramTypes2.get(i);
+			if(paramType.isNullable()) {
+				anns.add(TypeAnnotation.of(
+					TypeAnnotation.TargetInfo.ofMethodFormalParameter(i),
+					List.of(),
+					nullableAnn
+				));
+			}
+		}
+		for(int i = 0; i < returnType.typeArguments().size(); i++) {
+			var typeArg = returnType.typeArguments().get(i);
+			if(typeArg.isNullable()) {
+				anns.add(TypeAnnotation.of(
+					TypeAnnotation.TargetInfo.ofMethodReturn(),
+					List.of(
+						TypeAnnotation.TypePathComponent.of(TypeAnnotation.TypePathComponent.Kind.TYPE_ARGUMENT, i)
+					),
+					nullableAnn
+				));
+			}
+		}
+
 		return new MethodTypeRealization(
 			MethodTypeDesc.of(returnType.classDesc(), argTypes),
 			MethodSignature.of(returnType.signature(), sigTypes),
 			returnType,
-			paramTypes.build()
+			paramTypes2,
+			anns.build()
 		);
 	}
 
