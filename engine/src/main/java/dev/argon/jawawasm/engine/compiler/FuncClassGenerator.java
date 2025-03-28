@@ -85,7 +85,7 @@ class FuncClassGenerator extends DefTypeClassGenerator {
 								clb.withMethodBody(
 									"invoke",
 									superMethodType.descriptor(),
-									ClassFile.ACC_PUBLIC | ClassFile.ACC_SYNTHETIC,
+									ClassFile.ACC_PUBLIC | ClassFile.ACC_SYNTHETIC | ClassFile.ACC_BRIDGE,
 									cb -> {
 										cb.aload(0);
 										int slot = 1;

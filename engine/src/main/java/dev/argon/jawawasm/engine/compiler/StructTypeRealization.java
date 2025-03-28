@@ -12,7 +12,8 @@ public record StructTypeRealization(
 	boolean isInterface,
 	String createMethodName,
 	Supplier<MethodTypeDesc> createMethodType,
-	List<Field> fields
+	List<Field> fields,
+	Supplier<@Nullable StructTypeRealization> superType
 ) implements DefTypeRealization {
 
 	record Field(

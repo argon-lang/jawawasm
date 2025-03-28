@@ -295,7 +295,6 @@ class ResultClassGenerator extends WasmClassGenerator {
 
 		@Override
 		protected byte[] generateImpl() {
-
 			return compiler.classFile()
 				.build(
 					className,
