@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Disabled;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 
-@Disabled
 class ScriptTestsInterpreter extends ScriptTestsBase {
 
 	@Override
