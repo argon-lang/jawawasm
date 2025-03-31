@@ -32,7 +32,7 @@ public class Engine {
 	 * @throws ExecutionException when an error occurs executing WebAssembly code.
 	 * @throws ModuleLinkException when an error occurs while linking.
 	 */
-	public InstantiatedModule instantiateModule(Module module, ModuleResolver resolver) throws ExecutionException, ModuleLinkException {
+	public InstantiatedModule instantiateModule(Module module, ModuleResolver<WasmModule> resolver) throws ExecutionException, ModuleLinkException {
 		return new InstantiatedModule(this, module, resolver);
 	}
 

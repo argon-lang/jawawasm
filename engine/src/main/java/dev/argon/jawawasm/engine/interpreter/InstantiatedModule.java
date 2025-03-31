@@ -23,7 +23,7 @@ import java.util.concurrent.ExecutionException;
  */
 public final class InstantiatedModule implements WasmModule {
 
-	InstantiatedModule(Engine engine, Module module, ModuleResolver resolver) throws ExecutionException, ModuleLinkException {
+	InstantiatedModule(Engine engine, Module module, ModuleResolver<WasmModule> resolver) throws ExecutionException, ModuleLinkException {
 		this.engine = engine;
 		this.module = module;
 		this.resolver = resolver;

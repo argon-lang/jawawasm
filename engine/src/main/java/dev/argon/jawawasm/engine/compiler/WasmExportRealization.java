@@ -12,6 +12,10 @@ import java.lang.constant.MethodTypeDesc;
  * Information about the realization of an export.
  */
 public sealed interface WasmExportRealization {
+	/**
+	 * Gets the export name.
+	 * @return The export name.
+	 */
 	String exportName();
 
 	/**
@@ -28,6 +32,15 @@ public sealed interface WasmExportRealization {
 		ExternalType externalType
 	) implements WasmExportRealization {}
 
+	/**
+	 * An export realized as an inner class.
+	 * @param exportName The name of the export.
+	 * @param classDesc The descriptor of the inner class.
+	 * @param innerClass The InnerClassInfo describing the inner class.
+	 * @param constructorType The descriptor of the constructor.
+	 * @param tagFunctionType The tag function type.
+	 * @param tagDefType The tag def type.
+	 */
 	record OfInnerClass(
 		String exportName,
 		ClassDesc classDesc,

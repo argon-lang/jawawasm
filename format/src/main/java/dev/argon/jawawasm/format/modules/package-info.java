@@ -1,3 +1,6 @@
+/**
+ * Data types representing WebAssembly modules.
+ */
 @NullMarked
 package dev.argon.jawawasm.format.modules;
 

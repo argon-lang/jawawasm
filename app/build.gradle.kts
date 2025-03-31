@@ -36,6 +36,7 @@ tasks.withType<JavaCompile>().configureEach {
         option("NullAway:OnlyNullMarked", "true")
         option("NullAway:JSpecifyMode", "true")
         error("NullAway")
+        disable("DefaultCharset")
     }
 
     options.compilerArgs.add("-Xlint:unchecked,deprecation,fallthrough,path,rawtypes")

@@ -37,36 +37,80 @@ public record V128(
 		byte b14,
 		byte b15
 ) {
+	/**
+	 * A vector of zeroes.
+	 */
 	public static final V128 ZERO = build8(_ -> (byte)0);
 
+	/**
+	 * Create a vector from an integer to fill the low lane, with the 3 higher lanes filled with zero.
+	 * @param value The low lane value.
+	 * @return The vector.
+	 */
 	public static V128 ofIntZero(int value) {
 		return V128.build32(j -> j == 0 ? value : 0);
 	}
 
+	/**
+	 *
+	 * Create a vector from an integer to fill the low lane, with the high lane filled with zero.
+	 * @param value The low lane value.
+	 * @return The vector.
+	 */
 	public static V128 ofLongZero(long value) {
 		return V128.build64(j -> j == 0 ? value : 0);
 	}
 
+	/**
+	 * Convert 8x8 to 16x8 by sign extending.
+	 * @param value The 8x8 value.
+	 * @return The 16x8 value.
+	 */
 	public static V128 of8x8S(long value) {
 		return V128.build16(j -> (byte)(value >> (8 * j)));
 	}
 
+	/**
+	 * Convert 8x8 to 16x8 by zero extending.
+	 * @param value The 8x8 value.
+	 * @return The 16x8 value.
+	 */
 	public static V128 of8x8U(long value) {
 		return V128.build16(j -> (short)Byte.toUnsignedInt((byte)(value >> (8 * j))));
 	}
 
+	/**
+	 * Convert 16x4 to 32x4 by sign extending.
+	 * @param value The 16x4 value.
+	 * @return The 32x4 value.
+	 */
 	public static V128 of16x4S(long value) {
 		return V128.build32(j -> (short)(value >> (16 * j)));
 	}
 
+	/**
+	 * Convert 16x4 to 32x4 by zero extending.
+	 * @param value The 16x4 value.
+	 * @return The 32x4 value.
+	 */
 	public static V128 of16x4U(long value) {
 		return V128.build32(j -> Short.toUnsignedInt((short)(value >> (16 * j))));
 	}
 
+	/**
+	 * Convert 32x2 to 64x2 by sign extending.
+	 * @param value The 32x2 value.
+	 * @return The 64x2 value.
+	 */
 	public static V128 of32x2S(long value) {
 		return V128.build64(j -> (int)(value >> (32 * j)));
 	}
 
+	/**
+	 * Convert 32x2 to 64x2 by zero extending.
+	 * @param value The 32x2 value.
+	 * @return The 64x2 value.
+	 */
 	public static V128 of32x2U(long value) {
 		return V128.build64(j -> Integer.toUnsignedLong((int)(value >> (32 * j))));
 	}
@@ -1278,14 +1322,29 @@ public record V128(
 		return result;
 	}
 
+	/**
+	 * Implements the webassembly i16x8.q15mulr_sat_s operation.
+	 * @param b The second operand.
+	 * @return The result.
+	 */
 	public V128 q15mulrSatS(V128 b) {
 		return binary16(b, (n0, n1) -> Util.narrowS32I16((n0 * n1 + (1 << 14)) >> 15));
 	}
 
+	/**
+	 * Implements the webassembly i32x4.dot_i16x8 operation.
+	 * @param b The second operand.
+	 * @return The result.
+	 */
 	public V128 dotS16x8(V128 b) {
 		return V128.build32(i -> this.extractLane16(i) * b.extractLane16(i) + this.extractLane16(i + 4) * b.extractLane16(i + 4));
 	}
 
+	/**
+	 * Implements the webassembly i16x8.relaxed_dot_i8x16_i7x16_s operation.
+	 * @param b The second operand.
+	 * @return The result.
+	 */
 	public V128 relaxedDotI8x16ByI7x16Signed(V128 b) {
 		short[] intermediate = new short[16];
 
@@ -1295,6 +1354,12 @@ public record V128(
 		return V128.build16(i -> Util.addSatS16(intermediate[2 * i], intermediate[2 * i + 1]));
 	}
 
+	/**
+	 * Implements the webassembly i16x8.relaxed_dot_i8x16_i7x16_add_s operation.
+	 * @param b The second operand.
+	 * @param c The third operand.
+	 * @return The result.
+	 */
 	public V128 relaxedDotI8x16ByI7x16AddSigned(V128 b, V128 c) {
 		int[] intermediate = new int[16];
 		for(int i = 0; i < intermediate.length; ++i) {
@@ -1690,7 +1755,7 @@ public record V128(
 	 * @return A new V128 with negated values in each of the 16 lanes
 	 */
 	public V128 neg8() {
-		return unary8(n -> (byte)(-n));
+		return unary8(n -> (byte)-n);
 	}
 
 	/**
@@ -1706,7 +1771,7 @@ public record V128(
 	 * @return A new V128 with negated values in each of the 8 lanes
 	 */
 	public V128 neg16() {
-		return unary16(n -> (short)(-n));
+		return unary16(n -> (short)-n);
 	}
 
 	/**

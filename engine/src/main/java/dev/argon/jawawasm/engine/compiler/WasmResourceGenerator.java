@@ -6,6 +6,15 @@ package dev.argon.jawawasm.engine.compiler;
 public non-sealed abstract class WasmResourceGenerator implements WasmOutputGenerator {
 	WasmResourceGenerator() {}
 
+	/**
+	 * Gets the name of the resource.
+	 * @return The name of the resource.
+	 */
 	public abstract String resourceName();
+
+	/**
+	 * Generate the resource.
+	 * @return The resource data.
+	 */
 	public abstract byte[] generate();
 }

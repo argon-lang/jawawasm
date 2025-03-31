@@ -101,6 +101,10 @@ public class ModuleCompiler {
 		}
 	}
 
+	/**
+	 * The ClassFile used to build class files.
+	 * @return The ClassFile instance.
+	 */
 	public ClassFile classFile() {
 		return classFile;
 	}

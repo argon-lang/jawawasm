@@ -1664,10 +1664,11 @@ class InstrValidator extends ValidatorBase {
 					var resType = ImmutableList.<ValType>builder();
 					resType.addAll(t.args().types());
 					resType.add(new RefType(false, HeapType.AbstractHeapType.EXN));
+					var resType2 = resType.build();
 
 					context.requireLabel(labelIdx);
 					var label = context.getLabel(labelIdx);
-					require(subtyping.isSubtypeResult(new ResultType(resType.build()), label), "type mismatch: catch_ref clause must match target block type" + resType + ", " + label);
+					require(subtyping.isSubtypeResult(new ResultType(resType2), label), "type mismatch: catch_ref clause must match target block type" + resType2 + ", " + label);
 				}
 
 				case ControlInstr.CatchAll(var labelIdx) -> {

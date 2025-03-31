@@ -1,10 +1,5 @@
-import net.ltgt.gradle.errorprone.errorprone
-
 plugins {
-    `java-library`
-    `maven-publish`
-    signing
-    id("net.ltgt.errorprone") version "4.1.0"
+    kotlin("")
 }
 
 
@@ -18,7 +13,6 @@ repositories {
 dependencies {
     api(project(":format"))
     api(libs.jspecify) // Not compile only because we may use reflection
-    implementation(libs.classgraph)
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 

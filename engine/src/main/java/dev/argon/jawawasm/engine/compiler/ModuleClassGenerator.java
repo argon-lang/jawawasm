@@ -18,7 +18,6 @@ import dev.argon.jawawasm.runtime.V128;
 import org.jspecify.annotations.Nullable;
 
 import java.lang.classfile.*;
-import java.lang.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
 import java.lang.classfile.attribute.RuntimeVisibleTypeAnnotationsAttribute;
 import java.lang.classfile.instruction.SwitchCase;
 import java.lang.constant.*;
@@ -187,7 +186,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 					var type = compiler.getMethodType(defType);
 					funcs.add(new FunctionInfo(localName, type, getFuncType(defType), defType));
-					generateFunctionImport(clb, importModuleInfo, func, localName, type.descriptor(), exportRealMethod);
+					generateFunctionImport(clb, importModuleInfo, localName, type.descriptor(), exportRealMethod);
 				}
 				case ImportDesc.Table table -> {
 					if(
@@ -2585,7 +2584,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				}
 				case ReferenceInstr.Array_New_Default(var typeIdx) -> {
 					var defType = types.get(typeIdx.index());
-					var arrayType = getArrayType(defType);
 					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
 
 					cb.invokestatic(realization.classDesc(), "ofDefault", MethodTypeDesc.of(realization.classDesc(), CD_int));
@@ -3846,7 +3844,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 
 
-	private void generateFunctionImport(ClassBuilder clb, ImportModuleInfo imp, ImportDesc.Func func, String localName, MethodTypeDesc type, WasmExportRealization.OfInstanceMethod exportRealization) {
+	private void generateFunctionImport(ClassBuilder clb, ImportModuleInfo imp, String localName, MethodTypeDesc type, WasmExportRealization.OfInstanceMethod exportRealization) {
 		clb.withMethodBody(localName, type, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL, cb -> {
 			cb.aload(0);
 			cb.getfield(className, imp.fieldName, imp.realization().classDesc());

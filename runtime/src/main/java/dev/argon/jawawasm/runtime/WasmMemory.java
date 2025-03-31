@@ -6,6 +6,10 @@ import org.jspecify.annotations.Nullable;
  * A WebAssembly memory space.
  */
 public sealed abstract class WasmMemory extends WasmMemoryNoResize permits WasmMemoryMeta {
+	/**
+	 * Create a memory.
+	 */
+	public WasmMemory() {}
 
 	/**
 	 * Gets the maximum size of the memory in pages.

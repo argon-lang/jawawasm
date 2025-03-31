@@ -93,7 +93,7 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 					generateFactoryMethods(clb, className, className, elementTypeRealization);
 				}
 				else {
-					generateAbstractMethods(clb, className, superClass, elementTypeRealization);
+					generateAbstractMethods(clb, superClass, elementTypeRealization);
 					generateFactoryMethods(clb, className, className.nested("Impl"), elementTypeRealization);
 				}
 
@@ -313,7 +313,7 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 
 	}
 
-	private void generateAbstractMethods(ClassBuilder clb, ClassDesc thisClass, ClassDesc superClass, TypeRealization elementTypeRealization) {
+	private void generateAbstractMethods(ClassBuilder clb, ClassDesc superClass, TypeRealization elementTypeRealization) {
 		clb.withMethodBody(
 			"<init>",
 			MethodTypeDesc.of(CD_void),

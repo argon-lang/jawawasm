@@ -5,6 +5,11 @@ package dev.argon.jawawasm.runtime;
  */
 public abstract class WasmMemoryNoResize {
 	/**
+	 * Create a memory.
+	 */
+	public WasmMemoryNoResize() {}
+
+	/**
 	 * Gets the address type.
 	 * @return The address type.
 	 */
@@ -153,10 +158,11 @@ public abstract class WasmMemoryNoResize {
 	}
 
 	/**
-	 * Copies data within a memory.
+	 * Copies data between memories.
 	 * @param d The start address of the destination.
 	 * @param s The start address of the source.
 	 * @param n The number of bytes to copy.
+	 * @param srcMemory The source memory.
 	 */
 	public void copyFrom(long d, long s, long n, WasmMemory srcMemory) {
 		if(!Util.sumInRange(d, n, byteSize()) || !Util.sumInRange(s, n, byteSize())) {

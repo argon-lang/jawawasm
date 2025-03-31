@@ -146,9 +146,10 @@ public class ReflectionEngine {
 	/**
 	 * Adds a host module to this engine.
 	 * @param module The module to add.
+	 * @return The reflection module representing the module instance and its exports.
 	 * @throws ModuleFormatException if the module is invalid
 	 */
-	public ReflectionModule addHostModule(WasmModule module) throws ModuleFormatException, ModuleLinkException {
+	public ReflectionModule addHostModule(WasmModule module) throws ModuleFormatException {
 		var cls = module.getClass();
 		var realization = new ReflectionModuleLoader(compiler).loadModule(cls);
 		instanceToRealization.put(module, realization);

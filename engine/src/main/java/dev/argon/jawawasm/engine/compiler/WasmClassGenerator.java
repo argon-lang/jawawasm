@@ -24,6 +24,7 @@ public abstract non-sealed class WasmClassGenerator implements WasmOutputGenerat
 
 	/**
 	 * Gets base class information from this generator.
+	 * @return The class hierarchy info for this generator.
 	 */
 	public abstract ClassHierarchyResolver.ClassHierarchyInfo hierarchyInfo();
 

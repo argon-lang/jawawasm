@@ -2,7 +2,15 @@ package dev.argon.jawawasm.runtime;
 
 import java.util.Objects;
 
+/**
+ * WebAssembly array
+ */
 public sealed abstract class WasmArray implements WasmEq permits WasmArrayMutable, WasmArrayImmutable {
+	/**
+	 * Creates a WebAssembly array.
+	 */
+	public WasmArray() {}
+
 	/**
 	 * Gets the length of the array.
 	 * @return The length.
@@ -15,7 +23,14 @@ public sealed abstract class WasmArray implements WasmEq permits WasmArrayMutabl
 	 */
 	protected abstract Object unsafeGetArray();
 
-
+	/**
+	 * Copy between two arrays.
+	 * @param dest The destination array.
+	 * @param d The destination index.
+	 * @param src The source array.
+	 * @param s The source index.
+	 * @param n The number of elements to copy.
+	 */
 	public static void copy(WasmArrayMutable dest, int d, WasmArray src, int s, int n) {
 		Objects.requireNonNull(dest);
 		Objects.requireNonNull(src);
@@ -29,6 +44,14 @@ public sealed abstract class WasmArray implements WasmEq permits WasmArrayMutabl
 		System.arraycopy(src.unsafeGetArray(), s, dest.unsafeGetArray(), d, n);
 	}
 
+	/**
+	 * Copy from a Java array to a WebAssembly array.
+	 * @param dest The destination array.
+	 * @param d The destination index.
+	 * @param src The source array.
+	 * @param s The source index.
+	 * @param n The number of elements to copy.
+	 */
 	public static void copyFromArray(WasmArrayMutable dest, int d, int s, int n, Object[] src) {
 		Objects.requireNonNull(dest);
 		Objects.requireNonNull(src);
@@ -43,6 +66,14 @@ public sealed abstract class WasmArray implements WasmEq permits WasmArrayMutabl
 	}
 
 
+	/**
+	 * Initialize an array from data.
+	 * @param array The array to initialize.
+	 * @param d The starting destination index.
+	 * @param data The data source.
+	 * @param s The starting index in data.
+	 * @param n The number of array elements to initialize.
+	 */
 	protected static void initArrayFromData(byte[] array, int d, byte[] data, int s, int n) {
 		Objects.checkFromIndexSize(d, n, array.length);
 		Objects.checkFromIndexSize(s, n, data.length);
@@ -54,6 +85,14 @@ public sealed abstract class WasmArray implements WasmEq permits WasmArrayMutabl
 		System.arraycopy(data, s, array, d, n);
 	}
 
+	/**
+	 * Initialize an array from data.
+	 * @param array The array to initialize.
+	 * @param d The starting destination index.
+	 * @param data The data source.
+	 * @param s The starting index in data.
+	 * @param n The number of array elements to initialize.
+	 */
 	protected static void initArrayFromData(short[] array, int d, byte[] data, int s, int n) {
 		Objects.checkFromIndexSize(d, n, array.length);
 		if(n * 2 < 0) throw new IndexOutOfBoundsException("Number of items copied results in overflow when multiplied by byte size.");
@@ -63,6 +102,14 @@ public sealed abstract class WasmArray implements WasmEq permits WasmArrayMutabl
 		}
 	}
 
+	/**
+	 * Initialize an array from data.
+	 * @param array The array to initialize.
+	 * @param d The starting destination index.
+	 * @param data The data source.
+	 * @param s The starting index in data.
+	 * @param n The number of array elements to initialize.
+	 */
 	protected static void initArrayFromData(int[] array, int d, byte[] data, int s, int n) {
 		Objects.checkFromIndexSize(d, n, array.length);
 		if(n * 4 < 0) throw new IndexOutOfBoundsException("Number of items copied results in overflow when multiplied by byte size.");
@@ -75,6 +122,14 @@ public sealed abstract class WasmArray implements WasmEq permits WasmArrayMutabl
 		}
 	}
 
+	/**
+	 * Initialize an array from data.
+	 * @param array The array to initialize.
+	 * @param d The starting destination index.
+	 * @param data The data source.
+	 * @param s The starting index in data.
+	 * @param n The number of array elements to initialize.
+	 */
 	protected static void initArrayFromData(float[] array, int d, byte[] data, int s, int n) {
 		Objects.checkFromIndexSize(d, n, array.length);
 		if(n * 4 < 0) throw new IndexOutOfBoundsException("Number of items copied results in overflow when multiplied by byte size.");
@@ -89,6 +144,14 @@ public sealed abstract class WasmArray implements WasmEq permits WasmArrayMutabl
 		}
 	}
 
+	/**
+	 * Initialize an array from data.
+	 * @param array The array to initialize.
+	 * @param d The starting destination index.
+	 * @param data The data source.
+	 * @param s The starting index in data.
+	 * @param n The number of array elements to initialize.
+	 */
 	protected static void initArrayFromData(long[] array, int d, byte[] data, int s, int n) {
 		Objects.checkFromIndexSize(d, n, array.length);
 		if(n * 8 < 0) throw new IndexOutOfBoundsException("Number of items copied results in overflow when multiplied by byte size.");
@@ -105,6 +168,14 @@ public sealed abstract class WasmArray implements WasmEq permits WasmArrayMutabl
 		}
 	}
 
+	/**
+	 * Initialize an array from data.
+	 * @param array The array to initialize.
+	 * @param d The starting destination index.
+	 * @param data The data source.
+	 * @param s The starting index in data.
+	 * @param n The number of array elements to initialize.
+	 */
 	protected static void initArrayFromData(double[] array, int d, byte[] data, int s, int n) {
 		Objects.checkFromIndexSize(d, n, array.length);
 		if(n * 8 < 0) throw new IndexOutOfBoundsException("Number of items copied results in overflow when multiplied by byte size.");
@@ -123,6 +194,14 @@ public sealed abstract class WasmArray implements WasmEq permits WasmArrayMutabl
 		}
 	}
 
+	/**
+	 * Initialize an array from data.
+	 * @param array The array to initialize.
+	 * @param d The starting destination index.
+	 * @param data The data source.
+	 * @param s The starting index in data.
+	 * @param n The number of array elements to initialize.
+	 */
 	protected static void initArrayFromData(V128[] array, int d, byte[] data, int s, int n) {
 		Objects.checkFromIndexSize(d, n, array.length);
 		if(n * 16 < 0) throw new IndexOutOfBoundsException("Number of items copied results in overflow when multiplied by byte size.");

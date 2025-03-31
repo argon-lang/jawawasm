@@ -9,7 +9,14 @@ import dev.argon.jawawasm.format.types.RefType;
  */
 public sealed interface ReferenceInstr extends Instr {
 
+	/**
+	 * Represents a struct instruction.
+	 */
 	sealed interface StructInstr extends ReferenceInstr {}
+
+	/**
+	 * Represents an array instruction.
+	 */
 	sealed interface ArrayInstr extends ReferenceInstr {}
 
 	/**

@@ -57,6 +57,11 @@ public class AddressTypeUtils {
 		};
 	}
 
+	/**
+	 * Gets the type of a memory.
+	 * @param memory The memory.
+	 * @return The type of the memory.
+	 */
 	public static MemType getMemoryType(WasmMemory memory) {
 		return new MemType(memory.addressType(), new Limits(memory.pageSize(), memory.maxPageSize()));
 	}
