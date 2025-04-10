@@ -6,6 +6,10 @@ import dev.argon.jawawasm.format.types.*;
 
 import java.util.ArrayList;
 
+/**
+ * Internal use only.
+ * @hidden
+ */
 public sealed abstract class TypeResolver permits TypeClosure, TypeRoll, TypeUnroll {
 	TypeResolver() {}
 

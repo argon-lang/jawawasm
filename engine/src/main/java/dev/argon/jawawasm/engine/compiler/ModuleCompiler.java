@@ -3,17 +3,14 @@ package dev.argon.jawawasm.engine.compiler;
 import com.google.common.collect.ImmutableList;
 import dev.argon.jawawasm.engine.ModuleResolver;
 import dev.argon.jawawasm.engine.internal.TypeUnroll;
-import dev.argon.jawawasm.engine.reflection.ReflectionEngine;
 import dev.argon.jawawasm.format.ModuleFormatException;
 import dev.argon.jawawasm.format.modules.Module;
 import dev.argon.jawawasm.format.modules.TypeIdx;
 import dev.argon.jawawasm.format.types.*;
 import dev.argon.jawawasm.runtime.ModuleLinkException;
-import dev.argon.jawawasm.runtime.ModuleResolutionException;
 import org.jspecify.annotations.Nullable;
 
 import java.lang.classfile.*;
-import java.lang.classfile.attribute.RuntimeVisibleTypeAnnotationsAttribute;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.util.*;
@@ -21,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static dev.argon.jawawasm.engine.compiler.Constants.RUNTIME_PACKAGE;
+import static dev.argon.jawawasm.engine.internal.Constants.RUNTIME_PACKAGE;
 import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.*;
 import static java.lang.constant.ConstantDescs.*;
 
@@ -198,7 +195,12 @@ public class ModuleCompiler {
 		};
 	}
 
-	ResultTypeRealization getResultType(ResultType type) {
+	/**
+	 * Gets the realization of a result type.
+	 * @param type The result type.
+	 * @return The realization.
+	 */
+	public ResultTypeRealization getResultType(ResultType type) {
 		var elementTypeKinds = ImmutableList.<TypeKind>builder();
 		var elementTypes = ImmutableList.<TypeRealization>builder();
 		var typeArgRealizations = ImmutableList.<TypeRealization>builder();

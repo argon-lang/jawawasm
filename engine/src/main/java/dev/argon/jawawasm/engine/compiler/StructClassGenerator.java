@@ -4,7 +4,6 @@ import dev.argon.jawawasm.format.types.DefType;
 import dev.argon.jawawasm.format.types.Mut;
 import dev.argon.jawawasm.format.types.StructType;
 import dev.argon.jawawasm.format.types.SubType;
-import org.jspecify.annotations.Nullable;
 
 import java.lang.classfile.ClassBuilder;
 import java.lang.classfile.ClassFile;
@@ -16,7 +15,6 @@ import java.lang.constant.MethodTypeDesc;
 import java.util.*;
 import java.util.function.Supplier;
 
-import static dev.argon.jawawasm.engine.compiler.Constants.RUNTIME_PACKAGE;
 import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.*;
 import static java.lang.constant.ConstantDescs.*;
 

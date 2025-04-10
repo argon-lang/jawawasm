@@ -5,6 +5,10 @@ import dev.argon.jawawasm.format.types.*;
 import dev.argon.jawawasm.format.types.Limits;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Internal use only.
+ * @hidden
+ */
 public abstract class SubtypingBase {
 
 	public abstract HeapType resolveTypeIdx(TypeIdx idx);

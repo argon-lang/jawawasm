@@ -5,6 +5,10 @@ import dev.argon.jawawasm.format.types.*;
 
 import java.util.ArrayList;
 
+/**
+ * Internal use only.
+ * @hidden
+ */
 public final class TypeUnroll extends TypeResolver {
 	private TypeUnroll(RecursiveType recType) {
 		this.recType = recType;

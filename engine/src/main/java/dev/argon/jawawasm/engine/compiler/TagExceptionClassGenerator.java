@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static dev.argon.jawawasm.engine.compiler.Constants.RUNTIME_PACKAGE;
+import static dev.argon.jawawasm.engine.internal.Constants.RUNTIME_PACKAGE;
 import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.typeKind;
 import static java.lang.constant.ConstantDescs.CD_void;
 

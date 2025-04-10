@@ -222,7 +222,7 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 								"unexpected end of section or function",
 								"unexpected end",
 								"section size mismatch" ->
-							skipExpected = true;
+							true;
 
 						default -> false;
 					};

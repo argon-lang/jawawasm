@@ -1,6 +1,7 @@
 package dev.argon.jawawasm.engine.reflection;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.reflect.ClassPath;
 import dev.argon.jawawasm.engine.compiler.ErasedResultType;
 import dev.argon.jawawasm.engine.compiler.ModuleCompiler;
 import dev.argon.jawawasm.engine.compiler.WasmExportRealization;
@@ -15,10 +16,7 @@ import java.lang.classfile.attribute.InnerClassInfo;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.lang.reflect.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static java.lang.constant.ConstantDescs.CD_void;
 
@@ -64,13 +62,7 @@ public class ReflectionModuleLoader {
 		);
 	}
 
-	/**
-	 * Loads a result type.
-	 * @param t The result type to load.
-	 * @return The WebAssembly result type that the type defines.
-	 * @throws ModuleFormatException If the type is not a valid result type.
-	 */
-	public ResultType loadResultType(AnnotatedType t) throws ModuleFormatException {
+	ResultType loadResultType(AnnotatedType t) throws ModuleFormatException {
 		Class<?> tClass;
 		AnnotatedType[] typeArgs;
 
@@ -122,7 +114,13 @@ public class ReflectionModuleLoader {
 		return new ResultType(elementTypes.build());
 	}
 
-	private ErasedResultType loadResultClass(Class<?> t) throws ModuleFormatException {
+	/**
+	 * Loads a class as a result type.
+	 * @param t The result class.
+	 * @return The erased result type.
+	 * @throws ModuleFormatException if the class is not a valid result type.
+	 */
+	public ErasedResultType loadResultClass(Class<?> t) throws ModuleFormatException {
 		var endResultClass = Arrays.stream(t.getDeclaredClasses())
 			.filter(nested -> nested.getSimpleName().equals("EndResult"))
 			.findAny()
@@ -145,7 +143,7 @@ public class ReflectionModuleLoader {
 
 		var ofMethod = ofMethods.getFirst();
 
-		if(!t.isAssignableFrom(ofMethod.getReturnType())) {
+		if(ofMethod.getReturnType() != t) {
 			throw new ModuleFormatException("Invalid result type. \"of\" method must return the result type. Result type: " + t + ", Return type: " + ofMethod.getReturnType());
 		}
 
@@ -237,12 +235,12 @@ public class ReflectionModuleLoader {
 			return null;
 		}
 
-		if(!WebAssemblyException.class.isAssignableFrom(innerClass)) {
+		if(!WebAssemblyException.class.equals(innerClass.getSuperclass())) {
 			return null;
 		}
 
 		var constructors = Arrays.stream(innerClass.getConstructors())
-			.filter(c -> Modifier.isPublic(innerClass.getModifiers()))
+			.filter(c -> Modifier.isPublic(c.getModifiers()))
 			.toList();
 
 		if(constructors.size() != 1) {

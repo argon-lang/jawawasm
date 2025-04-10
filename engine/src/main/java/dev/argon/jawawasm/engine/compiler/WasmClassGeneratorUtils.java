@@ -9,7 +9,7 @@ import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.util.Collections;
 
-import static dev.argon.jawawasm.engine.compiler.Constants.*;
+import static dev.argon.jawawasm.engine.internal.Constants.*;
 import static java.lang.constant.ConstantDescs.CD_byte;
 import static java.lang.constant.ConstantDescs.CD_void;
 

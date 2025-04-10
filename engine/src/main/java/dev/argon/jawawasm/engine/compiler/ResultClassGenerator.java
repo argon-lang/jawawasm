@@ -1,15 +1,11 @@
 package dev.argon.jawawasm.engine.compiler;
 
-import dev.argon.jawawasm.format.types.FuncType;
-import dev.argon.jawawasm.format.types.ResultType;
-import dev.argon.jawawasm.format.types.SubType;
-
 import java.lang.classfile.*;
 import java.lang.classfile.attribute.*;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 
-import static dev.argon.jawawasm.engine.compiler.Constants.RUNTIME_PACKAGE;
+import static dev.argon.jawawasm.engine.internal.Constants.RUNTIME_PACKAGE;
 import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.*;
 import static java.lang.constant.ConstantDescs.*;
 import java.util.ArrayList;

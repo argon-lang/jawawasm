@@ -8,6 +8,10 @@ import dev.argon.jawawasm.format.types.SubType;
 
 import java.util.ArrayList;
 
+/**
+ * Internal use only.
+ * @hidden
+ */
 public final class TypeRoll extends TypeResolver {
 	private TypeRoll(int recTypeStart) {
 		this.recTypeStart = recTypeStart;

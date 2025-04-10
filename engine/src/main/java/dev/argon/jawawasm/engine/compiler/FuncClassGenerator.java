@@ -15,7 +15,7 @@ import java.lang.constant.MethodTypeDesc;
 import java.util.HashSet;
 import java.util.Set;
 
-import static dev.argon.jawawasm.engine.compiler.Constants.RUNTIME_PACKAGE;
+import static dev.argon.jawawasm.engine.internal.Constants.RUNTIME_PACKAGE;
 import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.typeKind;
 
 class FuncClassGenerator extends DefTypeClassGenerator {

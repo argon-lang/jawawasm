@@ -1,3 +1,6 @@
+/**
+ * Internal utilities.
+ */
 @NullMarked
 package dev.argon.jawawasm.engine.internal;
 

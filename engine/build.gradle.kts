@@ -18,7 +18,7 @@ repositories {
 dependencies {
     api(project(":format"))
     api(libs.jspecify) // Not compile only because we may use reflection
-    implementation(libs.classgraph)
+    implementation(libs.commons.compress)
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
@@ -42,6 +42,8 @@ tasks.withType<JavaCompile>().configureEach {
         option("NullAway:OnlyNullMarked", "true")
         option("NullAway:JSpecifyMode", "true")
         error("NullAway")
+        disable("InvalidBlockTag")
+        disable("MissingSummary")
     }
 
     options.compilerArgs.add("-Xlint:unchecked,deprecation,fallthrough,path,rawtypes")
@@ -63,7 +65,7 @@ tasks.javadoc {
     val coreOptions = options as CoreJavadocOptions
     coreOptions.addStringOption("-source-path", sourceSetDirectories)
 
-    exclude("dev/argon/jawawasm/engine/internal/**")
+    exclude("dev/argon/jawawasm/engine/internal")
 }
 
 publishing {
