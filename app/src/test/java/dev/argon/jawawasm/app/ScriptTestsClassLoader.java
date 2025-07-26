@@ -3,6 +3,8 @@
  */
 package dev.argon.jawawasm.app;
 
+import dev.argon.jawawasm.app.wast.WastLoader;
+
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -12,8 +14,8 @@ class ScriptTestsClassLoader extends ScriptTestsBase {
 	private final AtomicInteger testNum = new AtomicInteger(0);
 
 	@Override
-	protected ScriptExecutor<?> createScriptExecutor(Path wasmExecutable) {
+	protected ScriptExecutor<?> createScriptExecutor(WastLoader loader) {
 		int n = testNum.getAndIncrement();
-		return new ScriptReflectionExecutor("dev.argon.jawawasm.test.testscript" + n, wasmExecutable, new PrintWriter(System.out));
+		return new ScriptReflectionExecutor("dev.argon.jawawasm.test.testscript" + n, loader, new PrintWriter(System.out));
 	}
 }

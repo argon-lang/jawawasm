@@ -1,8 +1,7 @@
 package dev.argon.jawawasm.app;
 
 import com.google.errorprone.annotations.MustBeClosed;
-import dev.argon.jawawasm.format.text.ScriptCommandInfo;
-import dev.argon.jawawasm.format.text.ScriptReader;
+import dev.argon.jawawasm.app.wast.WastLoader;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.parallel.Execution;
@@ -49,31 +48,24 @@ abstract class ScriptTestsBase {
 			}
 		}
 
-//		if(!path.toString().equals("gc/array_new_data.wast")) {
+//		if(!path.toString().equals("gc/extern.wast")) {
 //			return true;
 //		}
 
 		return false;
 	}
 
-	protected abstract ScriptExecutor<?> createScriptExecutor(Path wasmExecutable);
+	protected abstract ScriptExecutor<?> createScriptExecutor(WastLoader loader);
 
 	private void runWastScript(Path path) throws Throwable {
+		var loader = new WastLoader(Path.of("../cargo-tools/bin/wasm-tools").toAbsolutePath());
 
-
-		List<? extends ScriptCommandInfo> commands;
-		try(var reader = Files.newBufferedReader(path)) {
-			commands = new ScriptReader(reader).readCommands();
+		try(var scriptLoaded = loader.loadScript(path)) {
+			try(var interpreter = createScriptExecutor(loader)) {
+				interpreter.initialize();
+				interpreter.executeScript(scriptLoaded);
+			}
 		}
 
-		String wasmPathStr = System.getenv("JAWAWASM_WASM_PATH");
-		if(wasmPathStr == null) {
-			wasmPathStr = "../webassembly-spec/interpreter/wasm";
-		}
-
-		try(var interpreter = createScriptExecutor(Path.of(wasmPathStr))) {
-			interpreter.initialize();
-			interpreter.executeScript(path.getFileName().toString(), commands);
-		}
 	}
 }

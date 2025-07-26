@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.app;
 
+import dev.argon.jawawasm.app.wast.*;
 import dev.argon.jawawasm.engine.ModuleResolver;
 import dev.argon.jawawasm.engine.interpreter.*;
 import dev.argon.jawawasm.engine.validator.ModuleValidator;
@@ -7,33 +8,29 @@ import dev.argon.jawawasm.engine.validator.ValidationException;
 import dev.argon.jawawasm.format.ModuleFormatException;
 import dev.argon.jawawasm.format.binary.ModuleReader;
 import dev.argon.jawawasm.format.modules.Module;
-import dev.argon.jawawasm.format.text.SExpr;
-import dev.argon.jawawasm.format.text.ScriptCommand;
-import dev.argon.jawawasm.format.text.ScriptCommandInfo;
-import dev.argon.jawawasm.format.text.ScriptReader;
 import dev.argon.jawawasm.runtime.*;
 import org.jspecify.annotations.Nullable;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.foreign.Arena;
-import java.nio.file.Files;
+import java.math.BigInteger;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.IntStream;
 
 
 /**
  * An executor for WAST scripts.
  */
 public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permits ScriptReflectionExecutor, ScriptInterpreter {
-	ScriptExecutor(Path wasmExecutable, PrintWriter output) {
+	ScriptExecutor(WastLoader loader, PrintWriter output) {
 		arena = Arena.ofShared();
 		allocator = new ArenaMemoryAllocator(arena);
 
-		this.wasmExecutable = wasmExecutable;
+		this.loader = loader;
 		this.output = output;
 
 		allocator.setMaxMemory(0x10000);
@@ -42,9 +39,10 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 	private final Arena arena;
 	final MemoryAllocator allocator;
 	private final ModuleResolver<Mod> resolver = new ScriptResolver();
-	private final Path wasmExecutable;
+	private final WastLoader loader;
 	private final PrintWriter output;
 
+	private @Nullable Module currentModuleDefinition = null;
 	private @Nullable Mod currentModule = null;
 	private Map<String, Module> definedModules = new HashMap<>();
 	private Map<String, Mod> registeredModules = new HashMap<>();
@@ -56,24 +54,6 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 	abstract @Nullable Object[] invokeModuleExport(Mod mod, String name, @Nullable Object[] args) throws ExecutionException;
 	abstract @Nullable Object getGlobalExport(Mod mod, String name);
 
-
-	private static final class F32NanCanonical {}
-	private static final class F32NanArithmetic {}
-
-	private static final class F64NanCanonical {}
-	private static final class F64NanArithmetic {}
-
-	private static final class AnyEqRef {}
-	private static final class AnyExternRef {}
-	private static final class AnyFuncRef {}
-	private static final class AnyStructRef {}
-	private static final class AnyArrayRef {}
-	private static final class AnyI31 {}
-
-	private static record F32x4Result(Object f0, Object f1, Object f2, Object f3) {}
-	private static record F64x2Result(Object f0, Object f1) {}
-
-	private static record EitherValue(List<Object> values) {}
 
 	private Mod getModuleByName(@Nullable String name) throws ScriptExecutionException {
 		Mod module;
@@ -102,72 +82,78 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 		registeredModules.put("spectest", getSpecTestModule(output));
 	}
 
-	/**
-	 * Execute a script command.
-	 * @param command The command to execute.
-	 * @throws ExecutionException if an error occurred while executing WebAssembly.
-	 * @throws ScriptExecutionException if an error occurred while executing the script.
-	 * @throws ModuleFormatException if a module is malformed.
-	 * @throws ValidationException if a module failed validation.
-	 * @throws ModuleLinkException if a module link error occurred.
-	 * @throws IOException if an IO error occurred.
-	 * @throws InterruptedException if execution was interrupted.
-	 */
-	public void executeCommand(ScriptCommand command) throws ExecutionException, ScriptExecutionException, ModuleFormatException, ValidationException, ModuleLinkException, IOException, InterruptedException {
+	public void executeCommand(WastScriptLoaded scriptLoaded, WastCommand command) throws ExecutionException, ScriptExecutionException, ModuleFormatException, ValidationException, ModuleLinkException, IOException, InterruptedException {
 		switch(command) {
-			case ScriptCommand.ScriptModule(var name, var moduleExpr) -> {
-				var convertedModule = getModuleAsBinary(moduleExpr);
+			case WastCommand.Module moduleCommand -> {
+				var convertedModule = getModuleAsBinary(scriptLoaded, moduleCommand.file());
 				ModuleValidator.validateModule(convertedModule);
 
 				var module = instantiateModule(convertedModule, resolver);
 				currentModule = module;
+				currentModuleDefinition = convertedModule;
 
-				if(name != null) {
-					namedModules.put(name, module);
+				if(moduleCommand.name() != null) {
+					namedModules.put(moduleCommand.name(), module);
 				}
 			}
 
-			case ScriptCommand.ScriptModuleDefinition(var name, var moduleExpr) -> {
-				var convertedModule = getModuleAsBinary(moduleExpr);
+			case WastCommand.ModuleDefinition moduleDefinition -> {
+				var convertedModule = getModuleAsBinary(scriptLoaded, moduleDefinition.file());
 				ModuleValidator.validateModule(convertedModule);
 
-				if(name != null) {
-					definedModules.put(name, convertedModule);
+				currentModuleDefinition = convertedModule;
+
+				if(moduleDefinition.name() != null) {
+					definedModules.put(moduleDefinition.name(), convertedModule);
 				}
 			}
 
-			case ScriptCommand.ScriptModuleInstance(var name, var definitionName) -> {
-				var convertedModule = definedModules.get(definitionName);
-				Objects.requireNonNull(convertedModule);
+			case WastCommand.ModuleInstance moduleInstance -> {
+				Module convertedModule;
+				if(moduleInstance.module() == null) {
+					convertedModule = currentModuleDefinition;
+
+					if(convertedModule == null) {
+						throw new ScriptExecutionException("No module definition available");
+					}
+				}
+				else {
+					convertedModule = definedModules.get(moduleInstance.module());
+
+					if(convertedModule == null) {
+						throw new ScriptExecutionException("Could not find requested module");
+					}
+				}
 
 				var module = instantiateModule(convertedModule, resolver);
 				currentModule = module;
-				namedModules.put(name, module);
+				if(moduleInstance.instance() != null) {
+					namedModules.put(moduleInstance.instance(), module);
+				}
 			}
 
-			case ScriptCommand.Register(var importName, var name) -> {
-				var module = getModuleByName(name);
-				registeredModules.put(importName, module);
+			case WastCommand.Register register -> {
+				var module = getModuleByName(register.name());
+				registeredModules.put(register.as(), module);
 			}
 
-			case ScriptCommand.Action action -> {
-				runAction(action);
+			case WastCommand.Action action -> {
+				runAction(action.action());
 			}
 
-			case ScriptCommand.Assertion.AssertReturn(var action, var results) -> {
-				@Nullable Object[] expected = getConstantValues(results);
-				@Nullable Object[] actual = runAction(action);
-				if(!valuesEqual(expected, actual)) {
-					throw new ScriptAssertionException("Assertion failed\nAssertion: " + command + "\nExpected: " + Arrays.toString(expected) + "\nActual: " + Arrays.toString(actual));
+			case WastCommand.AssertReturn assertReturn -> {
+				@Nullable Object[] actual = runAction(assertReturn.action());
+				if(!valuesEqual(assertReturn.expected(), actual)) {
+					throw new ScriptAssertionException("Assertion failed\nAssertion: " + command + "\nExpected: " + assertReturn.expected() + "\nActual: " + Arrays.toString(actual));
 				}
 
 			}
 
-			case ScriptCommand.Assertion.AssertException(var action) -> {
+			case WastCommand.AssertException assertException -> {
 				@Nullable Object[] actual;
 
 				try {
-					actual = runAction(action);
+					actual = runAction(assertException.action());
 				}
 				catch(ExecutionException ex) {
 					if(ex.getCause() instanceof WebAssemblyException) {
@@ -180,15 +166,16 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 				throw new ScriptAssertionException("Assertion failed\nAssertion: " + command + "\nExpected an exception\nActual: " + Arrays.toString(actual));
 			}
 
-			case ScriptCommand.Assertion.AssertTrap(var action, var message) ->
-				assertTrapIn(() -> runAction(action), message);
+			case WastCommand.AssertTrap assertTrap ->
+				assertTrapIn(() -> runAction(assertTrap.action()), assertTrap.text());
 
-			case ScriptCommand.Assertion.AssertExhaustion(var action, var message) -> {
+			case WastCommand.AssertExhaustion assertExhaustion -> {
+				var message = assertExhaustion.text();
 				boolean foundError = false;
 				switch(message) {
 					case "call stack exhausted" -> {
 						try {
-							runAction(action);
+							runAction(assertExhaustion.action());
 						}
 						catch(ExecutionException ex) {
 							if(ex.getCause() instanceof StackOverflowError) {
@@ -208,10 +195,15 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 				}
 			}
 
-			case ScriptCommand.Assertion.AssertMalformed(var module, var message) -> {
+			case WastCommand.AssertMalformed assertMalformed -> {
+				if(assertMalformed.file().moduleType() == ModuleType.TEXT && assertMalformed.file().binaryFilename() == null) {
+					return;
+				}
+
+				var message = assertMalformed.text();
 				boolean foundError = false;
 				try {
-					getModuleAsBinary(module);
+					getModuleAsBinary(scriptLoaded, assertMalformed.file());
 				}
 				catch(ModuleConversionException ex) {
 					foundError = true;
@@ -240,7 +232,8 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 				}
 			}
 
-			case ScriptCommand.Assertion.AssertInvalid(var module, var message) -> {
+			case WastCommand.AssertInvalid assertInvalid -> {
+				var message = assertInvalid.text();
 				boolean foundError = false;
 
 				int colonIndex = message.indexOf(":");
@@ -248,7 +241,7 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 					message = message.substring(0, colonIndex);
 				}
 
-				var convertedModule = getModuleAsBinary(module);
+				var convertedModule = getModuleAsBinary(scriptLoaded, assertInvalid.file());
 				try {
 					ModuleValidator.validateModule(convertedModule);
 				}
@@ -266,10 +259,11 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 				}
 			}
 
-			case ScriptCommand.Assertion.AssertUnlinkable(var module, var message) -> {
+			case WastCommand.AssertUnlinkable assertUnlinkable -> {
+				var message = assertUnlinkable.text();
 				boolean foundError = false;
 
-				var convertedModule = getModuleAsBinary(module);
+				var convertedModule = getModuleAsBinary(scriptLoaded, assertUnlinkable.file());
 				ModuleValidator.validateModule(convertedModule);
 
 				try {
@@ -298,21 +292,22 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 					throw new ScriptAssertionException("Expected unlinkable module, but linking succeeded");
 				}
 			}
-			case ScriptCommand.Assertion.AssertTrapInstantiation(var module, var message) -> {
-				var convertedModule = getModuleAsBinary(module);
+
+			case WastCommand.AssertUninstantiable assertUninstantiable -> {
+				var convertedModule = getModuleAsBinary(scriptLoaded, assertUninstantiable.file());
 				ModuleValidator.validateModule(convertedModule);
-				assertTrapIn(() -> instantiateModule(convertedModule, resolver), message);
+				assertTrapIn(() -> instantiateModule(convertedModule, resolver), assertUninstantiable.text());
 			}
 		}
 	}
 
-	private boolean valuesEqual(@Nullable Object[] expected, @Nullable Object[] actual) {
-		if(expected.length != actual.length) {
+	private boolean valuesEqual(List<WastValue> expected, @Nullable Object[] actual) {
+		if(expected.size() != actual.length) {
 			return false;
 		}
 
-		for(int i = 0; i < expected.length; ++i) {
-			if(!valueEqual(expected[i], actual[i])) {
+		for(int i = 0; i < expected.size(); ++i) {
+			if(!valueEqual(expected.get(i), actual[i])) {
 				return false;
 			}
 		}
@@ -320,74 +315,59 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 		return true;
 	}
 
-	private boolean valueEqual(@Nullable Object expected, @Nullable Object actual) {
-		if(expected instanceof Integer i1 && actual instanceof Integer i2) {
-			return (int)i1 == (int)i2;
-		}
-		else if(expected instanceof Long l1 && actual instanceof Long l2) {
-			return (long)l1 == (long)l2;
-		}
-		else if(expected instanceof Float f1 && actual instanceof Float f2) {
-			return Float.floatToRawIntBits(f1) == Float.floatToRawIntBits(f2);
-		}
-		else if(expected instanceof F32NanCanonical && actual instanceof Float f2) {
-			return (Float.floatToRawIntBits(f2) & 0x7FFFFFFF) == 0x7FC00000;
-		}
-		else if(expected instanceof F32NanArithmetic && actual instanceof Float f2) {
-			return (Float.floatToRawIntBits(f2) & 0x7FC00000) == 0x7FC00000;
-		}
-		else if(expected instanceof Double d1 && actual instanceof Double d2) {
-			return Double.doubleToRawLongBits(d1) == Double.doubleToRawLongBits(d2);
-		}
-		else if(expected instanceof F64NanCanonical && actual instanceof Double d2) {
-			return (Double.doubleToRawLongBits(d2) & 0x7FFFFFFFFFFFFFFFL) == 0x7FF8000000000000L;
-		}
-		else if(expected instanceof F64NanArithmetic && actual instanceof Double d2) {
-			return (Double.doubleToRawLongBits(d2) & 0x7FF8000000000000L) == 0x7FF8000000000000L;
-		}
-		else if(expected instanceof V128 v1 && actual instanceof V128 v2) {
-			return v1.equals(v2);
-		}
-		else if(expected instanceof F32x4Result v1 && actual instanceof V128 v2) {
-			return valueEqual(v1.f0(), v2.extractLaneF32(0)) &&
-					valueEqual(v1.f1(), v2.extractLaneF32(1)) &&
-					valueEqual(v1.f2(), v2.extractLaneF32(2)) &&
-					valueEqual(v1.f3(), v2.extractLaneF32(3));
-		}
-		else if(expected instanceof F64x2Result v1 && actual instanceof V128 v2) {
-			return valueEqual(v1.f0(), v2.extractLaneF64(0)) &&
-					valueEqual(v1.f1(), v2.extractLaneF64(1));
-		}
-		else if(expected instanceof AnyExternRef) {
-			return true;
-		}
-		else if(expected instanceof AnyEqRef) {
-			return actual instanceof DynamicWasmEq || actual instanceof WasmEq;
-		}
-		else if(expected instanceof AnyFuncRef) {
-			return actual instanceof DynamicWasmFunction || actual instanceof WasmFunction;
-		}
-		else if(expected instanceof AnyStructRef) {
-			return actual instanceof DynamicWasmStruct || actual instanceof WasmStruct;
-		}
-		else if(expected instanceof AnyArrayRef) {
-			return actual instanceof DynamicWasmArray || actual instanceof WasmArray;
-		}
-		else if(expected instanceof AnyI31) {
-			return actual instanceof I31;
-		}
-		else if(expected instanceof EitherValue(var values)) {
-			for(var expectedSub : values) {
-				if(valueEqual(expectedSub, actual)) {
-					return true;
-				}
-			}
+	private boolean valueEqual(WastValue expected, @Nullable Object actual) {
+		return switch(expected) {
+			case WastValue.I32(var i1) -> actual instanceof Integer i2 && i1.intValue() == i2;
+			case WastValue.I64(var l1) -> actual instanceof Long l2 && l1.longValue() == l2;
+			case WastValue.F32(var f1) when f1.equals("nan:canonical") -> actual instanceof Float f2 && (Float.floatToRawIntBits(f2) & 0x7FFFFFFF) == 0x7FC00000;
+			case WastValue.F32(var f1) when f1.equals("nan:arithmetic") -> actual instanceof Float f2 && (Float.floatToRawIntBits(f2) & 0x7FC00000) == 0x7FC00000;
+			case WastValue.F32(var f1) -> actual instanceof Float f2 && new BigInteger(f1).intValue() == Float.floatToRawIntBits(f2);
+			case WastValue.F64(var f1) when f1.equals("nan:canonical") -> actual instanceof Double f2 && (Double.doubleToRawLongBits(f2) & 0x7FFFFFFFFFFFFFFFL) == 0x7FF8000000000000L;
+			case WastValue.F64(var f1) when f1.equals("nan:arithmetic") -> actual instanceof Double f2 && (Double.doubleToRawLongBits(f2) & 0x7FF8000000000000L) == 0x7FF8000000000000L;
+			case WastValue.F64(var f1) -> actual instanceof Double f2 && new BigInteger(f1).longValue() == Double.doubleToRawLongBits(f2);
+			case WastValue.V128 v1 -> actual instanceof V128 v2 && switch(v1.laneType()) {
+				case I8, I16, I32, I64 -> getV128Value(v1).equals(v2);
 
-			return false;
-		}
-		else {
-			return expected == actual;
-		}
+				case F32 ->
+					IntStream.range(0, 4)
+						.allMatch(i -> valueEqual(new WastValue.F32(v1.value().get(i)), v2.extractLaneF32(i)));
+				case F64 ->
+					IntStream.range(0, 2)
+						.allMatch(i -> valueEqual(new WastValue.F64(v1.value().get(i)), v2.extractLaneF64(i)));
+			};
+			case WastValue.ExternRef(var id) when id == null -> true;
+			case WastValue.ExternRef(var id) when id.equals("null") -> actual == null;
+			case WastValue.ExternRef(var id) -> actual == getExternRef(new BigInteger(id).intValue());
+			case WastValue.FuncRef(var id) when id == null -> actual instanceof DynamicWasmFunction || actual instanceof WasmFunction;
+			case WastValue.FuncRef(var id) when id.equals("null") -> actual == null;
+			case WastValue.FuncRef(var id) -> throw new RuntimeException("TODO: func ref " + id);
+			case WastValue.AnyRef(var id) when id == null -> true;
+			case WastValue.AnyRef(var id) when id.equals("null") -> actual == null;
+			case WastValue.AnyRef(var id) -> actual == getExternRef(new BigInteger(id).intValue());
+			case WastValue.ExnRef(var id) when id == null -> actual instanceof WebAssemblyException;
+			case WastValue.ExnRef(var id) when id.equals("null") -> actual == null;
+			case WastValue.ExnRef(var id) -> throw new RuntimeException("Invalid exn ref: " + id);
+			case WastValue.I31Ref() -> actual instanceof I31;
+			case WastValue.EqRef() -> actual instanceof DynamicWasmEq || actual instanceof WasmEq;
+			case WastValue.ArrayRef() -> actual instanceof DynamicWasmArray || actual instanceof WasmArray;
+			case WastValue.StructRef() -> actual instanceof DynamicWasmStruct || actual instanceof WasmStruct;
+			case WastValue.NullRef(),
+				 WastValue.NullFuncRef(),
+				 WastValue.NullExternRef(),
+				 WastValue.NullExnRef(),
+				 WastValue.RefNull() ->
+				actual == null;
+
+			case WastValue.Either(var values) -> {
+				for(var expectedSub : values) {
+					if(valueEqual(expectedSub, actual)) {
+						yield true;
+					}
+				}
+
+				yield false;
+			}
+		};
 	}
 
 	private static interface TrapCheck {
@@ -462,97 +442,55 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 		}
 	}
 
-	/**
-	 * Execute a script.
-	 * @param scriptName The name of the script.
-	 * @param commands The commands in the script.
-	 * @throws ExecutionException if an error occurred within WebAssembly or an assertion failed.
-	 * @throws ScriptExecutionException if an error occurred while executing the script.
-	 * @throws ModuleFormatException if a module is malformed.
-	 * @throws ValidationException if a module failed validation.
-	 * @throws ModuleLinkException if a module link error occurred.
-	 * @throws IOException if an IO error occurred.
-	 * @throws InterruptedException if execution was interrupted.
-	 */
-	public void executeScript(String scriptName, List<? extends ScriptCommandInfo> commands) throws Exception {
+	public void executeScript(WastScriptLoaded scriptLoaded) throws Exception {
+		var script = scriptLoaded.getScript();
 		int i = 0;
-		for(var command : commands) {
+		for(var command : script.commands()) {
+			System.out.println("Executing command " + command);
 			try {
-				executeCommand(command.command());
+				executeCommand(scriptLoaded, command);
 			}
 			catch(Exception e) {
-				throw new Exception("Script " + scriptName + " failed at #" + i + " on line " + command.lineNumber(), e);
+				throw new Exception("Script " + Path.of(script.sourceFilename()).getFileName() + " failed at #" + i + " on line " + command.line(), e);
 			}
 			++i;
 		}
 	}
 
-	private @Nullable Object[] runAction(ScriptCommand.Action action) throws ExecutionException, ScriptExecutionException {
+	private @Nullable Object[] runAction(WastAction action) throws ExecutionException, ScriptExecutionException {
 		return switch(action) {
-			case ScriptCommand.Action.Invoke(var name, var exportName, var exprs) -> {
-				var module = getModuleByName(name);
+			case WastAction.Invoke invoke -> {
+				var module = getModuleByName(invoke.module());
 				@Nullable Object[] args;
 				try {
-					args = getConstantValues(exprs);
+					args = getConstantValues(invoke.args());
 				}
 				catch(Exception ex) {
 					throw new ExecutionException(ex);
 				}
 
-				yield invokeModuleExport(module, exportName, args);
+				yield invokeModuleExport(module, invoke.field(), args);
 			}
 
-			case ScriptCommand.Action.Get(var name, var exportName) -> {
-				var module = getModuleByName(name);
-				yield new @Nullable Object[] { getGlobalExport(module, exportName) };
+			case WastAction.Get get -> {
+				var module = getModuleByName(get.module());
+				yield new @Nullable Object[] { getGlobalExport(module, get.field()) };
 			}
 		};
 	}
 
-	private Module getModuleAsBinary(SExpr expr) throws ModuleFormatException, IOException, InterruptedException {
-		var exprs = ((SExpr.ExprList)expr).exprs();
-		if(exprs.size() > 2 && exprs.get(1) instanceof SExpr.Identifier binarySpecifier && binarySpecifier.name().equals("binary")) {
-			return getModuleAsBinaryLiteral(exprs);
+	private Module getModuleAsBinary(WastScriptLoaded scriptLoaded, WastFile file) throws ModuleFormatException, IOException, InterruptedException {
+		byte[] data;
+		if(file.binaryFilename() != null) {
+			data = loader.loadModule(scriptLoaded.getDir().resolve(file.binaryFilename()), ModuleType.BINARY);
 		}
 		else {
-			return getModuleAsBinaryExternal(expr);
-		}
-	}
-
-	private Module getModuleAsBinaryLiteral(List<? extends SExpr> exprs) throws ModuleFormatException, IOException {
-		var os = new ByteArrayOutputStream();
-		for(int i = 2; i < exprs.size(); ++i) {
-			((SExpr.StringValue)exprs.get(i)).writeTo(os);
+			data = loader.loadModule(scriptLoaded.getDir().resolve(file.filename()), file.moduleType());
 		}
 
-		var is = new ByteArrayInputStream(os.toByteArray());
+		var is = new ByteArrayInputStream(data);
 		return new ModuleReader(is).readModule();
 	}
-
-	private Module getModuleAsBinaryExternal(SExpr expr) throws ModuleFormatException, IOException, InterruptedException {
-		Path tempIn = Files.createTempFile("wasm-", ".wast");
-		try {
-			Files.writeString(tempIn, expr.toString());
-			Path temp = Files.createTempFile("wasm-", ".wasm");
-			try {
-				var process = new ProcessBuilder(wasmExecutable.toString(), "-u", "-d", tempIn.toString(), "-o", temp.toString()).start();
-				if(process.waitFor() != 0) {
-					throw new ModuleConversionException();
-				}
-
-				try(var is = Files.newInputStream(temp)) {
-					return new ModuleReader(is).readModule();
-				}
-			}
-			finally {
-				Files.delete(temp);
-			}
-		}
-		finally {
-			Files.delete(tempIn);
-		}
-	}
-
 
 
 	private final class ScriptResolver implements ModuleResolver<Mod> {
@@ -566,105 +504,76 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 		}
 	}
 
-	private @Nullable Object getConstantValue(SExpr expr) throws ModuleFormatException {
-		var exprs = ((SExpr.ExprList)expr).exprs();
-		return switch(ScriptReader.getSExprConstructor(expr)) {
-			case "i32.const" -> ((SExpr.NumberValue)exprs.get(1)).intValue();
-			case "i64.const" -> ((SExpr.NumberValue)exprs.get(1)).longValue();
-			case "f32.const" -> getFloat32LiteralValue(exprs.get(1));
-			case "f64.const" -> getFloat64LiteralValue(exprs.get(1));
-			case "v128.const" -> {
-				String shape = ((SExpr.Identifier)exprs.get(1)).name();
-				yield switch(shape) {
-					case "i8x16" -> V128.build8(i -> (byte)((SExpr.NumberValue)exprs.get(i + 2)).intValue());
-					case "i16x8" -> V128.build16(i -> (short)((SExpr.NumberValue)exprs.get(i + 2)).intValue());
-					case "i32x4" -> V128.build32(i -> ((SExpr.NumberValue)exprs.get(i + 2)).intValue());
-					case "i64x2" -> V128.build64(i -> ((SExpr.NumberValue)exprs.get(i + 2)).longValue());
-					case "f32x4" -> {
-						boolean hasSpecialNanCheck = false;
-						Object[] values = new Object[4];
-						for(int i = 0; i < values.length; ++i) {
-							Object value = getFloat32LiteralValue(exprs.get(i + 2));
-							values[i] = value;
-							if(value instanceof F32NanArithmetic || value instanceof F32NanCanonical) {
-								hasSpecialNanCheck = true;
-							}
-						}
+	private @Nullable Object getConstantValue(WastValue value) throws ModuleFormatException {
+		return switch(value) {
+			case WastValue.I32(var i) -> i.intValue();
+			case WastValue.I64(var l) -> l.longValue();
+			case WastValue.F32(var bits) -> Float.intBitsToFloat(new BigInteger(bits).intValue());
+			case WastValue.F64(var bits) -> Double.longBitsToDouble(new BigInteger(bits).longValue());
+			case WastValue.V128 v -> getV128Value(v);
+			case WastValue.ExternRef(var id) when id == null -> throw new ModuleFormatException("Unspecified extern ref");
+			case WastValue.ExternRef(var id) when id.equals("null") -> null;
+			case WastValue.ExternRef(var id) -> getExternRef(new BigInteger(id).intValue());
+			case WastValue.FuncRef(var id) when id == null -> throw new ModuleFormatException("Unspecified func ref");
+			case WastValue.FuncRef(var id) when id.equals("null") -> null;
+			case WastValue.FuncRef(var id) -> throw new RuntimeException("TODO: func ref " + id);
+			case WastValue.AnyRef(var id) when id == null -> throw new ModuleFormatException("Unspecified any ref");
+			case WastValue.AnyRef(var id) when id.equals("null") -> null;
+			case WastValue.AnyRef(var id) -> getExternRef(new BigInteger(id).intValue());
+			case WastValue.ExnRef(var id) when id == null -> throw new ModuleFormatException("Unspecified exn ref");
+			case WastValue.ExnRef(var id) when id.equals("null") -> null;
+			case WastValue.ExnRef(var id) -> throw new ModuleFormatException("Invalid exn ref: " + id);
+			case WastValue.I31Ref() -> throw new ModuleFormatException("Unspecified i31 ref");
+			case WastValue.EqRef() -> throw new ModuleFormatException("Unspecified eq ref");
+			case WastValue.ArrayRef() -> throw new ModuleFormatException("Unspecified array ref");
+			case WastValue.StructRef() -> throw new ModuleFormatException("Unspecified struct ref");
+			case WastValue.NullRef(),
+				 WastValue.NullFuncRef(),
+				 WastValue.NullExternRef(),
+				 WastValue.NullExnRef(),
+				 WastValue.RefNull() ->
+				null;
 
-						if(hasSpecialNanCheck) {
-							yield new F32x4Result(values[0], values[1], values[2], values[3]);
-						}
-						else {
-							yield V128.buildF32(i -> (float)values[i]);
-						}
-					}
-					case "f64x2" -> {
-						boolean hasSpecialNanCheck = false;
-						Object[] values = new Object[2];
-						for(int i = 0; i < values.length; ++i) {
-							Object value = getFloat64LiteralValue(exprs.get(i + 2));
-							values[i] = value;
-							if(value instanceof F64NanArithmetic || value instanceof F64NanCanonical) {
-								hasSpecialNanCheck = true;
-							}
-						}
-
-						if(hasSpecialNanCheck) {
-							yield new F64x2Result(values[0], values[1]);
-						}
-						else {
-							yield V128.buildF64(i -> (double)values[i]);
-						}
-					}
-					default -> throw new ModuleFormatException("Unexpected vector shape in literal: " + shape);
-				};
-			}
-			case "ref.extern", "ref.host" -> {
-				if(exprs.size() < 2) {
-					yield new AnyExternRef();
-				}
-				else {
-					yield getExternRef(((SExpr.NumberValue)exprs.get(1)).intValue());
-				}
-			}
-			case "ref.eq" -> new AnyEqRef();
-			case "ref.null" -> null;
-			case "ref.i31" -> new AnyI31();
-			case "ref.func" -> new AnyFuncRef();
-			case "ref.struct" -> new AnyStructRef();
-			case "ref.array" -> new AnyArrayRef();
-			case "either" -> new EitherValue(List.of(getConstantValues(exprs.subList(1, exprs.size()))));
-			default -> throw new ModuleFormatException("Unexpected constant expression: " + expr);
+			case WastValue.Either _ -> throw new ModuleFormatException("Unspecified either");
 		};
 	}
 
-	private Object getFloat32LiteralValue(SExpr expr) {
-		var num = (SExpr.NumberValue)expr;
-		if(num.rawNum().equals("nan:canonical")) {
-			return new F32NanCanonical();
-		}
-		else if(num.rawNum().equals("nan:arithmetic")) {
-			return new F32NanArithmetic();
-		}
-		else {
-			return num.floatValue();
-		}
+	private V128 getV128Value(WastValue.V128 v) {
+		return switch(v.laneType()) {
+			case I8 -> V128.build8(i -> new BigInteger(v.value().get(i)).byteValue());
+			case I16 -> V128.build16(i -> new BigInteger(v.value().get(i)).shortValue());
+			case I32, F32 -> V128.build32(i -> new BigInteger(v.value().get(i)).intValue());
+			case I64, F64 -> V128.build64(i -> new BigInteger(v.value().get(i)).longValue());
+		};
 	}
 
-	private Object getFloat64LiteralValue(SExpr expr) {
-		var num = (SExpr.NumberValue)expr;
-		if(num.rawNum().equals("nan:canonical")) {
-			return new F64NanCanonical();
-		}
-		else if(num.rawNum().equals("nan:arithmetic")) {
-			return new F64NanArithmetic();
-		}
-		else {
-			return num.doubleValue();
-		}
-	}
+//	private Object getFloat32LiteralValue(SExpr expr) {
+//		var num = (SExpr.NumberValue)expr;
+//		if(num.rawNum().equals("nan:canonical")) {
+//			return new F32NanCanonical();
+//		}
+//		else if(num.rawNum().equals("nan:arithmetic")) {
+//			return new F32NanArithmetic();
+//		}
+//		else {
+//			return num.floatValue();
+//		}
+//	}
+//
+//	private Object getFloat64LiteralValue(SExpr expr) {
+//		var num = (SExpr.NumberValue)expr;
+//		if(num.rawNum().equals("nan:canonical")) {
+//			return new F64NanCanonical();
+//		}
+//		else if(num.rawNum().equals("nan:arithmetic")) {
+//			return new F64NanArithmetic();
+//		}
+//		else {
+//			return num.doubleValue();
+//		}
+//	}
 
-	private @Nullable Object[] getConstantValues(List<? extends SExpr> exprs) throws ModuleFormatException {
+	private @Nullable Object[] getConstantValues(List<? extends WastValue> exprs) throws ModuleFormatException {
 		@Nullable Object[] values = new Object[exprs.size()];
 		for(int i = 0; i < exprs.size(); ++i) {
 			values[i] = getConstantValue(exprs.get(i));

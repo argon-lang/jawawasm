@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.app;
 
+import dev.argon.jawawasm.app.wast.WastLoader;
 import dev.argon.jawawasm.engine.ModuleResolver;
 import dev.argon.jawawasm.engine.interpreter.*;
 import dev.argon.jawawasm.engine.interpreter.WasmModule;
@@ -17,13 +18,8 @@ import java.util.concurrent.ExecutionException;
  * An interpreter for WAST scripts.
  */
 public final class ScriptInterpreter extends ScriptExecutor<WasmModule> {
-	/**
-	 * Create a ScriptInterpreter.
-	 * @param wasmExecutable Path to the reference interpreter.
-	 * @param output Writer to receive output.
-	 */
-	public ScriptInterpreter(Path wasmExecutable, PrintWriter output) {
-		super(wasmExecutable, output);
+	public ScriptInterpreter(WastLoader loader, PrintWriter output) {
+		super(loader, output);
 
 		engine = new Engine(allocator);
 	}

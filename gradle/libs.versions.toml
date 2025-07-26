@@ -1,3 +1,6 @@
+[versions]
+jackson = "2.19.2"
+
 [libraries]
 jspecify = { module = "org.jspecify:jspecify", version = "1.0.0" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version = "5.9.1" }
@@ -7,4 +10,9 @@ errorprone = { module = "com.google.errorprone:error_prone_core", version = "2.3
 guava = { module = "com.google.guava:guava", version = "33.4.5-jre" }
 protobuf = { module = "com.google.protobuf:protobuf-java", version = "4.30.1" }
 commons-compress = { module = "org.apache.commons:commons-compress", version = "1.27.1" }
+commons-io = { module = "commons-io:commons-io", version = "2.20.0" }
 
+jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson" }
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+jackson-guava = { module = "com.fasterxml.jackson.datatype:jackson-datatype-guava", version.ref = "jackson" }

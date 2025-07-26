@@ -15,6 +15,11 @@ dependencies {
     implementation(project(":engine"))
     implementation(project(":runtime"))
 
+    implementation(libs.jackson.core)
+    implementation(libs.jackson.annotations)
+    implementation(libs.jackson.databind)
+    implementation(libs.jackson.guava)
+    implementation(libs.commons.io)
     compileOnly(libs.jspecify)
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

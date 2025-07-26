@@ -44,4 +44,9 @@ public final class I31 implements WasmEq {
 	public int hashCode() {
 		return value;
 	}
+
+	@Override
+	public String toString() {
+		return "I31(" + value + ")";
+	}
 }

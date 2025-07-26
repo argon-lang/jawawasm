@@ -3,14 +3,10 @@
  */
 package dev.argon.jawawasm.app;
 
-import dev.argon.jawawasm.format.text.ScriptCommand;
-import dev.argon.jawawasm.format.text.ScriptCommandInfo;
-import dev.argon.jawawasm.format.text.ScriptReader;
+import dev.argon.jawawasm.app.wast.WastLoader;
 
 import java.io.PrintWriter;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 
 /**
  * App for executing wast scripts.
@@ -28,23 +24,23 @@ public class App {
     public static void main(String[] args) throws Throwable {
 		String scriptFile = args[0];
 
-		String wasmExecutableStr = System.getenv("JAWAWASM_WASM_PATH");
-		Path wasmExecutable = Path.of(wasmExecutableStr);
+		String wasmToolsExecutableStr = System.getenv("JAWAWASM_WASM_TOOLS_PATH");
+		Path wasmToolsExecutable = Path.of(wasmToolsExecutableStr);
 
-		List<? extends ScriptCommandInfo> commands;
-		System.out.println("Reading module");
-		try(var reader = Files.newBufferedReader(Path.of(scriptFile))) {
-			commands = new ScriptReader(reader).readCommands();
-		}
+		System.out.println("Reading script");
+		var loader = new WastLoader(wasmToolsExecutable);
 
-		System.out.println("Executing script");
+		try(var scriptLoaded = loader.loadScript(Path.of(scriptFile))) {
+			System.out.println("Executing script");
 
-		@SuppressWarnings("DefaultCharset")
-		var output = new PrintWriter(System.out);
+			@SuppressWarnings("DefaultCharset")
+			var output = new PrintWriter(System.out);
 
-		try(var interpreter = new ScriptInterpreter(wasmExecutable, output)) {
-			interpreter.initialize();
-			interpreter.executeScript(scriptFile, commands);
+			try(var interpreter = new ScriptInterpreter(loader, output)) {
+				interpreter.initialize();
+				interpreter.executeScript(scriptLoaded);
+			}
+
 		}
     }
 }

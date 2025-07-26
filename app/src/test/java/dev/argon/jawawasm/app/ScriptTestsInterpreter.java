@@ -3,6 +3,7 @@
  */
 package dev.argon.jawawasm.app;
 
+import dev.argon.jawawasm.app.wast.WastLoader;
 import org.junit.jupiter.api.Disabled;
 
 import java.io.PrintWriter;
@@ -11,7 +12,7 @@ import java.nio.file.Path;
 class ScriptTestsInterpreter extends ScriptTestsBase {
 
 	@Override
-	protected ScriptExecutor<?> createScriptExecutor(Path wasmExecutable) {
-		return new ScriptInterpreter(wasmExecutable, new PrintWriter(System.out));
+	protected ScriptExecutor<?> createScriptExecutor(WastLoader loader) {
+		return new ScriptInterpreter(loader, new PrintWriter(System.out));
 	}
 }

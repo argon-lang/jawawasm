@@ -1,5 +1,6 @@
 package dev.argon.jawawasm.app;
 
+import dev.argon.jawawasm.app.wast.WastLoader;
 import dev.argon.jawawasm.engine.ModuleResolver;
 import dev.argon.jawawasm.engine.reflection.ReflectionEngine;
 import dev.argon.jawawasm.engine.compiler.NameMangling;
@@ -23,13 +24,8 @@ import java.util.concurrent.ExecutionException;
  * An executor for WAST scripts that uses a class loader.
  */
 public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionModule> {
-	/**
-	 * Create a ScriptInterpreter.
-	 * @param wasmExecutable Path to the reference interpreter.
-	 * @param output Writer to receive output.
-	 */
-	public ScriptReflectionExecutor(String packageName, Path wasmExecutable, PrintWriter output) {
-		super(wasmExecutable, output);
+	public ScriptReflectionExecutor(String packageName, WastLoader loader, PrintWriter output) {
+		super(loader, output);
 
 		RuntimeContext context = new RuntimeContext() {
 			@Override
