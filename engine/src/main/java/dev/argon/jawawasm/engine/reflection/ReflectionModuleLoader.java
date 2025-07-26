@@ -23,7 +23,7 @@ import static java.lang.constant.ConstantDescs.CD_void;
 /**
  * Module loader using reflection to access types.
  */
-public class ReflectionModuleLoader {
+class ReflectionModuleLoader {
 	/**
 	 * Creates a module loader.
 	 * @param compiler The compiler to be notified of loaded types.
@@ -121,6 +121,10 @@ public class ReflectionModuleLoader {
 	 * @throws ModuleFormatException if the class is not a valid result type.
 	 */
 	public ErasedResultType loadResultClass(Class<?> t) throws ModuleFormatException {
+		if(!t.getPackage().getName().equals("dev.argon.jawawasm.runtime")) {
+			throw new ModuleFormatException("Result types must be defined in dev.argon.jawawasm.runtime");
+		}
+
 		var endResultClass = Arrays.stream(t.getDeclaredClasses())
 			.filter(nested -> nested.getSimpleName().equals("EndResult"))
 			.findAny()

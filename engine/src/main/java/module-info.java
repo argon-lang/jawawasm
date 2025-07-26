@@ -15,6 +15,5 @@ module dev.argon.jawawasm.engine {
 	exports dev.argon.jawawasm.engine.interpreter;
 	exports dev.argon.jawawasm.engine.compiler;
 	exports dev.argon.jawawasm.engine.reflection;
-	exports dev.argon.jawawasm.engine.bytecode;
 	exports dev.argon.jawawasm.engine.internal;
 }

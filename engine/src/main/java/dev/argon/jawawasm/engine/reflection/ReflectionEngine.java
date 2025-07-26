@@ -41,6 +41,14 @@ public class ReflectionEngine {
 			ClassHierarchyResolver.defaultResolver(),
 			packageName
 		));
+
+		try {
+			var loader = new ReflectionModuleLoader(compiler);
+			loader.loadResultClass(ResultVoid.class);
+		}
+		catch(ModuleFormatException e) {
+			throw new RuntimeException("Internal error: Runtime library contains invalid type.", e);
+		}
 	}
 
 	private final RuntimeContext context;
