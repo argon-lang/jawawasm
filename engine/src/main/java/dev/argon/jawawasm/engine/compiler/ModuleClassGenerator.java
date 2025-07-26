@@ -697,7 +697,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 	}
 
 	private void generateFunction(ClassBuilder clb, String name, MethodTypeDesc type, Func func) {
-		System.err.println("generateFunction " + name);
 		clb.withMethodBody(name, type, ClassFile.ACC_PRIVATE, cb -> {
 			var funcType = closure.resolveDefType(types.get(func.type().index()));
 
@@ -799,9 +798,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 		public void generateInstructionBlock(Expr body) {
 			for(var insn : body.body()) {
-				System.err.println("Instruction: " + insn);
-				System.err.println("Stack " + stackTypes);
-
 				generateInstruction(insn);
 
 				if(isUnreachable) {

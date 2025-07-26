@@ -102,11 +102,8 @@ public class ReflectionEngine {
 				var errors = compiler.classFile().verify(ncb);
 
 				if(!errors.isEmpty()) {
-					System.err.println("Bytecode: " + Base64.getEncoder().encodeToString(ncb));
 					var classModel = compiler.classFile().parse(ncb);
-					System.err.println(classModel);
 					for(var method : classModel.methods()) {
-						System.err.println(method);
 						method.code().ifPresent(code -> code.elementList().forEach(System.err::println));
 					}
 

@@ -412,7 +412,7 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 				}
 			}
 
-			case "out of bounds memory access", "out of bounds table access", "undefined element", "out of bounds array access" -> {
+			case "out of bounds memory access", "out of bounds table access", "undefined element", "out of bounds array access", "out of bounds" -> {
 				if(error instanceof IndexOutOfBoundsException || error instanceof NegativeArraySizeException) {
 					gotExpectedError = true;
 				}

@@ -34,30 +34,7 @@ public abstract non-sealed class WasmClassGenerator implements WasmOutputGenerat
 	 * @throws ModuleResolutionException If a referenced module cannot be found.
 	 */
 	public final byte[] generate() {
-		byte[] bc = generateImpl();
-
-
-
-//		ClassModel classModel = ClassFile.of().parse(bc);
-//		Path p = Path.of("classes/" + classModel.thisClass().asInternalName() + ".class");
-//		try {
-//			Files.createDirectories(p.getParent());
-//			Files.write(p, bc);
-//		} catch(IOException e) {
-//			throw new RuntimeException(e);
-//		}
-
-//		System.err.println(classModel);
-//		for (MethodModel method : classModel.methods()) {
-//			System.err.println(method);
-//			method.code().ifPresent(codeModel -> {
-//				System.err.println("Instructions for " + method.methodName().stringValue() + ":");
-//				codeModel.elementList().forEach(System.err::println);
-//			});
-//		}
-//		System.err.println(Base64.getEncoder().encodeToString(bc));
-
-		return bc;
+		return generateImpl();
 	}
 
 	abstract byte[] generateImpl();

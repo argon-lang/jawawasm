@@ -1796,7 +1796,7 @@ public class ModuleReader {
 			}
 
 
-			default -> throw new ModuleFormatException("illegal opcode: " + Integer.toHexString(b));
+			default -> throw new ModuleFormatException("illegal opcode " + Integer.toHexString(Byte.toUnsignedInt(b)));
 		};
 	}
 
@@ -1819,6 +1819,10 @@ public class ModuleReader {
 
 	private MemoryInstr.MemArg readMemArg() throws IOException, ModuleFormatException {
 		var align = readU32();
+
+		if((align & ~0x7F) != 0) {
+			throw new ModuleFormatException("malformed memop flags");
+		}
 
 		int memIndex = 0;
 		if((align & 0x40) == 0x40) {
