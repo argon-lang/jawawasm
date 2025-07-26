@@ -28,4 +28,22 @@ public sealed interface ReflectionExport {
 	 * @param method A method that returns a `WasmGlobal` containing the global value.
 	 */
 	record GlobalExportVar(Method method) implements GlobalExport {}
+
+	/**
+	 * A memory export.
+	 * @param method The method that returns the memory.
+	 */
+	record MemoryExport(Method method) implements ReflectionExport {}
+
+	/**
+	 * A table export.
+	 * @param method The method that returns the table.
+	 */
+	record TableExport(Method method) implements ReflectionExport {}
+
+	/**
+	 * A tag export.
+	 * @param tagClass The exception class that represents the tag.
+	 */
+	record TagExport(Class<?> tagClass) implements ReflectionExport {}
 }

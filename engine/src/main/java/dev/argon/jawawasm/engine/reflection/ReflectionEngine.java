@@ -196,16 +196,20 @@ public class ReflectionEngine {
 								case Var -> new ReflectionExport.GlobalExportVar(method);
 							};
 						}
-//						case MemType memType -> throw new RuntimeException("Not implemented");
-//						case TableType tableType -> throw new RuntimeException("Not implemented");
-//						case TagType tagType -> throw new RuntimeException("Not implemented");
-						default -> {
-							continue;
+						case MemType _ -> {
+							var method = cls.getMethod(expMethod.methodName());
+							export = new ReflectionExport.MemoryExport(method);
 						}
+						case TableType _ -> {
+							var method = cls.getMethod(expMethod.methodName());
+							export = new ReflectionExport.TableExport(method);
+						}
+						case TagType _ -> throw new RuntimeException("Tag type should not be a method export");
 					}
 				}
-				case WasmExportRealization.OfInnerClass _ -> {
-					continue;
+				case WasmExportRealization.OfInnerClass expInnerClass -> {
+					var innerClass = classDescToClass(expInnerClass.classDesc());
+					export = new ReflectionExport.TagExport(innerClass);
 				}
 			}
 
