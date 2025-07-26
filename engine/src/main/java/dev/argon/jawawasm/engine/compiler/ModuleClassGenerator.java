@@ -2131,17 +2131,17 @@ class ModuleClassGenerator extends WasmClassGenerator {
 							switch(intSize) {
 								case _32 -> cb.f2i();
 								case _64 -> cb.f2l();
-							};
-							stackTypes.add(TypeKind.FLOAT);
+							}
 						}
 						case _64 -> {
 							switch(intSize) {
 								case _32 -> cb.d2i();
 								case _64 -> cb.d2l();
-							};
-							stackTypes.add(TypeKind.DOUBLE);
+							}
 						}
 					}
+
+					stackTypes.add(typeKind(intSizeDesc(intSize)));
 				}
 				case NumericInstr.Inn_Trunc_Sat_Fmm_U(var intSize, var floatSize) -> {
 					stackTypes.removeLast();
@@ -2152,17 +2152,14 @@ class ModuleClassGenerator extends WasmClassGenerator {
 								case _32 -> cb.invokestatic(utilClass, "truncSatF32U32", MethodTypeDesc.ofDescriptor("(F)I"));
 								case _64 -> cb.invokestatic(utilClass, "truncSatF32U64", MethodTypeDesc.ofDescriptor("(F)J"));
 							}
-							stackTypes.add(TypeKind.FLOAT);
 						}
 						case _64 -> {
 							switch(intSize) {
 								case _32 -> cb.invokestatic(utilClass, "truncSatF64U32", MethodTypeDesc.ofDescriptor("(D)I"));
 								case _64 -> cb.invokestatic(utilClass, "truncSatF64U64", MethodTypeDesc.ofDescriptor("(D)J"));
 							}
-							stackTypes.add(TypeKind.DOUBLE);
 						}
 					}
-
 
 					stackTypes.add(typeKind(intSizeDesc(intSize)));
 				}

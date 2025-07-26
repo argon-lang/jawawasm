@@ -9,22 +9,35 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.stream.Stream;
 
 @Execution(ExecutionMode.CONCURRENT)
 abstract class ScriptTestsBase {
 
-	private static final String testDir = "../webassembly-testsuite/proposals/wasm-3.0";
+	private static final String[] testDirs = {
+		"../webassembly-testsuite/proposals/wasm-3.0",
+		"../additional-tests"
+	};
 
     @TestFactory
 	@MustBeClosed
+	@SuppressWarnings("StreamResourceLeak")
 	Stream<DynamicTest> wastScriptTests() throws IOException {
-		var testPath = Path.of(testDir);
-		return Files.list(testPath)
-				.filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".wast"))
-				.map(path -> DynamicTest.dynamicTest(testPath.relativize(path).toString(), () -> runWastScript(path)));
+		return Arrays.stream(testDirs)
+				.map(Path::of)
+				.flatMap(testDir -> {
+					try {
+						return Files.list(testDir)
+							.filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".wast"))
+							.map(path -> DynamicTest.dynamicTest(testDir.relativize(path).toString(), () -> runWastScript(path)));
+					} catch (IOException e) {
+						throw new UncheckedIOException(e);
+					}
+				});
 	}
 
 
