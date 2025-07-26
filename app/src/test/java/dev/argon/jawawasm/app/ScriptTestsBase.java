@@ -16,13 +16,13 @@ import java.util.stream.Stream;
 @Execution(ExecutionMode.CONCURRENT)
 abstract class ScriptTestsBase {
 
-	private static final String testDir = "../webassembly-spec/test/core";
+	private static final String testDir = "../webassembly-testsuite/proposals/wasm-3.0";
 
     @TestFactory
 	@MustBeClosed
 	Stream<DynamicTest> wastScriptTests() throws IOException {
 		var testPath = Path.of(testDir);
-		return Files.walk(testPath)
+		return Files.list(testPath)
 				.filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".wast"))
 				.map(path -> DynamicTest.dynamicTest(testPath.relativize(path).toString(), () -> runWastScript(path)));
 	}
