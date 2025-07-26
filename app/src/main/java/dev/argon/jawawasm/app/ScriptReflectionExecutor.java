@@ -3,7 +3,6 @@ package dev.argon.jawawasm.app;
 import dev.argon.jawawasm.app.wast.WastLoader;
 import dev.argon.jawawasm.engine.ModuleResolver;
 import dev.argon.jawawasm.engine.reflection.ReflectionEngine;
-import dev.argon.jawawasm.engine.compiler.NameMangling;
 import dev.argon.jawawasm.engine.reflection.ReflectionExport;
 import dev.argon.jawawasm.engine.reflection.ReflectionModule;
 import dev.argon.jawawasm.format.ModuleFormatException;
