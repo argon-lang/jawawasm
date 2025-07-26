@@ -45,6 +45,11 @@ public class ReflectionEngine {
 		try {
 			var loader = new ReflectionModuleLoader(compiler);
 			loader.loadResultClass(ResultVoid.class);
+			loader.loadResultClass(ResultI32.class);
+			loader.loadResultClass(ResultI64.class);
+			loader.loadResultClass(ResultF32.class);
+			loader.loadResultClass(ResultF64.class);
+			loader.loadResultClass(ResultRef.class);
 		}
 		catch(ModuleFormatException e) {
 			throw new RuntimeException("Internal error: Runtime library contains invalid type.", e);

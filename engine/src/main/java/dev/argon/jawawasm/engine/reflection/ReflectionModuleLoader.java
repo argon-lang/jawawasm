@@ -169,12 +169,12 @@ class ReflectionModuleLoader {
 			else if(ctorParamType.getType() == double.class) {
 				typeKind = TypeKind.DOUBLE;
 			}
-			else if(ctorParamType instanceof TypeVariable<?> tv) {
+			else if(ctorParamType.getType() instanceof TypeVariable<?> tv) {
 				if(typeParamIndex >= typeParams.length) {
 					throw new ModuleFormatException("Not enough type parameters on result type: " + t.getName());
 				}
 
-				if(tv != typeParams[typeParamIndex]) {
+				if(!tv.getName().equals(typeParams[typeParamIndex].getName())) {
 					throw new ModuleFormatException("Type parameters must match one to one with usages in 'of' method.");
 				}
 
@@ -182,7 +182,7 @@ class ReflectionModuleLoader {
 				++typeParamIndex;
 			}
 			else {
-				throw new ModuleFormatException("Unexpected type in result type. Expected int, long, float, double, or type variable");
+				throw new ModuleFormatException("Unexpected type in result type \"" + ctorParamType + "\". Expected int, long, float, double, or type variable");
 			}
 
 			resTypes.add(typeKind);
