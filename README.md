@@ -1,6 +1,8 @@
 # JawaWasm
 
-JawaWasm is an experimental WebAssembly interpreter written in Java.
+JawaWasm is an experimental WebAssembly engine written in Java.
+It compiles to Java Bytecode.
+It also passes the entire WebAssembly 3.0 test suite.
 
 ## Setup
 
@@ -8,7 +10,7 @@ If using SDKMAN, run `sdk env` to use the expected versions of Java and Gradle.
 
 In order to run the tests for this project, submodules need to be checked out and built.
 JawaWasm does not support the text format.
-The tests use the reference interpreter to convert the test format into binary modules.
+The tests use wasm-tools convert the test format into binary modules.
 To perform this setup, run the script `setup-tests.sh`.
 This script will set up the submodule and build the tools needed to run the test suite.
 If you run into issues building, see the [reference interpreter README](https://github.com/WebAssembly/spec/tree/main/interpreter#building).
