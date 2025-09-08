@@ -430,6 +430,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				cb.anewarray(elementType);
 				cb.putfield(className, fieldName, arrayType);
 
+
 				for(int i = 0; i < elemSize; ++i) {
 					cb.aload(0);
 					cb.getfield(className, fieldName, arrayType);
@@ -1539,8 +1540,11 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					cb.invokevirtual(wasmMemory, "pageSize", MethodTypeDesc.of(CD_long));
 
 					switch(mem.memType.addrType()) {
-						case I32 -> cb.l2i();
-						case I64 -> {}
+						case I32 -> {
+							cb.l2i();
+							stackTypes.add(TypeKind.INT);
+						}
+						case I64 -> stackTypes.add(TypeKind.LONG);
 					}
 				}
 				case MemoryInstr.Memory_Grow(var memIdx) -> {

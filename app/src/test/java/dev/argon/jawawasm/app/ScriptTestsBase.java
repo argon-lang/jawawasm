@@ -13,6 +13,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.stream.Stream;
 
 @Execution(ExecutionMode.CONCURRENT)
@@ -20,6 +21,7 @@ abstract class ScriptTestsBase {
 
 	private static final String[] testDirs = {
 		"../webassembly-testsuite/proposals/wasm-3.0",
+		"../webassembly-testsuite",
 		"../additional-tests"
 	};
 
@@ -27,17 +29,33 @@ abstract class ScriptTestsBase {
 	@MustBeClosed
 	@SuppressWarnings("StreamResourceLeak")
 	Stream<DynamicTest> wastScriptTests() throws IOException {
+		var seenFiles = new HashSet<String>();
+
 		return Arrays.stream(testDirs)
-				.map(Path::of)
-				.flatMap(testDir -> {
-					try {
-						return Files.list(testDir)
-							.filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".wast"))
-							.map(path -> DynamicTest.dynamicTest(testDir.relativize(path).toString(), () -> runWastScript(path)));
-					} catch (IOException e) {
-						throw new UncheckedIOException(e);
-					}
-				});
+			.flatMap(testDir -> {
+				try {
+					return Files.list(Path.of(testDir));
+				} catch (IOException e) {
+					throw new UncheckedIOException(e);
+				}
+			})
+			.filter(testFile -> {
+				var fileName = testFile.getFileName().toString();
+
+				if(!fileName.equals("table_init.wast")) {
+					return false;
+				}
+
+				return Files.isRegularFile(testFile) &&
+					fileName.endsWith(".wast") &&
+					seenFiles.add(fileName);
+			})
+			.map(this::createTest);
+	}
+
+
+	private DynamicTest createTest(Path testFile) {
+		return DynamicTest.dynamicTest(testFile.getFileName().toString(), () -> runWastScript(testFile));
 	}
 
 

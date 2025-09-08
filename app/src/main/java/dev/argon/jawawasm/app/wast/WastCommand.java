@@ -50,8 +50,7 @@ public sealed interface WastCommand {
 		@JsonProperty(required = true)
 		int line,
 		@Nullable String instance,
-		@JsonProperty(required = true)
-		String module
+		@Nullable String module
 	) implements WastCommand { }
 
 	public record Register(

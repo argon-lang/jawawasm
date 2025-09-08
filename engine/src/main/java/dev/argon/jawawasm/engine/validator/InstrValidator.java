@@ -142,7 +142,7 @@ class InstrValidator extends ValidatorBase {
 
 		private void pop(ValType t) throws ValidationException {
 			var t2 = pop();
-			if(t2 != null && !subtyping.isSubtypeVal(t2, t)) {
+			if(!subtyping.isSubtypeVal(t2, t)) {
 				throw new ValidationException("type mismatch expected: " + t + ", actual: " + t2);
 			}
 		}
@@ -1441,7 +1441,7 @@ class InstrValidator extends ValidatorBase {
 
 					var resultType = new ResultType(ImmutableList.copyOf(results));
 
-					require(subtyping.isSubtypeResult(resultType, context.getLabel(fallback)), "type mismatch");
+					require(subtyping.isSubtypeResult(resultType, fallbackLabel), "type mismatch");
 
 					for(LabelIdx label : labels) {
 						context.requireLabel(label);
@@ -1474,7 +1474,7 @@ class InstrValidator extends ValidatorBase {
 						throw new ValidationException("br_on_non_null target must contain at least one type");
 					}
 
-					var labelType2Types = ImmutableList.copyOf(labelType.types().subList(0, labelType.types().size() - 1));
+					var labelType2Types = labelType.types().subList(0, labelType.types().size() - 1);
 					var lastType = labelType.types().getLast();
 					var labelType2 = new ResultType(labelType2Types);
 

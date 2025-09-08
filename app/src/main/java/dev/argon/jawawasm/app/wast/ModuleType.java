@@ -1,11 +1,10 @@
 package dev.argon.jawawasm.app.wast;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.EnumNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.EnumNaming;
 
+@EnumNaming(EnumNamingStrategies.SnakeCaseStrategy.class)
 public enum ModuleType {
-	@JsonProperty("binary")
 	BINARY,
-
-	@JsonProperty("text")
 	TEXT,
 }

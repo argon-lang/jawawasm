@@ -3,6 +3,10 @@ package dev.argon.jawawasm.app.wast;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.EnumNamingStrategies;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.EnumNaming;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.google.common.collect.ImmutableList;
 import org.jspecify.annotations.Nullable;
 
@@ -77,25 +81,21 @@ public sealed interface WastValue {
 		}
 	}
 
+	@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 	public record V128(
-		@JsonProperty(value = "lane_type", required = true)
+		@JsonProperty(required = true)
 		LaneType laneType,
 		@JsonProperty(required = true)
 		List<String> value
 	) implements WastValue {}
 
+	@EnumNaming(EnumNamingStrategies.SnakeCaseStrategy.class)
 	public enum LaneType {
-		@JsonProperty("i8")
 		I8,
-		@JsonProperty("i16")
 		I16,
-		@JsonProperty("i32")
 		I32,
-		@JsonProperty("i64")
 		I64,
-		@JsonProperty("f32")
 		F32,
-		@JsonProperty("f64")
 		F64,
 	}
 

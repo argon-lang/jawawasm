@@ -34,7 +34,6 @@ public class WastLoader {
 			ObjectMapper mapper = new ObjectMapper();
 			mapper.registerModule(new GuavaModule());
 			String jsonText = IOUtils.toString(process.getInputStream(), StandardCharsets.UTF_8);
-			System.out.println("JSON text: " + jsonText);
 
 			int exitCode = process.waitFor();
 			if(exitCode != 0) {

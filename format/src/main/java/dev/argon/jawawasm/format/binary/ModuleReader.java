@@ -110,6 +110,7 @@ public class ModuleReader {
 		if(peekByteValue >= 0) {
 			--n;
 			peekByteValue = -1;
+			++offset;
 		}
 
 		while(n > 0) {
@@ -134,6 +135,9 @@ public class ModuleReader {
 
 	private <T> ImmutableList<T> readVector(ValueReader<T> reader) throws IOException, ModuleFormatException {
 		int len = readU32();
+		if(len < 0) {
+			throw new ModuleFormatException("vector length overflow");
+		}
 		var l = ImmutableList.<T>builderWithExpectedSize(len);
 		for(int i = 0; i < len; ++i) {
 			l.add(reader.read());
@@ -143,6 +147,9 @@ public class ModuleReader {
 	
 	private byte[] readByteVec() throws IOException, ModuleFormatException {
 		int len = readU32();
+		if(len < 0) {
+			throw new ModuleFormatException("byte vector length overflow");
+		}
 		return readAllNBytes(len);
 	}
 
@@ -172,7 +179,7 @@ public class ModuleReader {
 				if((b & 0x80) == 0x80) {
 					throw new ModuleFormatException("integer representation too long");
 				}
-				else if((b & 0x70) != 0) {
+				else if((b & 0x7E) != 0) {
 					throw new ModuleFormatException("integer too large");
 				}
 			}
@@ -1837,21 +1844,7 @@ public class ModuleReader {
 
 
 	private Expr readExpr() throws IOException, ModuleFormatException {
-		var instrs = ImmutableList.<Instr>builder();
-		while(true) {
-			var instr = readInstrOrTerminator();
-			if(instr == BlockTerminator.END) {
-				break;
-			}
-			else if(instr instanceof Instr i) {
-				instrs.add(i);
-			}
-			else {
-				throw new ModuleFormatException("END opcode expected");
-			}
-		}
-
-		return new Expr(instrs.build());
+		return new Expr(readInstructionBlock());
 	}
 
 
@@ -2247,7 +2240,6 @@ public class ModuleReader {
 				if(section < 0) {
 					break;
 				}
-				++offset;
 
 				int size = readU32();
 

@@ -3,6 +3,7 @@ package dev.argon.jawawasm.app.wast;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.jspecify.annotations.Nullable;
 
+
 public record WastFile(
 	@JsonProperty(required = true)
 	String filename,

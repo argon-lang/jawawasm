@@ -76,11 +76,6 @@ class Context {
 		types.add(t);
 	}
 
-	public int numTypes() {
-		return types.size();
-	}
-
-
 	public void requireFunc(FuncIdx idx) throws ValidationException {
 		if(!(idx.index() >= 0 && idx.index() < funcs.size())) {
 			throw new ValidationException("unknown function " + idx.index());
