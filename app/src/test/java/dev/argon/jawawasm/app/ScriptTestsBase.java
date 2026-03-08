@@ -20,7 +20,6 @@ import java.util.stream.Stream;
 abstract class ScriptTestsBase {
 
 	private static final String[] testDirs = {
-		"../webassembly-testsuite/proposals/wasm-3.0",
 		"../webassembly-testsuite",
 		"../additional-tests"
 	};

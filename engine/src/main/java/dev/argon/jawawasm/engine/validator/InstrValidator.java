@@ -458,7 +458,7 @@ class InstrValidator extends ValidatorBase {
 					var struct = (StructType)context.getCompositeType(typeIdx);
 					var fieldType = struct.fields().get(fieldIdx.index());
 
-					require(fieldType.mut() == Mut.Var, "field is immutable");
+					require(fieldType.mut() == Mut.Var, "immutable field");
 
 					var refType = new RefType(true, context.getType(typeIdx));
 
@@ -578,7 +578,7 @@ class InstrValidator extends ValidatorBase {
 					context.requireArrayType(typeIdx);
 					var array = (ArrayType)context.getCompositeType(typeIdx);
 
-					require(array.fieldType().mut() == Mut.Var, "array is immutable");
+					require(array.fieldType().mut() == Mut.Var, "immutable array");
 
 					var refType = new RefType(true, context.getType(typeIdx));
 
@@ -596,7 +596,7 @@ class InstrValidator extends ValidatorBase {
 					context.requireArrayType(typeIdx);
 					var array = (ArrayType)context.getCompositeType(typeIdx);
 
-					require(array.fieldType().mut() == Mut.Var, "array is immutable");
+					require(array.fieldType().mut() == Mut.Var, "immutable array");
 
 					pop(NumType.I32);
 					pop(unpack(array.fieldType().storageType()));
@@ -610,7 +610,7 @@ class InstrValidator extends ValidatorBase {
 					var dest = (ArrayType)context.getCompositeType(destType);
 					var src = (ArrayType)context.getCompositeType(srcType);
 
-					require(dest.fieldType().mut() == Mut.Var, "array is immutable");
+					require(dest.fieldType().mut() == Mut.Var, "immutable array");
 
 					require(subtyping.isSubtypeStorage(src.fieldType().storageType(), dest.fieldType().storageType()), "array types do not match");
 
@@ -625,7 +625,7 @@ class InstrValidator extends ValidatorBase {
 					context.requireArrayType(typeIdx);
 					var array = (ArrayType)context.getCompositeType(typeIdx);
 
-					require(array.fieldType().mut() == Mut.Var, "array is immutable");
+					require(array.fieldType().mut() == Mut.Var, "immutable array");
 
 					if(array.fieldType().storageType() instanceof RefType) {
 						throw new ValidationException("array type is not numeric or vector");
@@ -643,7 +643,7 @@ class InstrValidator extends ValidatorBase {
 					context.requireArrayType(typeIdx);
 					var array = (ArrayType)context.getCompositeType(typeIdx);
 
-					require(array.fieldType().mut() == Mut.Var, "array is immutable");
+					require(array.fieldType().mut() == Mut.Var, "immutable array");
 
 					if(!(array.fieldType().storageType() instanceof RefType arrayElemType)) {
 						throw new ValidationException("type mismatch");

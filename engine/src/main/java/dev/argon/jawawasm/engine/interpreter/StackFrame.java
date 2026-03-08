@@ -1174,7 +1174,7 @@ class StackFrame {
 					case VectorInstr.Dot_I16x8_S() -> {
 						V128 b = popV128();
 						V128 a = popV128();
-						V128 result = V128.build32(i -> a.extractLane16(i) * b.extractLane16(i) + a.extractLane16(i + 4) * b.extractLane16(i + 4));
+						V128 result = a.dotS16x8(b);
 						push(result);
 					}
 

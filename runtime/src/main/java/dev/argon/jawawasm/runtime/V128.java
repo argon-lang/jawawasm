@@ -1337,7 +1337,7 @@ public record V128(
 	 * @return The result.
 	 */
 	public V128 dotS16x8(V128 b) {
-		return V128.build32(i -> this.extractLane16(i) * b.extractLane16(i) + this.extractLane16(i + 4) * b.extractLane16(i + 4));
+		return V128.build32(i -> this.extractLane16(2 * i) * b.extractLane16(2 * i) + this.extractLane16(2 * i + 1) * b.extractLane16(2 * i + 1));
 	}
 
 	/**
