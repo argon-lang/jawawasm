@@ -11,6 +11,7 @@ module dev.argon.jawawasm.engine {
 	requires com.google.errorprone.annotations;
 
 	exports dev.argon.jawawasm.engine;
+	exports dev.argon.jawawasm.engine.aot;
 	exports dev.argon.jawawasm.engine.validator;
 	exports dev.argon.jawawasm.engine.interpreter;
 	exports dev.argon.jawawasm.engine.reflection;

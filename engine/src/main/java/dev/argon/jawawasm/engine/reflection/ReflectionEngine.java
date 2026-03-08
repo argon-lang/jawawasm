@@ -108,7 +108,9 @@ public class ReflectionEngine {
 
 				if(!errors.isEmpty()) {
 					var classModel = compiler.classFile().parse(ncb);
+					System.err.println("Class: " + classModel.thisClass().asInternalName());
 					for(var method : classModel.methods()) {
+						System.err.println("Method: " + method.methodName().stringValue() + " " + method.methodTypeSymbol().descriptorString());
 						method.code().ifPresent(code -> code.elementList().forEach(System.err::println));
 					}
 
@@ -285,31 +287,6 @@ public class ReflectionEngine {
 			return resolved;
 		}
 	}
-
-//	private final class EngineModuleFinder extends ModuleFinder {
-//		@Override
-//		public Optional<ModuleReference> find(String name) {
-//			if(!name.equals(packageName)) {
-//				return Optional.empty();
-//			}
-//
-//			var descriptor = ModuleDescriptor.newModule(name)
-//				.requires("java.base")
-//				.exports(packageName)
-//				.build();
-//
-//			return Optional.of();
-//		}
-//
-//		@Override
-//		public Set<ModuleReference> findAll() {
-//			return Set.of();
-//		}
-//	}
-//
-//	private final class EngineModuleReference extends ModuleReference {
-//
-//	}
 
 	private final class EngineClassLoaderImpl extends ClassLoader {
 		@Override

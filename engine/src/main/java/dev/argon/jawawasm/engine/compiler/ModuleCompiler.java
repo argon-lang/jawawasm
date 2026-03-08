@@ -304,10 +304,6 @@ public class ModuleCompiler {
 		}
 	}
 
-	ClassDesc getGlobalType(ValType elementType) {
-		throw new RuntimeException("Not implemented");
-	}
-
 
 	private class GeneratedHierarchyResolver implements ClassHierarchyResolver {
 		@Override

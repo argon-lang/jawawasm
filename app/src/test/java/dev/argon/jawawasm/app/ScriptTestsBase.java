@@ -42,10 +42,6 @@ abstract class ScriptTestsBase {
 			.filter(testFile -> {
 				var fileName = testFile.getFileName().toString();
 
-				if(!fileName.equals("table_init.wast")) {
-					return false;
-				}
-
 				return Files.isRegularFile(testFile) &&
 					fileName.endsWith(".wast") &&
 					seenFiles.add(fileName);
