@@ -96,7 +96,9 @@ public class AOTEngine {
 				}
 			}
 
-			Files.write(outputDir.resolve(name), content);
+			var outputPath = outputDir.resolve(name);
+			Files.createDirectories(outputPath.getParent());
+			Files.write(outputPath, content);
 			nameToRealization.put(name, realization);
 		}
 	}
