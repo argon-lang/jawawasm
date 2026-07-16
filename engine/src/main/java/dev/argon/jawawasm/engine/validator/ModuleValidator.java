@@ -7,10 +7,7 @@ import dev.argon.jawawasm.format.modules.*;
 import dev.argon.jawawasm.format.modules.Module;
 import dev.argon.jawawasm.format.types.*;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Validates WebAssembly modules.
@@ -127,9 +124,7 @@ public class ModuleValidator extends ValidatorBase {
 			validator.validateData(data);
 		}
 
-		for(Func func : module.funcs()) {
-			validator.validateFunc(func);
-		}
+		parallelFor(module.funcs(), validator::validateFunc);
 
 		if(module.start() != null) {
 			validator.validateStart(module.start());
@@ -251,4 +246,27 @@ public class ModuleValidator extends ValidatorBase {
 		}
 	}
 
+	private static <A> void parallelFor(List<? extends A> items, ValidatorFunction<? super A> action) throws ValidationException {
+		var validationError = items.parallelStream()
+			.map(item -> {
+				try {
+					action.validate(item);
+					return null;
+				} catch(ValidationException ex) {
+					return ex;
+				}
+			})
+			.filter(Objects::nonNull)
+			.findFirst();
+
+		var ex = validationError.orElse(null);
+		if(ex != null) {
+			throw ex;
+		}
+	}
+
+	@FunctionalInterface
+	private interface ValidatorFunction<A> {
+		void validate(A a) throws ValidationException;
+	}
 }
