@@ -10,6 +10,7 @@ public sealed interface WasmEq extends WasmObject permits I31, WasmArray, WasmSt
 	 * @param b The second value.
 	 * @return true iff the values are equal.
 	 */
+	@SuppressWarnings("ReferenceEquality")
 	static boolean isEqual(WasmEq a, WasmEq b) {
 		if(a == b) {
 			return true;

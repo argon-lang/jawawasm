@@ -400,12 +400,12 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 	}
 
 	private boolean isInitDataType(ClassDesc elementType) {
-		return elementType == CD_byte ||
-			elementType == CD_short ||
-			elementType == CD_int ||
-			elementType == CD_float ||
-			elementType == CD_long ||
-			elementType == CD_double ||
+		return elementType.equals(CD_byte) ||
+			elementType.equals(CD_short) ||
+			elementType.equals(CD_int) ||
+			elementType.equals(CD_float) ||
+			elementType.equals(CD_long) ||
+			elementType.equals(CD_double) ||
 			elementType.equals(v128Type);
 	}
 

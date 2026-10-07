@@ -1,8 +1,8 @@
 package dev.argon.jawawasm.app.wast;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.datatype.guava.GuavaModule;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.datatype.guava.GuavaModule;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 
@@ -31,8 +31,9 @@ public class WastLoader {
 
 			Process process = pb.start();
 
-			ObjectMapper mapper = new ObjectMapper();
-			mapper.registerModule(new GuavaModule());
+			ObjectMapper mapper = JsonMapper.builder()
+				.addModule(new GuavaModule())
+				.build();
 			String jsonText = IOUtils.toString(process.getInputStream(), StandardCharsets.UTF_8);
 
 			int exitCode = process.waitFor();
@@ -59,19 +60,7 @@ public class WastLoader {
 	public byte[] loadModule(Path file, ModuleType moduleType) throws IOException, InterruptedException {
 		return switch(moduleType) {
 			case BINARY -> Files.readAllBytes(file);
-			case TEXT -> {
-				throw new RuntimeException("Unexpected text format module");
-//				ProcessBuilder pb = new ProcessBuilder(wasmToolsExecutable.toString(), "parse", file.toString());
-//				pb.redirectOutput(ProcessBuilder.Redirect.PIPE);
-//				Process process = pb.start();
-//				byte[] data = process.getInputStream().readAllBytes();
-//				int exitCode = process.waitFor();
-//				if(exitCode != 0) {
-//					throw new IOException("wasm-tools failed with exit code " + exitCode);
-//				}
-//
-//				yield data;
-			}
+			case TEXT -> throw new RuntimeException("Unexpected text format module");
 		};
 	}
 

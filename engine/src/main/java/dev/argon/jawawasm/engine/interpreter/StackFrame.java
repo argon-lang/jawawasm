@@ -1757,7 +1757,10 @@ class StackFrame {
 					return;
 				}
 
-				push(a == b ? 1 : 0);
+				@SuppressWarnings("ReferenceEquality")
+				int value = a == b ? 1 : 0;
+
+				push(value);
 			}
 
 			case ReferenceInstr.Ref_AsNonNull() -> {

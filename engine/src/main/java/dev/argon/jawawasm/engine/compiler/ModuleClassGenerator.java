@@ -729,7 +729,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 	}
 
 	private class FuncsClassGenerator extends WasmClassGenerator {
-		public FuncsClassGenerator(int methodsClassIndex) {
+		FuncsClassGenerator(int methodsClassIndex) {
 			super(ModuleClassGenerator.this.compiler);
 			this.methodsClassIndex = methodsClassIndex;
 		}
@@ -738,7 +738,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 		private List<Consumer<ClassBuilder>> functionCreators = new ArrayList<>();
 		private byte @Nullable[] cachedBytecode = null;
 
-		public int functionCount() {
+		int functionCount() {
 			return functionCreators.size();
 		}
 
@@ -765,7 +765,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			return cachedBytecode;
 		}
 
-		public void addFunction(String name, MethodTypeDesc type, Func func) {
+		void addFunction(String name, MethodTypeDesc type, Func func) {
 			functionCreators.add(clb -> {
 				var invokeMethodType = invokeMethodType(type);
 				clb.withMethodBody(name, invokeMethodType, ClassFile.ACC_STATIC, cb -> {
@@ -810,7 +810,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 		}
 
 
-		public void addFunctionImport(ImportModuleInfo imp, String localName, MethodTypeDesc type, WasmExportRealization.OfInstanceMethod exportRealization) {
+		void addFunctionImport(ImportModuleInfo imp, String localName, MethodTypeDesc type, WasmExportRealization.OfInstanceMethod exportRealization) {
 			functionCreators.add(clb -> {
 				var invokeMethodType = invokeMethodType(type);
 				clb.withMethodBody(localName, invokeMethodType, ClassFile.ACC_STATIC, cb -> {
@@ -861,7 +861,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 	}
 
 	private class ElemsInitClassGenerator extends WasmClassGenerator {
-		public ElemsInitClassGenerator(int initClassIndex, RefType elemType, ClassDesc elemClassType, int elemStartIndex, List<Expr> elems) {
+		ElemsInitClassGenerator(int initClassIndex, RefType elemType, ClassDesc elemClassType, int elemStartIndex, List<Expr> elems) {
 			super(ModuleClassGenerator.this.compiler);
 			this.initClassIndex = initClassIndex;
 			this.elemType = elemType;
@@ -887,9 +887,9 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			return ClassHierarchyResolver.ClassHierarchyInfo.ofClass(ClassDesc.ofDescriptor(Object.class.descriptorString()));
 		}
 
-		public static final String INIT_METHOD_NAME = "init";
+		static final String INIT_METHOD_NAME = "init";
 
-		public MethodTypeDesc initMethodType() {
+		MethodTypeDesc initMethodType() {
 			return MethodTypeDesc.of(CD_void, ModuleClassGenerator.this.className(), elemClassType.arrayType());
 		}
 
@@ -918,7 +918,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 	}
 
 	private class BytecodeGenerator {
-		public BytecodeGenerator(CodeBuilder cb, LocalInfo[] locals, ResultType returnType, int moduleVarSlot, int tempVarSlot) {
+		BytecodeGenerator(CodeBuilder cb, LocalInfo[] locals, ResultType returnType, int moduleVarSlot, int tempVarSlot) {
 			this.cb = cb;
 			this.locals = locals;
 			this.returnType = returnType;
@@ -937,7 +937,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 		private final Set<Label> jumpedLabels = new HashSet<>();
 		private boolean isUnreachable = false;
 
-		public void generateFunctionBody(Expr body) {
+		void generateFunctionBody(Expr body) {
 			var returnLabel = cb.newLabel();
 			labels.add(new LabelInfo(returnLabel, returnType));
 			generateInstructionBlock(body);
@@ -948,7 +948,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			}
 		}
 
-		public void generateInstructionBlock(Expr body) {
+		void generateInstructionBlock(Expr body) {
 			for(var insn : body.body()) {
 				generateInstruction(insn);
 
@@ -1982,7 +1982,8 @@ class ModuleClassGenerator extends WasmClassGenerator {
 						case _64 -> cb.invokestatic(CD_Long, methodName, MethodTypeDesc.ofDescriptor("(J)I")).i2l();
 					}
 				}
-				case NumericInstr.Fnn_FUnOp(var size, var op) -> {
+				case NumericInstr.Fnn_FUnOp op -> {
+					var size = op.size();
 					var descriptor = switch(size) {
 						case _32 -> MethodTypeDesc.ofDescriptor("(F)F");
 						case _64 -> MethodTypeDesc.ofDescriptor("(D)D");
@@ -1993,7 +1994,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 						case _64 -> "F64";
 					};
 
-					switch(op) {
+					switch(op.op()) {
 						case ABS -> cb.invokestatic(mathClass, "abs", descriptor);
 						case NEG -> {
 							switch(size) {
@@ -2018,13 +2019,14 @@ class ModuleClassGenerator extends WasmClassGenerator {
 						case NEAREST -> cb.invokestatic(utilClass, "nearest" + nameSuffix, descriptor);
 					}
 				}
-				case NumericInstr.Inn_IBinOp(var size, var op) -> {
+				case NumericInstr.Inn_IBinOp op -> {
+					var size = op.size();
 					var descriptor = switch(size) {
 						case _32 -> MethodTypeDesc.ofDescriptor("(II)I");
 						case _64 -> MethodTypeDesc.ofDescriptor("(JJ)J");
 					};
 
-					switch(op) {
+					switch(op.op()) {
 						case ADD -> {
 							switch(size) {
 								case _32 -> cb.iadd();
@@ -2119,13 +2121,14 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 					stackTypes.removeLast();
 				}
-				case NumericInstr.Fnn_FBinOp(var size, var op) -> {
+				case NumericInstr.Fnn_FBinOp op -> {
+					var size = op.size();
 					var descriptor = switch(size) {
 						case _32 -> MethodTypeDesc.ofDescriptor("(FF)F");
 						case _64 -> MethodTypeDesc.ofDescriptor("(DD)D");
 					};
 
-					switch(op) {
+					switch(op.op()) {
 						case ADD -> {
 							switch(size) {
 								case _32 -> cb.fadd();
@@ -2157,13 +2160,13 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 					stackTypes.removeLast();
 				}
-				case NumericInstr.Inn_ITestOp(var size, var op) -> {
-					var descriptor = switch(size) {
+				case NumericInstr.Inn_ITestOp op -> {
+					var descriptor = switch(op.size()) {
 						case _32 -> MethodTypeDesc.ofDescriptor("(I)Z");
 						case _64 -> MethodTypeDesc.ofDescriptor("(J)Z");
 					};
 
-					switch(op) {
+					switch(op.op()) {
 						case EQZ -> cb.invokestatic(utilClass, "equalsZero", descriptor);
 					}
 
@@ -2248,35 +2251,35 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					stackTypes.removeLast();
 					stackTypes.add(TypeKind.LONG);
 				}
-				case NumericInstr.Inn_Trunc_Fmm_S(var intSize, var floatSize) -> {
+				case NumericInstr.Inn_Trunc_Fmm_S trunc -> {
 					stackTypes.removeLast();
 
-					switch(floatSize) {
+					switch(trunc.floatSize()) {
 						case _32 -> cb.f2d();
 						case _64 -> {}
 					}
 
-					switch(intSize) {
+					switch(trunc.intSize()) {
 						case _32 -> cb.invokestatic(utilClass, "truncF64ToS32", MethodTypeDesc.ofDescriptor("(D)I"));
 						case _64 -> cb.invokestatic(utilClass, "truncF64ToS64", MethodTypeDesc.ofDescriptor("(D)J"));
 					}
 
-					stackTypes.add(typeKind(intSizeDesc(intSize)));
+					stackTypes.add(typeKind(intSizeDesc(trunc.intSize())));
 				}
-				case NumericInstr.Inn_Trunc_Fmm_U(var intSize, var floatSize) -> {
+				case NumericInstr.Inn_Trunc_Fmm_U trunc -> {
 					stackTypes.removeLast();
 
-					switch(floatSize) {
+					switch(trunc.floatSize()) {
 						case _32 -> cb.f2d();
 						case _64 -> {}
 					}
 
-					switch(intSize) {
+					switch(trunc.intSize()) {
 						case _32 -> cb.invokestatic(utilClass, "truncF64ToU32", MethodTypeDesc.ofDescriptor("(D)I"));
 						case _64 -> cb.invokestatic(utilClass, "truncF64ToU64", MethodTypeDesc.ofDescriptor("(D)J"));
 					}
 
-					stackTypes.add(typeKind(intSizeDesc(intSize)));
+					stackTypes.add(typeKind(intSizeDesc(trunc.intSize())));
 				}
 				case NumericInstr.Inn_Trunc_Sat_Fmm_S(var intSize, var floatSize) -> {
 					stackTypes.removeLast();
@@ -2686,10 +2689,10 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var getMethod = fieldRealization.getMethod();
 
 					cb.invokevirtual(realization.classDesc(), getMethod.methodName(), getMethod.methodType().get());
-					if(fieldClass == CD_byte) {
+					if(fieldClass.equals(CD_byte)) {
 						cb.invokestatic(CD_Byte, "toUnsignedInt", MethodTypeDesc.ofDescriptor("(B)I"));
 					}
-					else if(fieldClass == CD_short) {
+					else if(fieldClass.equals(CD_short)) {
 						cb.invokestatic(CD_Short, "toUnsignedInt", MethodTypeDesc.ofDescriptor("(S)I"));
 					}
 					else {
@@ -2826,10 +2829,10 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var elementClass = realization.elementType().get();
 
 					cb.invokevirtual(realization.classDesc(), "get", MethodTypeDesc.of(elementClass, CD_int));
-					if(elementClass == CD_byte) {
+					if(elementClass.equals(CD_byte)) {
 						cb.invokestatic(CD_Byte, "toUnsignedInt", MethodTypeDesc.ofDescriptor("(B)I"));
 					}
-					else if(elementClass == CD_short) {
+					else if(elementClass.equals(CD_short)) {
 						cb.invokestatic(CD_Short, "toUnsignedInt", MethodTypeDesc.ofDescriptor("(S)I"));
 					}
 					else {
@@ -3875,22 +3878,22 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			String prefix = isLoad ? "load" : "store";
 
 			String suffix;
-			if(t == CD_byte) {
+			if(t.equals(CD_byte)) {
 				suffix = "I8";
 			}
-			else if(t == CD_short) {
+			else if(t.equals(CD_short)) {
 				suffix = "I16";
 			}
-			else if(t == CD_int) {
+			else if(t.equals(CD_int)) {
 				suffix = "I32";
 			}
-			else if(t == CD_long) {
+			else if(t.equals(CD_long)) {
 				suffix = "I64";
 			}
-			else if(t == CD_float) {
+			else if(t.equals(CD_float)) {
 				suffix = "F32";
 			}
-			else if(t == CD_double) {
+			else if(t.equals(CD_double)) {
 				suffix = "F64";
 			}
 			else if(t.equals(ClassDesc.of(RUNTIME_PACKAGE, "V128"))) {

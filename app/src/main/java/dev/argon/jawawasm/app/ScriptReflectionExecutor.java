@@ -71,7 +71,7 @@ public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionMod
 
 			var fields = Arrays.stream(endResult.getClass().getDeclaredFields())
 				.filter(f -> f.canAccess(endResult) && f.getName().startsWith("item"))
-				.sorted(Comparator.comparing(f -> Integer.parseInt(f.getName().substring(4))))
+				.sorted(Comparator.comparingInt(f -> Integer.parseInt(f.getName().substring(4))))
 				.toList();
 
 			Object[] results = new Object[fields.size()];

@@ -337,13 +337,21 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 			};
 			case WastValue.ExternRef(var id) when id == null -> true;
 			case WastValue.ExternRef(var id) when id.equals("null") -> actual == null;
-			case WastValue.ExternRef(var id) -> actual == getExternRef(new BigInteger(id).intValue());
+			case WastValue.ExternRef(var id) -> {
+				@SuppressWarnings("ReferenceEquality")
+				boolean cmp = actual == getExternRef(new BigInteger(id).intValue());
+				yield cmp;
+			}
 			case WastValue.FuncRef(var id) when id == null -> actual instanceof DynamicWasmFunction || actual instanceof WasmFunction;
 			case WastValue.FuncRef(var id) when id.equals("null") -> actual == null;
 			case WastValue.FuncRef(var id) -> throw new RuntimeException("TODO: func ref " + id);
 			case WastValue.AnyRef(var id) when id == null -> true;
 			case WastValue.AnyRef(var id) when id.equals("null") -> actual == null;
-			case WastValue.AnyRef(var id) -> actual == getExternRef(new BigInteger(id).intValue());
+			case WastValue.AnyRef(var id) -> {
+				@SuppressWarnings("ReferenceEquality")
+				boolean cmp = actual == getExternRef(new BigInteger(id).intValue());
+				yield cmp;
+			}
 			case WastValue.ExnRef(var id) when id == null -> actual instanceof WebAssemblyException;
 			case WastValue.ExnRef(var id) when id.equals("null") -> actual == null;
 			case WastValue.ExnRef(var id) -> throw new RuntimeException("Invalid exn ref: " + id);

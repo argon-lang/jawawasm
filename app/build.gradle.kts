@@ -3,7 +3,7 @@ import net.ltgt.gradle.errorprone.errorprone
 plugins {
     application
     java
-    id("net.ltgt.errorprone") version "4.1.0"
+    alias(libs.plugins.errorprone)
 }
 
 repositories {
@@ -38,6 +38,7 @@ tasks.withType<JavaCompile>().configureEach {
     options.errorprone {
         disableWarningsInGeneratedCode.set(true)
 
+        disable("RefactorSwitch")
         option("NullAway:OnlyNullMarked", "true")
         option("NullAway:JSpecifyMode", "true")
         error("NullAway")

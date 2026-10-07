@@ -269,7 +269,7 @@ class AOTModuleLoader {
 		);
 	}
 
-	ResultType loadResultType(TypeInfo t) throws ModuleFormatException {
+	private ResultType loadResultType(TypeInfo t) throws ModuleFormatException {
 		ClassDesc tClass;
 		List<TypeInfo> typeArgs;
 

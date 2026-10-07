@@ -1,18 +1,21 @@
 [versions]
-jackson = "2.19.2"
+jackson = "3.2.1"
 
 [libraries]
 jspecify = { module = "org.jspecify:jspecify", version = "1.0.0" }
-junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version = "5.9.1" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version = "6.1.1" }
 
-nullaway = { module = "com.uber.nullaway:nullaway", version = "0.12.6" }
-errorprone = { module = "com.google.errorprone:error_prone_core", version = "2.37.0" }
-guava = { module = "com.google.guava:guava", version = "33.4.5-jre" }
+nullaway = { module = "com.uber.nullaway:nullaway", version = "0.13.7" }
+errorprone = { module = "com.google.errorprone:error_prone_core", version = "2.50.0" }
+guava = { module = "com.google.guava:guava", version = "33.6.0-jre" }
 protobuf = { module = "com.google.protobuf:protobuf-java", version = "4.30.1" }
-commons-compress = { module = "org.apache.commons:commons-compress", version = "1.27.1" }
+commons-compress = { module = "org.apache.commons:commons-compress", version = "1.28.0" }
 commons-io = { module = "commons-io:commons-io", version = "2.20.0" }
 
-jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson" }
-jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson" }
-jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
-jackson-guava = { module = "com.fasterxml.jackson.datatype:jackson-datatype-guava", version.ref = "jackson" }
+jackson-core = { module = "tools.jackson.core:jackson-core", version.ref = "jackson" }
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version = "2.22" }
+jackson-databind = { module = "tools.jackson.core:jackson-databind", version.ref = "jackson" }
+jackson-guava = { module = "tools.jackson.datatype:jackson-datatype-guava", version.ref = "jackson" }
+
+[plugins]
+errorprone = { id = "net.ltgt.errorprone", version = "5.1.0" }

@@ -222,31 +222,31 @@ public class ReflectionEngine {
 	}
 
 	private Class<?> classDescToClass(ClassDesc classDesc) throws ClassNotFoundException {
-		if(classDesc == CD_byte) {
+		if(classDesc.equals(CD_byte)) {
 			return byte.class;
 		}
-		else if(classDesc == CD_short) {
+		else if(classDesc.equals(CD_short)) {
 			return short.class;
 		}
-		else if(classDesc == CD_int) {
+		else if(classDesc.equals(CD_int)) {
 			return int.class;
 		}
-		else if(classDesc == CD_long) {
+		else if(classDesc.equals(CD_long)) {
 			return long.class;
 		}
-		else if(classDesc == CD_float) {
+		else if(classDesc.equals(CD_float)) {
 			return float.class;
 		}
-		else if(classDesc == CD_double) {
+		else if(classDesc.equals(CD_double)) {
 			return double.class;
 		}
-		else if(classDesc == CD_char) {
+		else if(classDesc.equals(CD_char)) {
 			return char.class;
 		}
-		else if(classDesc == CD_boolean) {
+		else if(classDesc.equals(CD_boolean)) {
 			return boolean.class;
 		}
-		else if(classDesc == CD_void) {
+		else if(classDesc.equals(CD_void)) {
 			return void.class;
 		}
 		else if(classDesc.isArray()) {
@@ -269,7 +269,7 @@ public class ReflectionEngine {
 	}
 
 	private final class MappedResolver implements ModuleResolver<WasmModuleRealization> {
-		public MappedResolver(ModuleResolver<ReflectionModule> resolver) {
+		private MappedResolver(ModuleResolver<ReflectionModule> resolver) {
 			this.resolver = resolver;
 		}
 
@@ -323,7 +323,7 @@ public class ReflectionEngine {
 	}
 
 	private class EngineResourceURLConnection extends URLConnection {
-		public EngineResourceURLConnection(URL url) {
+		private EngineResourceURLConnection(URL url) {
 			super(url);
 		}
 

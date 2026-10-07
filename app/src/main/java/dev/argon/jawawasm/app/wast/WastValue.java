@@ -3,10 +3,10 @@ package dev.argon.jawawasm.app.wast;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.EnumNamingStrategies;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.annotation.EnumNaming;
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import tools.jackson.databind.EnumNamingStrategies;
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.EnumNaming;
+import tools.jackson.databind.annotation.JsonNaming;
 import com.google.common.collect.ImmutableList;
 import org.jspecify.annotations.Nullable;
 

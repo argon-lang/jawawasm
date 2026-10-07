@@ -1,7 +1,7 @@
 package dev.argon.jawawasm.app.wast;
 
-import com.fasterxml.jackson.databind.EnumNamingStrategies;
-import com.fasterxml.jackson.databind.annotation.EnumNaming;
+import tools.jackson.databind.EnumNamingStrategies;
+import tools.jackson.databind.annotation.EnumNaming;
 
 @EnumNaming(EnumNamingStrategies.SnakeCaseStrategy.class)
 public enum ModuleType {

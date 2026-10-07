@@ -7,6 +7,6 @@ module dev.argon.jawawasm.app {
 	requires dev.argon.jawawasm.engine;
 	requires com.fasterxml.jackson.annotation;
 	requires org.apache.commons.io;
-	requires com.fasterxml.jackson.databind;
-	requires com.fasterxml.jackson.datatype.guava;
+	requires tools.jackson.databind;
+	requires tools.jackson.datatype.guava;
 }

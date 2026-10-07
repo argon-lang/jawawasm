@@ -191,13 +191,13 @@ public final class InstantiatedModule implements WasmModule {
 	}
 
 	private abstract class IndexSpaceBuilder<T, TImportDesc extends ImportDesc, Def> {
-		protected abstract @Nullable TImportDesc castImportDesc(ImportDesc desc);
-		protected abstract T checkImport(TImportDesc desc, WasmExport export) throws ModuleLinkException;
+		abstract @Nullable TImportDesc castImportDesc(ImportDesc desc);
+		abstract T checkImport(TImportDesc desc, WasmExport export) throws ModuleLinkException;
 
-		protected abstract List<? extends Def> definitions();
-		protected abstract T create(Def def) throws ExecutionException;
+		abstract List<? extends Def> definitions();
+		abstract T create(Def def) throws ExecutionException;
 
-		public final void build(List<T> items) throws ModuleLinkException {
+		final void build(List<T> items) throws ModuleLinkException {
 			for(Import imp : module.imports()) {
 				TImportDesc desc = castImportDesc(imp.desc());
 				if(desc == null) {

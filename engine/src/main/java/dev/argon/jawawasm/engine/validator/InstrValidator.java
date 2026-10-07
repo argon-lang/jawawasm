@@ -101,7 +101,7 @@ class InstrValidator extends ValidatorBase {
 	}
 
 	private final class StackValidator {
-		public StackValidator(List<ValType> stack) {
+		StackValidator(List<ValType> stack) {
 			this.stack = stack;
 
 		}
@@ -176,7 +176,7 @@ class InstrValidator extends ValidatorBase {
 		}
 
 
-		public void validateInstr(Instr instr) throws ValidationException {
+		void validateInstr(Instr instr) throws ValidationException {
 			switch(instr) {
 				case NumericInstr numericInstr -> validateNumericInstr(numericInstr);
 				case ReferenceInstr referenceInstr -> validateReferenceInstr(referenceInstr);
