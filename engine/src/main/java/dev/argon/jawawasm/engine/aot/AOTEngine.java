@@ -69,10 +69,11 @@ public class AOTEngine {
 	/**
 	 * Instantiates a WebAssembly module.
 	 * @param module The module to instantiate.
-	 * @param className The name of the class to generate.
+	 * @param className The name of the class to generate, or {@code null} to use the sanitized module name from the name section.
 	 * @throws IOException when an error occurs while writing output.
+	 * @throws IllegalArgumentException if no class name or nonempty module name is provided.
 	 */
-	public void emitModule(Module module, String className) throws IOException {
+	public void emitModule(Module module, @Nullable String className) throws IOException {
 		WasmModuleRealization realization = compiler.enqueueModule(module, className, new MappedResolver());
 
 		genLoop:

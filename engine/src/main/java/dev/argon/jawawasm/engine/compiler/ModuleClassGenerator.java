@@ -40,6 +40,31 @@ class ModuleClassGenerator extends WasmClassGenerator {
 	private final ClassDesc className;
 	private final ModuleResolver<WasmModuleRealization> resolver;
 
+	private String functionName(int index) {
+		var prefix = "func" + index;
+		var names = module.name();
+		if(names == null) {
+			return prefix;
+		}
+		var name = names.functionNames().get(index);
+		return name == null ? prefix : prefix + "_" + NameMangling.sanitizeName(name);
+	}
+
+	private void emitLocalName(CodeBuilder cb, int functionIndex, int localIndex, LocalInfo local, Label start) {
+		var names = module.name();
+		if(names == null) {
+			return;
+		}
+		var localNames = names.localNames().get(functionIndex);
+		if(localNames == null) {
+			return;
+		}
+		var name = localNames.get(localIndex);
+		if(name != null) {
+			cb.localVariable(local.slotIndex(), name, local.type(), start, cb.endLabel());
+		}
+	}
+
 	private final List<DefType> types = new ArrayList<>();
 	private final List<String> importModules = new ArrayList<>();
 	private final Map<String, ImportModuleInfo> importModuleInfos = new HashMap<>();
@@ -117,6 +142,13 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			}
 		}
 
+		var names = module.name();
+		if(names != null) {
+			for(int i = 0; i < types.size(); ++i) {
+				compiler.registerTypeNames(types.get(i), names.typeNames().get(i), names.fieldNames().getOrDefault(i, com.google.common.collect.ImmutableMap.of()));
+			}
+		}
+
 		List<Consumer<CodeBuilder>> constructorInits = new ArrayList<>();
 		List<ClassDesc> constructorParams = new ArrayList<>();
 
@@ -183,7 +215,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 						throw new ModuleLinkException("incompatible import type");
 					}
 
-					localName = "func" + funcs.size();
+					localName = functionName(funcs.size());
 					var defType = closure.resolveDefType(types.get(func.type().index()));
 
 					if(!subtyping.isSubtypeDefType(importDefType, defType)) {
@@ -193,7 +225,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var type = compiler.getMethodType(defType);
 					funcs.add(new FunctionInfo(localName, funcsClassGenerator.className(), invokeMethodType(type.descriptor()), lambdaMethodType(type.descriptor()), type, getFuncType(defType), defType));
 
-					funcsClassGenerator.addFunctionImport(importModuleInfo, localName, type.descriptor(), exportRealMethod);
+					funcsClassGenerator.addFunctionImport(funcs.size() - 1, importModuleInfo, localName, type.descriptor(), exportRealMethod);
 
 					if(funcsClassGenerator.functionCount() >= MAX_FUNCTIONS_PER_CLASS) {
 						funcsClassGenerator = new FuncsClassGenerator(funcsClassGenerators.size());
@@ -330,12 +362,12 @@ class ModuleClassGenerator extends WasmClassGenerator {
 		int constructorTempVarSlot = importModules.size() + 2;
 
 		for(var func : module.funcs()) {
-			var name = "func" + funcs.size();
+			var name = functionName(funcs.size());
 			var defType = closure.resolveDefType(types.get(func.type().index()));
 			var type = compiler.getMethodType(defType);
 			funcs.add(new FunctionInfo(name, funcsClassGenerator.className(), invokeMethodType(type.descriptor()), lambdaMethodType(type.descriptor()), type, getFuncType(defType), defType));
 
-			funcsClassGenerator.addFunction(name, type.descriptor(), func);
+			funcsClassGenerator.addFunction(funcs.size() - 1, name, type.descriptor(), func);
 			if(funcsClassGenerator.functionCount() >= MAX_FUNCTIONS_PER_CLASS) {
 				funcsClassGenerator = new FuncsClassGenerator(funcsClassGenerators.size());
 				funcsClassGenerators.add(funcsClassGenerator);
@@ -696,7 +728,10 @@ class ModuleClassGenerator extends WasmClassGenerator {
 		for(var tag : module.tags()) {
 			var defType = closure.resolveDefType(types.get(tag.type().funcType().index()));
 			var funcType = getFuncType(defType);
-			var tagGen = new TagExceptionClassGenerator(compiler, className, "Tag" + tags.size(), funcType);
+			var names = module.name();
+			var name = names == null ? null : names.tagNames().get(tags.size());
+			var tagClassName = "Tag" + tags.size() + (name == null ? "" : "_" + NameMangling.sanitizeName(name));
+			var tagGen = new TagExceptionClassGenerator(compiler, className, tagClassName, funcType);
 			tags.add(new TagInfo(tagGen.realization(), funcType, defType));
 			compiler.enqueueGenerator(tagGen);
 		}
@@ -765,7 +800,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			return cachedBytecode;
 		}
 
-		void addFunction(String name, MethodTypeDesc type, Func func) {
+		void addFunction(int functionIndex, String name, MethodTypeDesc type, Func func) {
 			functionCreators.add(clb -> {
 				var invokeMethodType = invokeMethodType(type);
 				clb.withMethodBody(name, invokeMethodType, ClassFile.ACC_STATIC, cb -> {
@@ -779,6 +814,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					for(int i = 0; i < paramCount; ++i) {
 						var paramType = type.parameterType(i);
 						locals[i] = new LocalInfo(slotOffset, paramType);
+						emitLocalName(cb, functionIndex, i, locals[i], cb.startLabel());
 						slotOffset += slotSize(paramType);
 					}
 
@@ -798,6 +834,9 @@ class ModuleClassGenerator extends WasmClassGenerator {
 							case VOID -> throw new RuntimeException("Unexpected VOID elementType");
 						}
 
+						var start = cb.newLabel();
+						cb.labelBinding(start);
+						emitLocalName(cb, functionIndex, paramCount + i, locals[paramCount + i], start);
 						slotOffset += slotSize(localType.type());
 					}
 
@@ -805,18 +844,19 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					bytecodeGen.generateFunctionBody(func.body());
 				});
 
-				createLambdaThunk(clb, name, type);
+				createLambdaThunk(clb, functionIndex, name, type);
 			});
 		}
 
 
-		void addFunctionImport(ImportModuleInfo imp, String localName, MethodTypeDesc type, WasmExportRealization.OfInstanceMethod exportRealization) {
+		void addFunctionImport(int functionIndex, ImportModuleInfo imp, String localName, MethodTypeDesc type, WasmExportRealization.OfInstanceMethod exportRealization) {
 			functionCreators.add(clb -> {
 				var invokeMethodType = invokeMethodType(type);
 				clb.withMethodBody(localName, invokeMethodType, ClassFile.ACC_STATIC, cb -> {
 					int slotOffset = 0;
 					for(int i = 0; i < type.parameterCount(); ++i) {
 						var paramType = type.parameterType(i);
+						emitLocalName(cb, functionIndex, i, new LocalInfo(slotOffset, paramType), cb.startLabel());
 						slotOffset += slotSize(paramType);
 					}
 
@@ -834,11 +874,11 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					cb.areturn();
 				});
 
-				createLambdaThunk(clb, localName, type);
+				createLambdaThunk(clb, functionIndex, localName, type);
 			});
 		}
 
-		private void createLambdaThunk(ClassBuilder clb, String methodName, MethodTypeDesc type) {
+		private void createLambdaThunk(ClassBuilder clb, int functionIndex, String methodName, MethodTypeDesc type) {
 			if(type.parameterCount() == 0) {
 				return;
 			}
@@ -848,6 +888,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				int slotOffset = 1;
 				for(int i = 0; i < type.parameterCount(); ++i) {
 					var paramType = type.parameterType(i);
+					emitLocalName(cb, functionIndex, i, new LocalInfo(slotOffset, paramType), cb.startLabel());
 					cb.loadLocal(typeKind(paramType), slotOffset);
 					slotOffset += slotSize(paramType);
 				}

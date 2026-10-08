@@ -1,12 +1,8 @@
 package dev.argon.jawawasm.format.modules;
 
 import com.google.common.collect.ImmutableList;
-import dev.argon.jawawasm.format.types.CompositeType;
-import dev.argon.jawawasm.format.types.DefType;
 import dev.argon.jawawasm.format.types.RecursiveType;
 import org.jspecify.annotations.Nullable;
-
-import java.util.List;
 
 /**
  * A WebAssembly module.
@@ -21,6 +17,7 @@ import java.util.List;
  * @param start The start section.
  * @param imports The imports section.
  * @param exports The exports section.
+ * @param name The name custom section.
  */
 public record Module(
     ImmutableList<RecursiveType> types,
@@ -33,6 +30,7 @@ public record Module(
 	ImmutableList<Data> datas,
 	@Nullable Start start,
 	ImmutableList<Import> imports,
-	ImmutableList<Export> exports
+	ImmutableList<Export> exports,
+    @Nullable Names name
 ) {
 }

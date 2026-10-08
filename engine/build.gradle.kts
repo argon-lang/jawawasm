@@ -51,7 +51,16 @@ tasks.withType<JavaCompile>().configureEach {
     options.compilerArgs.add("-parameters")
 }
 
+val testCompilerExport = "dev.argon.jawawasm.engine/dev.argon.jawawasm.engine.compiler=dev.argon.jawawasm.engine.tests"
+
+val testInternalExport = "dev.argon.jawawasm.engine/dev.argon.jawawasm.engine.internal=dev.argon.jawawasm.engine.tests"
+
+tasks.named<JavaCompile>("compileTestJava") {
+    options.compilerArgs.addAll(listOf("--add-exports", testInternalExport, "--add-exports", testCompilerExport))
+}
+
 tasks.named<Test>("test") {
+    jvmArgs("--add-exports", testInternalExport, "--add-exports", testCompilerExport)
     useJUnitPlatform()
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
 }

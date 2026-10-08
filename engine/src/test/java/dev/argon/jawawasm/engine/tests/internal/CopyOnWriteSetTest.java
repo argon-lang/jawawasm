@@ -9,9 +9,9 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class CopyOnWriteSetTest {
+public class CopyOnWriteSetTest {
 	@Test
-	void clonesDetachInBothDirectionsAndAcrossGenerations() {
+	public void clonesDetachInBothDirectionsAndAcrossGenerations() {
 		var original = new CopyOnWriteSet<String>();
 		original.addAll(Set.of("a", "b"));
 		var first = original.clone();
@@ -28,7 +28,7 @@ class CopyOnWriteSetTest {
 	}
 
 	@Test
-	void iteratorRemovalDetachesAndContinues() {
+	public void iteratorRemovalDetachesAndContinues() {
 		var set = new CopyOnWriteSet<String>();
 		set.addAll(Set.of("a", "b", "c"));
 		var iterator = set.iterator();
@@ -51,7 +51,7 @@ class CopyOnWriteSetTest {
 	}
 
 	@Test
-	void bulkMutationsDetach() {
+	public void bulkMutationsDetach() {
 		var set = new CopyOnWriteSet<Integer>();
 		set.addAll(Set.of(1, 2, 3, 4, 5));
 		var original = set.clone();
@@ -67,7 +67,7 @@ class CopyOnWriteSetTest {
 	}
 
 	@Test
-	void nullsAndNoOpMutationsFollowSetSemantics() {
+	public void nullsAndNoOpMutationsFollowSetSemantics() {
 		var set = new CopyOnWriteSet<@Nullable String>();
 		assertTrue(set.add(null));
 		var copy = set.clone();
@@ -82,7 +82,7 @@ class CopyOnWriteSetTest {
 	}
 
 	@Test
-	void iteratorTracksOnlyItsOwnSet() {
+	public void iteratorTracksOnlyItsOwnSet() {
 		var set = new CopyOnWriteSet<String>();
 		set.add("a");
 		var iterator = set.iterator();

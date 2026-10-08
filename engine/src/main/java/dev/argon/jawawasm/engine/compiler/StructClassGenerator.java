@@ -19,16 +19,23 @@ import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.*;
 import static java.lang.constant.ConstantDescs.*;
 
 class StructClassGenerator extends DefTypeClassGenerator {
-	public StructClassGenerator(ModuleCompiler compiler, SubType subtype, StructType structType, String className) {
+	public StructClassGenerator(ModuleCompiler compiler, SubType subtype, StructType structType, String className, Map<Integer, String> fieldNames) {
 		super(compiler);
 		this.subtype = subtype;
 		this.structType = structType;
+		this.fieldNames = Map.copyOf(fieldNames);
 		this.className = ClassDesc.of(compiler.getOptions().javaPackage(), className);
 	}
 
 	private final SubType subtype;
 	private final StructType structType;
 	private final ClassDesc className;
+	private final Map<Integer, String> fieldNames;
+
+	private String fieldName(int index) {
+		var name = fieldNames.get(index);
+		return "field" + index + (name == null ? "" : "_" + NameMangling.sanitizeName(name));
+	}
 
 	@Override
 	public ClassDesc className() {
@@ -168,7 +175,7 @@ class StructClassGenerator extends DefTypeClassGenerator {
 				flags |= ClassFile.ACC_FINAL;
 			}
 
-			var fieldName = "field" + i;
+			var fieldName = fieldName(i);
 
 			clb.withField(fieldName, t.type(), flags);
 
@@ -275,7 +282,7 @@ class StructClassGenerator extends DefTypeClassGenerator {
 					cb.aload(0);
 					cb.loadLocal(tk, slot);
 
-					cb.putfield(implClass, "field" + i, t);
+					cb.putfield(implClass, fieldName(i), t);
 
 					slot += tk.slotSize();
 				}
@@ -314,7 +321,7 @@ class StructClassGenerator extends DefTypeClassGenerator {
 			);
 
 			if(fieldType.mut() == Mut.Var) {
-				clb.withMethodBody(
+				clb.withMethod(
 					"set" + i,
 					MethodTypeDesc.of(CD_void, t.type()),
 					ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT,

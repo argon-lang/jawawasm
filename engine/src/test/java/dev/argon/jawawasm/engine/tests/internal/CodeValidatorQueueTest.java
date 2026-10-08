@@ -13,12 +13,12 @@ import org.junit.jupiter.api.Timeout;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Timeout(value = 10, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
-class CodeValidatorQueueTest {
+public class CodeValidatorQueueTest {
 	private static final ResultType EMPTY = new ResultType(ImmutableList.of());
 	private static final FuncType VOID = new FuncType(EMPTY, EMPTY);
 
 	@Test
-	void deeplyNestedBodiesDrainWithoutRecursion() throws ValidationException {
+	public void deeplyNestedBodiesDrainWithoutRecursion() throws ValidationException {
 		var body = deeplyNestedBody();
 		ModuleValidator.validateModule(module(1, VOID, ImmutableList.of(), body));
 		ModuleValidator.validateModule(module(20, VOID, ImmutableList.of(), body));
@@ -26,7 +26,7 @@ class CodeValidatorQueueTest {
 	}
 
 	@Test
-	void branchingChildrenDrainAndReportLateFailures() throws ValidationException {
+	public void branchingChildrenDrainAndReportLateFailures() throws ValidationException {
 		var children = ImmutableList.<Instr>builder();
 		for(int i = 0; i < 2_000; ++i) {
 			children.add(new ControlInstr.Block(new ControlInstr.BlockType.Empty(),
@@ -42,7 +42,7 @@ class CodeValidatorQueueTest {
 		var template = module(100, VOID, ImmutableList.of(), body);
 		var valid = new Module(template.types(), functions.build(), ImmutableList.of(), ImmutableList.of(),
 			ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), null,
-			ImmutableList.of(), ImmutableList.of());
+			ImmutableList.of(), ImmutableList.of(), null);
 		for(int i = 0; i < 5; ++i) ModuleValidator.validateModule(valid);
 		children.add(new ControlInstr.Block(new ControlInstr.BlockType.Empty(),
 			ImmutableList.of(new NumericInstr.I32_Const(1))));
@@ -51,7 +51,7 @@ class CodeValidatorQueueTest {
 	}
 
 	@Test
-	void queuedGlobalInitializersRequireConstantInstructions() throws ValidationException {
+	public void queuedGlobalInitializersRequireConstantInstructions() throws ValidationException {
 		for(boolean constant : new boolean[] {true, false}) {
 			var body = constant
 				? ImmutableList.<Instr>of(new NumericInstr.I32_Const(1))
@@ -59,7 +59,7 @@ class CodeValidatorQueueTest {
 			var global = new Global(new GlobalType(Mut.Const, NumType.I32), new Expr(body));
 			var module = new Module(ImmutableList.of(), ImmutableList.of(), ImmutableList.of(),
 				ImmutableList.of(), ImmutableList.of(), ImmutableList.of(global), ImmutableList.of(),
-				ImmutableList.of(), null, ImmutableList.of(), ImmutableList.of());
+				ImmutableList.of(), null, ImmutableList.of(), ImmutableList.of(), null);
 			if(constant) ModuleValidator.validateModule(module);
 			else {
 				var ex = assertThrows(ValidationException.class, () -> ModuleValidator.validateModule(module));
@@ -69,7 +69,7 @@ class CodeValidatorQueueTest {
 	}
 
 	@Test
-	void tableInitializerChildrenAreValidatedWithoutFunctions() throws ValidationException {
+	public void tableInitializerChildrenAreValidatedWithoutFunctions() throws ValidationException {
 		for(int count : new int[] {1, 20}) {
 			for(boolean invalid : new boolean[] {false, true}) {
 				var body = ImmutableList.<Instr>builder();
@@ -85,7 +85,7 @@ class CodeValidatorQueueTest {
 					new Expr(body.build()));
 				var module = new Module(ImmutableList.of(), ImmutableList.of(), ImmutableList.of(table),
 					ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), ImmutableList.of(),
-					ImmutableList.of(), null, ImmutableList.of(), ImmutableList.of());
+					ImmutableList.of(), null, ImmutableList.of(), ImmutableList.of(), null);
 				if(invalid) assertThrows(ValidationException.class, () -> ModuleValidator.validateModule(module));
 				else ModuleValidator.validateModule(module);
 			}
@@ -93,7 +93,7 @@ class CodeValidatorQueueTest {
 	}
 
 	@Test
-	void workersFinishWhenNoChildrenAreProduced() throws ValidationException {
+	public void workersFinishWhenNoChildrenAreProduced() throws ValidationException {
 		for(int count : new int[] {20, 21, 101}) {
 			var module = module(count, VOID, ImmutableList.of(), ImmutableList.of());
 			for(int i = 0; i < 20; ++i) ModuleValidator.validateModule(module);
@@ -101,7 +101,7 @@ class CodeValidatorQueueTest {
 	}
 
 	@Test
-	void invalidChildIsReportedInBothExecutionModes() {
+	public void invalidChildIsReportedInBothExecutionModes() {
 		var body = ImmutableList.<Instr>of(new ControlInstr.Block(new ControlInstr.BlockType.Empty(),
 			ImmutableList.of(new NumericInstr.I32_Const(1))));
 		for(int count : new int[] {1, 19, 20, 21, 101}) {
@@ -110,7 +110,7 @@ class CodeValidatorQueueTest {
 	}
 
 	@Test
-	void queuedBodyDoesNotSeeLaterLocalInitialization() {
+	public void queuedBodyDoesNotSeeLaterLocalInitialization() {
 		var reference = new RefType(false, HeapType.AbstractHeapType.EXTERN);
 		var signature = new FuncType(new ResultType(ImmutableList.of(reference)), EMPTY);
 		var body = ImmutableList.<Instr>of(
@@ -128,7 +128,7 @@ class CodeValidatorQueueTest {
 	}
 
 	@Test
-	void interruptionCancelsAndRestoresInterruptFlag() {
+	public void interruptionCancelsAndRestoresInterruptFlag() {
 		var module = module(101, VOID, ImmutableList.of(), ImmutableList.of(new ControlInstr.Nop()));
 		Thread.currentThread().interrupt();
 		try {
@@ -155,6 +155,6 @@ class CodeValidatorQueueTest {
 		return new Module(
 			ImmutableList.of(new RecursiveType(ImmutableList.of(new SubType(true, ImmutableList.of(), type)))),
 			functions.build(), ImmutableList.of(), ImmutableList.of(), ImmutableList.of(),
-			ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), null, ImmutableList.of(), ImmutableList.of());
+			ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), null, ImmutableList.of(), ImmutableList.of(), null);
 	}
 }

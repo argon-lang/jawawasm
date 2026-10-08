@@ -4,8 +4,7 @@ import com.google.common.collect.ImmutableList;
 import dev.argon.jawawasm.format.instructions.Instr;
 import dev.argon.jawawasm.format.types.ResultType;
 
-/** A body and its scoped context and signature, owned by one queued job. */
-public class CodeValidateJob {
+class CodeValidateJob {
 	public CodeValidateJob(Context context, ResultType argTypes, ResultType resultType, ImmutableList<Instr> body, boolean requireConstant) {
 		this.context = context;
 		this.argTypes = argTypes;

@@ -9,9 +9,9 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class TypeResolverTest {
+public class TypeResolverTest {
 	@Test
-	void numericSignaturesAndAggregateFieldsAreReused() {
+	public void numericSignaturesAndAggregateFieldsAreReused() {
 		var signature = new ResultType(ImmutableList.of(NumType.I32, NumType.I64));
 		var function = new FuncType(signature, signature);
 		var field = new FieldType(NumType.I32, Mut.Const);
@@ -25,7 +25,7 @@ class TypeResolverTest {
 	}
 
 	@Test
-	void changedReferencesRebuildOnlyTheirAncestors() {
+	public void changedReferencesRebuildOnlyTheirAncestors() {
 		var unchanged = new FieldType(NumType.I32, Mut.Const);
 		var changed = new FieldType(new RefType(true, new TypeIdx(0)), Mut.Var);
 		var fields = ImmutableList.of(unchanged, changed, unchanged);
@@ -45,7 +45,7 @@ class TypeResolverTest {
 	}
 
 	@Test
-	void externalReferencesAndSupertypesRemainUnchanged() {
+	public void externalReferencesAndSupertypesRemainUnchanged() {
 		var args = new ResultType(ImmutableList.of(new RefType(true, new TypeIdx(0))));
 		var composite = new FuncType(args, new ResultType(ImmutableList.of()));
 		var group = new RecursiveType(ImmutableList.of(new SubType(false, ImmutableList.of(new TypeIdx(0)), composite)));

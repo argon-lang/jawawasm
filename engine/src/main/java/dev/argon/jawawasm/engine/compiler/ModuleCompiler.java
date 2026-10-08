@@ -49,6 +49,15 @@ public class ModuleCompiler {
 
 
 	private final Map<DefType, DefTypeClassGenerator> typeCache = new ConcurrentHashMap<>();
+	private final Map<DefType, TypeNames> typeNames = new ConcurrentHashMap<>();
+	private record TypeNames(@Nullable String name, Map<Integer, String> fields) {}
+
+	void registerTypeNames(DefType type, @Nullable String name, Map<Integer, String> fields) {
+		if(name != null || !fields.isEmpty()) {
+			typeNames.putIfAbsent(type, new TypeNames(name, Map.copyOf(fields)));
+		}
+	}
+
 	private final AtomicInteger funcTypeIndex = new AtomicInteger(0);
 	private final AtomicInteger arrayTypeIndex = new AtomicInteger(0);
 	private final AtomicInteger structTypeIndex = new AtomicInteger(0);
@@ -58,12 +67,21 @@ public class ModuleCompiler {
 	/**
 	 * Enqueue a module for compilation.
 	 * @param module The module to compile.
-	 * @param className The name of the class for the module.
+	 * @param className The name of the class for the module, or {@code null} to use the sanitized module name from the name section.
 	 * @param resolver The module resolver used to look up imports.
 	 * @return The realization of the module.
 	 * @throws ModuleLinkException if a linkage error occurs
+	 * @throws IllegalArgumentException if no class name or nonempty module name is provided.
 	 */
-	public WasmModuleRealization enqueueModule(Module module, String className, ModuleResolver<WasmModuleRealization> resolver) {
+	public WasmModuleRealization enqueueModule(Module module, @Nullable String className, ModuleResolver<WasmModuleRealization> resolver) {
+		if(className == null) {
+			var names = module.name();
+			var moduleName = names == null ? null : names.moduleName();
+			if(moduleName == null || moduleName.isEmpty()) {
+				throw new IllegalArgumentException("A class name or nonempty module name in the name section is required.");
+			}
+			className = NameMangling.sanitizeName(moduleName);
+		}
 		var gen = new ModuleClassGenerator(this, module, className, resolver);
 		gen.generate();
 		enqueueGenerator(gen);
@@ -115,21 +133,23 @@ public class ModuleCompiler {
 	DefTypeRealization getDefType(DefType type) {
 		return typeCache.computeIfAbsent(type, t -> {
 			var subtype = TypeUnroll.unroll(t);
+			var names = typeNames.get(t);
+			var suffix = names == null || names.name() == null ? "" : "_" + NameMangling.sanitizeName(names.name());
 			return switch(subtype.compositeType()) {
 				case ArrayType arrayType -> {
-					var className = "Array" + arrayTypeIndex.getAndIncrement();
+					var className = "Array" + arrayTypeIndex.getAndIncrement() + suffix;
 					var generator = new ArrayClassGenerator(this, subtype, arrayType, className);
 					enqueueGenerator(generator);
 					yield generator;
 				}
 				case StructType structType -> {
-					var className = "Struct" + structTypeIndex.getAndIncrement();
-					var generator = new StructClassGenerator(this, subtype, structType, className);
+					var className = "Struct" + structTypeIndex.getAndIncrement() + suffix;
+					var generator = new StructClassGenerator(this, subtype, structType, className, names == null ? Map.of() : names.fields());
 					enqueueGenerator(generator);
 					yield generator;
 				}
 				case FuncType funcType -> {
-					var className = "Func" + funcTypeIndex.getAndIncrement();
+					var className = "Func" + funcTypeIndex.getAndIncrement() + suffix;
 					var generator = new FuncClassGenerator(this, subtype, funcType, className);
 					enqueueGenerator(generator);
 					yield generator;

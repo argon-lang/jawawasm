@@ -87,6 +87,10 @@ public class NameMangling {
 		}
 	}
 
+	static String sanitizeName(String name) {
+		return name.replaceAll("[^a-zA-Z0-9]+", "_");
+	}
+
 	private static boolean isDangerousChar(char ch) {
 		return switch(ch) {
 			case '\\', '/', '.', ';', '$', '<', '>', '[', ']', ':' -> true;

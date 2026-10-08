@@ -21,6 +21,7 @@ dependencies {
     api(libs.protobuf)
     compileOnly(libs.jspecify)
     testImplementation(libs.junit.jupiter)
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     errorprone(libs.nullaway)
     errorprone(libs.errorprone)
@@ -91,4 +92,8 @@ publishing {
 
 signing {
     sign(publishing.publications["mavenJava"])
+}
+
+tasks.named<Test>("test") {
+    useJUnitPlatform()
 }

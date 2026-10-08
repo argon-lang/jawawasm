@@ -1,6 +1,7 @@
 package dev.argon.jawawasm.format.binary;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 import dev.argon.jawawasm.runtime.AddrType;
@@ -47,7 +48,25 @@ public class ModuleReader {
 
 	private int peekByteValue = -1;
 
+	private long customSectionRemainingSize = -1;
+
+	private void enterCustomSection(long size) {
+		customSectionRemainingSize = size;
+	}
+
+	private void leaveCustomSection() throws IOException, ModuleFormatException {
+		if(customSectionRemainingSize > 0) {
+			skipBytes(customSectionRemainingSize);
+		}
+
+		customSectionRemainingSize = -1;
+	}
+
 	private byte readByte() throws IOException, ModuleFormatException {
+		if(customSectionRemainingSize == 0) {
+			throw new ModuleFormatException("read past end of custom section");
+		}
+
 		int b = tryReadByte();
 		if(b < 0) {
 			throw new ModuleFormatException("unexpected end of section or function");
@@ -57,6 +76,10 @@ public class ModuleReader {
 	}
 
 	private int tryReadByte() throws IOException {
+		if(customSectionRemainingSize == 0) {
+			return -1;
+		}
+
 		int b;
 		if(peekByteValue >= 0) {
 			b = peekByteValue;
@@ -68,12 +91,20 @@ public class ModuleReader {
 
 		if(b >= 0) {
 			++offset;
+
+			if(customSectionRemainingSize > 0) {
+				--customSectionRemainingSize;
+			}
 		}
 
 		return b;
 	}
 
 	private int peekByte() throws IOException {
+		if(customSectionRemainingSize == 0) {
+			return -1;
+		}
+
 		if(peekByteValue < 0) {
 			peekByteValue = is.read();
 		}
@@ -82,6 +113,14 @@ public class ModuleReader {
 	}
 
 	private byte[] readAllNBytes(int n) throws IOException, ModuleFormatException {
+		if(n < 1) {
+			return new byte[0];
+		}
+
+		if(customSectionRemainingSize >= 0 && customSectionRemainingSize < n) {
+			throw new ModuleFormatException("unexpected end of custom section");
+		}
+
 		byte[] buff = new byte[n];
 		int startIndex = 0;
 		int bytesRead = 0;
@@ -95,7 +134,10 @@ public class ModuleReader {
 
 		bytesRead += is.readNBytes(buff, startIndex, buff.length - startIndex);
 
-		offset += buff.length;
+		offset += bytesRead;
+		if(customSectionRemainingSize >= 0) {
+			customSectionRemainingSize -= bytesRead;
+		}
 		if(bytesRead < n) {
 			throw new ModuleFormatException("unexpected end of section or function");
 		}
@@ -103,8 +145,15 @@ public class ModuleReader {
 	}
 
 	private void skipBytes(long n) throws IOException, ModuleFormatException {
+		if(customSectionRemainingSize >= 0 && n > customSectionRemainingSize) {
+			throw new ModuleFormatException("unexpected end of custom section");
+		}
 		if(n < 1) {
 			return;
+		}
+
+		if(customSectionRemainingSize >= 0) {
+			customSectionRemainingSize -= n;
 		}
 
 		if(peekByteValue >= 0) {
@@ -113,15 +162,8 @@ public class ModuleReader {
 			++offset;
 		}
 
-		while(n > 0) {
-			long skipped = is.skip(n);
-			n -= skipped;
-			offset += skipped;
-			if(skipped < 1) {
-				readByte();
-				--n;
-			}
-		}
+		is.skipNBytes(n);
+		offset += n;
 	}
 
 	private int readFixedInt() throws IOException, ModuleFormatException {
@@ -129,7 +171,7 @@ public class ModuleReader {
 		return ByteBuffer.wrap(buff).order(ByteOrder.LITTLE_ENDIAN).getInt(0);
 	}
 
-	private static interface ValueReader<T> {
+	private static interface ValueReader<T extends @Nullable Object> {
 		T read() throws IOException, ModuleFormatException;
 	}
 
@@ -2190,6 +2232,60 @@ public class ModuleReader {
 		return readU32();
 	}
 
+	private <T> ImmutableMap<Integer, T> readNameMap(ValueReader<T> reader) throws IOException, ModuleFormatException {
+		var names = ImmutableMap.<Integer, T>builder();
+		int count = readU32();
+		if(count < 0) {
+			throw new ModuleFormatException("name map length overflow");
+		}
+		long lastIndex = -1;
+		for(int i = 0; i < count; ++i) {
+			int index = readU32();
+			long unsignedIndex = Integer.toUnsignedLong(index);
+			if(unsignedIndex <= lastIndex) {
+				throw new ModuleFormatException("name map indices must be increasing");
+			}
+			lastIndex = unsignedIndex;
+			names.put(index, reader.read());
+		}
+		return names.buildOrThrow();
+	}
+
+	private Names readNameCustomSectionContent() throws IOException, ModuleFormatException {
+		int lastSubSectionId = -1;
+		@Nullable String moduleName = null;
+		ImmutableMap<Integer, String> functionNames = ImmutableMap.of();
+		ImmutableMap<Integer, ImmutableMap<Integer, String>> localNames = ImmutableMap.of();
+		ImmutableMap<Integer, String> typeNames = ImmutableMap.of();
+		ImmutableMap<Integer, ImmutableMap<Integer, String>> fieldNames = ImmutableMap.of();
+		ImmutableMap<Integer, String> tagNames = ImmutableMap.of();
+
+		while(peekByte() >= 0) {
+			int id = Byte.toUnsignedInt(readByte());
+			if(id <= lastSubSectionId) {
+				throw new ModuleFormatException("name subsections must be increasing");
+			}
+			lastSubSectionId = id;
+
+			int size = readU32();
+			long start = offset;
+			switch(id) {
+				case 0 -> moduleName = readName();
+				case 1 -> functionNames = readNameMap(this::readName);
+				case 2 -> localNames = readNameMap(() -> readNameMap(this::readName));
+				case 4 -> typeNames = readNameMap(this::readName);
+				case 10 -> fieldNames = readNameMap(() -> readNameMap(this::readName));
+				case 11 -> tagNames = readNameMap(this::readName);
+				default -> skipBytes(Integer.toUnsignedLong(size));
+			}
+			if(offset - start != Integer.toUnsignedLong(size)) {
+				throw new ModuleFormatException("name subsection size mismatch");
+			}
+		}
+
+		return new Names(moduleName, functionNames, localNames, typeNames, fieldNames, tagNames);
+	}
+
 	private static final int[] SECTION_ORDER = { 1, 2, 3, 4, 5, 13, 6, 7, 8, 9, 12, 10, 11 };
 
 	private int getSectionIndex(int section) {
@@ -2223,6 +2319,7 @@ public class ModuleReader {
 		ImmutableList<Export> exports = ImmutableList.of();
 		ImmutableList<Code> codeSec = ImmutableList.of();
 		int dataCount = 0;
+		@Nullable Names names = null;
 
 		try {
 			int magic = readFixedInt();
@@ -2253,13 +2350,29 @@ public class ModuleReader {
 
 				switch(section) {
 					case 0 -> {
-						readSection(size, () -> {
+						var customSection = readSection(size, () -> {
 							long beforeName = offset;
 							String name = readName();
-							long remaining = size - (offset - beforeName);
-							skipBytes(remaining);
-							return name;
+							long remaining = Integer.toUnsignedLong(size) - (offset - beforeName);
+
+							return switch(name) {
+								case "name" -> readCustomSection(remaining, this::readNameCustomSectionContent);
+
+								default -> {
+									skipBytes(remaining);
+									yield null;
+								}
+							};
 						});
+
+						switch(customSection) {
+							case null -> {}
+							case Names nameSection -> {
+								if(names == null) {
+									names = nameSection;
+								}
+							}
+						}
 					}
 					case 1 -> {
 						types = readSection(size, this::readTypeSectionContent);
@@ -2330,7 +2443,8 @@ public class ModuleReader {
 				datas,
 				start,
 				imports,
-				exports
+				exports,
+				names
 			);
 		}
 		catch(EOFException ex) {
@@ -2338,7 +2452,7 @@ public class ModuleReader {
 		}
 	}
 
-	private <T> T readSection(int expectedSize, ValueReader<T> f) throws IOException, ModuleFormatException {
+	private <T extends @Nullable Object> T readSection(int expectedSize, ValueReader<T> f) throws IOException, ModuleFormatException {
 		long sectionStart = offset;
 		long sectionSize = Integer.toUnsignedLong(expectedSize);
 		T res = f.read();
@@ -2348,6 +2462,23 @@ public class ModuleReader {
 		}
 
 		return res;
+	}
+
+	private <T> @Nullable T readCustomSection(long expectedSize, ValueReader<? extends @Nullable T> f) throws IOException, ModuleFormatException {
+		enterCustomSection(expectedSize);
+
+		@Nullable T result;
+		try {
+			result = f.read();
+		}
+		catch(ModuleFormatException _) {
+			// Suppress format errors in custom sections.
+			result = null;
+		}
+
+		leaveCustomSection();
+
+		return result;
 	}
 	
 }

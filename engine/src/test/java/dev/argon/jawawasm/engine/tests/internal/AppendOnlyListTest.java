@@ -9,9 +9,9 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class AppendOnlyListTest {
+public class AppendOnlyListTest {
 	@Test
-	void deeplyNestedClonesAppendWithoutExponentialGrowth() {
+	public void deeplyNestedClonesAppendWithoutExponentialGrowth() {
 		var list = new AppendOnlyList<Integer>();
 		list.add(0);
 		for(int i = 1; i <= 100; ++i) {
@@ -25,13 +25,13 @@ class AppendOnlyListTest {
 	}
 
 	@Test
-	void runsInNamedTestModule() {
+	public void runsInNamedTestModule() {
 		assertEquals("dev.argon.jawawasm.engine.tests", getClass().getModule().getName());
 		assertEquals("dev.argon.jawawasm.engine", AppendOnlyList.class.getModule().getName());
 	}
 
 	@Test
-	void clonesDetachInBothDirectionsAndAcrossGenerations() {
+	public void clonesDetachInBothDirectionsAndAcrossGenerations() {
 		var original = new AppendOnlyList<Integer>();
 		original.addAll(List.of(1, 2, 3));
 		var first = original.clone();
@@ -49,7 +49,7 @@ class AppendOnlyListTest {
 
 	@Test
 	@SuppressWarnings("ModifyingCollectionWithItself")
-	void bulkAppendHandlesSelfAndViews() {
+	public void bulkAppendHandlesSelfAndViews() {
 		var list = new AppendOnlyList<Integer>();
 		list.addAll(List.of(1, 2));
 		var snapshot = list.clone();
@@ -60,7 +60,7 @@ class AppendOnlyListTest {
 	}
 
 	@Test
-	void emptyCloneAndGrowthRemainIndependent() {
+	public void emptyCloneAndGrowthRemainIndependent() {
 		var list = new AppendOnlyList<Integer>();
 		var empty = list.clone();
 		for(int i = 0; i < 100; ++i) list.add(i);
@@ -71,7 +71,7 @@ class AppendOnlyListTest {
 	}
 
 	@Test
-	void rejectsEditsAndKeepsCloneIteratorsIndependent() {
+	public void rejectsEditsAndKeepsCloneIteratorsIndependent() {
 		var list = new AppendOnlyList<Integer>();
 		list.addAll(List.of(1, 2));
 		assertThrows(UnsupportedOperationException.class, () -> list.set(0, 3));
