@@ -200,6 +200,26 @@ public sealed interface NumericInstr extends Instr {
 
 
 	/**
+	 * WebAssembly `i64.add128` instruction.
+	 */
+	public static record I64_Add128() implements NumericInstr {}
+
+	/**
+	 * WebAssembly `i64.sub128` instruction.
+	 */
+	public static record I64_Sub128() implements NumericInstr {}
+
+	/**
+	 * WebAssembly `i64.mul_wide_s` instruction.
+	 */
+	public static record I64_Mul_Wide_S() implements NumericInstr {}
+
+	/**
+	 * WebAssembly `i64.mul_wide_u` instruction.
+	 */
+	public static record I64_Mul_Wide_U() implements NumericInstr {}
+
+	/**
 	 * WebAssembly floating point binary operation.
 	 */
 	public static enum FBinOp {

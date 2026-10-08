@@ -2,53 +2,25 @@ import net.ltgt.gradle.errorprone.errorprone
 
 plugins {
     `java-library`
-    `maven-publish`
-    signing
-    alias(libs.plugins.errorprone)
-}
-
-
-group = "dev.argon.jawawasm"
-version = "0.2.0-SNAPSHOT"
-
-repositories {
-    mavenCentral()
 }
 
 dependencies {
     api(project(":format"))
     api(libs.jspecify) // Not compile only because we may use reflection
     implementation(libs.commons.compress)
-    testImplementation(libs.junit.jupiter)
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-
-    errorprone(libs.nullaway)
-    errorprone(libs.errorprone)
 }
 
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(24)
     }
-
-    withSourcesJar()
-    withJavadocJar()
 }
 
 tasks.withType<JavaCompile>().configureEach {
     options.errorprone {
-        disableWarningsInGeneratedCode.set(true)
-
-        disable("RefactorSwitch")
-        option("NullAway:OnlyNullMarked", "true")
-        option("NullAway:JSpecifyMode", "true")
-        error("NullAway")
         disable("InvalidBlockTag")
         disable("MissingSummary")
     }
-
-    options.compilerArgs.add("-Xlint:unchecked,deprecation,fallthrough,path,rawtypes")
-    options.compilerArgs.add("-parameters")
 }
 
 val testCompilerExport = "dev.argon.jawawasm.engine/dev.argon.jawawasm.engine.compiler=dev.argon.jawawasm.engine.tests"
@@ -61,7 +33,6 @@ tasks.named<JavaCompile>("compileTestJava") {
 
 tasks.named<Test>("test") {
     jvmArgs("--add-exports", testInternalExport, "--add-exports", testCompilerExport)
-    useJUnitPlatform()
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
 }
 
@@ -81,44 +52,13 @@ tasks.javadoc {
 
 publishing {
     publications {
-        create<MavenPublication>("mavenJava") {
+        named<MavenPublication>("mavenJava") {
             artifactId = "wasm-engine"
-            from(components["java"])
 
             pom {
                 name = "JawaWasm"
                 description = "WebAssembly interpreter written in pure Java"
-                url = "https://github.com/argon-lang/jawawasm"
-                licenses {
-                    license {
-                        name = "GNU Lesser General Public License, Version 3"
-                        url = "https://www.gnu.org/licenses/lgpl-3.0.en.html"
-                    }
-                }
-                developers {
-                    developer {
-                        name = "argon-dev"
-                        email = "argon@argon.dev"
-                        organization = "argon-lang"
-                        organizationUrl = "https://argon.dev"
-                    }
-                }
-                scm {
-                    connection = "scm:git:git@github.com:argon-lang/jawawasm.git"
-                    developerConnection = "scm:git:git@github.com:argon-lang/jawawasm.git"
-                    url = "https://github.com/argon-lang/jawawasm/tree/master"
-                }
             }
         }
     }
-
-    repositories {
-        maven {
-            url = uri(layout.buildDirectory.dir("repo"))
-        }
-    }
-}
-
-signing {
-    sign(publishing.publications["mavenJava"])
 }

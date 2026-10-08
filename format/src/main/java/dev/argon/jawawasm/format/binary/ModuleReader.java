@@ -2,7 +2,6 @@ package dev.argon.jawawasm.format.binary;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 import dev.argon.jawawasm.runtime.AddrType;
 import dev.argon.jawawasm.format.types.Limits;
@@ -24,8 +23,6 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.MalformedInputException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnmappableCharacterException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.stream.Stream;
 
 /**
@@ -171,20 +168,42 @@ public class ModuleReader {
 		return ByteBuffer.wrap(buff).order(ByteOrder.LITTLE_ENDIAN).getInt(0);
 	}
 
-	private static interface ValueReader<T extends @Nullable Object> {
-		T read() throws IOException, ModuleFormatException;
+	private static interface ReadVectorCallback {
+		void read() throws IOException, ModuleFormatException;
 	}
 
-	private <T> ImmutableList<T> readVector(ValueReader<T> reader) throws IOException, ModuleFormatException {
+	private void readVectorWith(ReadVectorCallback reader) throws IOException, ModuleFormatException {
+		int len = readU32();
+		if(len < 0) {
+			throw new ModuleFormatException("vector length overflow");
+		}
+		for(int i = 0; i < len; ++i) {
+			reader.read();
+		}
+	}
+
+	private static interface ReadVectorBuilder<T> {
+		void read(ImmutableList.Builder<T> v) throws IOException, ModuleFormatException;
+	}
+
+	private <T> ImmutableList<T> readVectorBuild(ReadVectorBuilder<T> reader) throws IOException, ModuleFormatException {
 		int len = readU32();
 		if(len < 0) {
 			throw new ModuleFormatException("vector length overflow");
 		}
 		var l = ImmutableList.<T>builderWithExpectedSize(len);
 		for(int i = 0; i < len; ++i) {
-			l.add(reader.read());
+			reader.read(l);
 		}
 		return l.build();
+	}
+
+	private static interface ValueReader<T extends @Nullable Object> {
+		T read() throws IOException, ModuleFormatException;
+	}
+
+	private <T> ImmutableList<T> readVector(ValueReader<T> reader) throws IOException, ModuleFormatException {
+		return readVectorBuild(v -> v.add(reader.read()));
 	}
 	
 	private byte[] readByteVec() throws IOException, ModuleFormatException {
@@ -1382,6 +1401,11 @@ public class ModuleReader {
 					yield new TableInstr.Table_Fill(table);
 				}
 
+				case 19 -> new NumericInstr.I64_Add128();
+				case 20 -> new NumericInstr.I64_Sub128();
+				case 21 -> new NumericInstr.I64_Mul_Wide_S();
+				case 22 -> new NumericInstr.I64_Mul_Wide_U();
+
 				default -> throw new ModuleFormatException("illegal opcode");
 			};
 
@@ -1867,41 +1891,74 @@ public class ModuleReader {
 	}
 
 	private ImmutableList<Import> readImportSectionContent() throws IOException, ModuleFormatException {
-		return readVector(() -> {
+		return readVectorBuild(imports -> {
 			var mod = readName();
 			var importName = readName();
 
-			var desc = switch(readByte()) {
-				case 0x00 -> {
-					var type = readTypeIdx();
-					yield new ImportDesc.Func(type);
+			var externTypeTagOrImportType = readByte();
+
+			if(importName.isEmpty()) {
+				switch(externTypeTagOrImportType) {
+					case 0x7F -> {
+						readVectorWith(() -> {
+							var importName2 = readName();
+							var importDesc = readExternType();
+							imports.add(new Import(mod, importName2, importDesc));
+						});
+						return;
+					}
+
+					case 0x7E -> {
+						var importDesc = readExternType();
+						readVectorWith(() -> {
+							var importName2 = readName();
+							imports.add(new Import(mod, importName2, importDesc));
+						});
+						return;
+					}
+
+					default -> {}
 				}
+			}
 
-				case 0x01 -> {
-					var type = readTableType();
-					yield new ImportDesc.Table(type);
-				}
-
-				case 0x02 -> {
-					var type = readMemType();
-					yield new ImportDesc.Mem(type);
-				}
-
-				case 0x03 -> {
-					var type = readGlobalType();
-					yield new ImportDesc.Global(type);
-				}
-
-				case 0x04 -> {
-					var type = readTagType();
-					yield new ImportDesc.Tag(type);
-				}
-
-				default -> throw new ModuleFormatException("malformed import kind");
-			};
-
-			return new Import(mod, importName, desc);
+			var importDesc = readExternTypeForTag(externTypeTagOrImportType);
+			imports.add(new Import(mod, importName, importDesc));
 		});
+	}
+
+	private ImportDesc readExternType() throws IOException, ModuleFormatException {
+		return readExternTypeForTag(readByte());
+	}
+
+	private ImportDesc readExternTypeForTag(byte tag) throws IOException, ModuleFormatException {
+		return switch(tag) {
+			case 0x00 -> {
+				var type = readTypeIdx();
+				yield new ImportDesc.Func(type);
+			}
+
+			case 0x01 -> {
+				var type = readTableType();
+				yield new ImportDesc.Table(type);
+			}
+
+			case 0x02 -> {
+				var type = readMemType();
+				yield new ImportDesc.Mem(type);
+			}
+
+			case 0x03 -> {
+				var type = readGlobalType();
+				yield new ImportDesc.Global(type);
+			}
+
+			case 0x04 -> {
+				var type = readTagType();
+				yield new ImportDesc.Tag(type);
+			}
+
+			default -> throw new ModuleFormatException("malformed import kind");
+		};
 	}
 
 	private ImmutableList<TypeIdx> readFunctionSectionContent() throws IOException, ModuleFormatException {

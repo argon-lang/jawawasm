@@ -40,7 +40,9 @@ public class ModuleNamesTest {
 			var error = assertThrows(IllegalArgumentException.class, () -> compiler.enqueueModule(module, null, name -> {
 				throw new AssertionError("Unexpected import");
 			}));
-			assertTrue(error.getMessage().contains("class name"));
+			var message = error.getMessage();
+			assertNotNull(message);
+			assertTrue(message.contains("class name"));
 			assertNull(compiler.dequeueGenerator());
 		}
 	}

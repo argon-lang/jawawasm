@@ -1,5 +1,7 @@
 package dev.argon.jawawasm.runtime;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Represents a 31-bit integer.
  */
@@ -32,7 +34,7 @@ public final class I31 implements WasmEq {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(@Nullable Object obj) {
 		if(!(obj instanceof I31 other)) {
 			return false;
 		}

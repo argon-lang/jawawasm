@@ -220,6 +220,38 @@ class StackFrame {
 				}
 			}
 
+			case NumericInstr.I64_Add128() -> {
+				long bHigh = popLong();
+				long bLow = popLong();
+				long aHigh = popLong();
+				long aLow = popLong();
+				long low = aLow + bLow;
+				long carry = Long.compareUnsigned(low, aLow) < 0 ? 1L : 0L;
+				push(low);
+				push(aHigh + bHigh + carry);
+			}
+			case NumericInstr.I64_Sub128() -> {
+				long bHigh = popLong();
+				long bLow = popLong();
+				long aHigh = popLong();
+				long aLow = popLong();
+				long borrow = Long.compareUnsigned(aLow, bLow) < 0 ? 1L : 0L;
+				push(aLow - bLow);
+				push(aHigh - bHigh - borrow);
+			}
+			case NumericInstr.I64_Mul_Wide_S() -> {
+				long b = popLong();
+				long a = popLong();
+				push(a * b);
+				push(Math.multiplyHigh(a, b));
+			}
+			case NumericInstr.I64_Mul_Wide_U() -> {
+				long b = popLong();
+				long a = popLong();
+				push(a * b);
+				push(Math.unsignedMultiplyHigh(a, b));
+			}
+
 			case NumericInstr.Inn_IBinOp iBinOpInstr -> {
 				switch(iBinOpInstr.size()) {
 					case _32 -> {

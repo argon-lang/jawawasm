@@ -25,6 +25,9 @@ public class App {
 		String scriptFile = args[0];
 
 		String wasmToolsExecutableStr = System.getenv("JAWAWASM_WASM_TOOLS_PATH");
+		if(wasmToolsExecutableStr == null) {
+			throw new IllegalStateException("JAWAWASM_WASM_TOOLS_PATH must be set");
+		}
 		Path wasmToolsExecutable = Path.of(wasmToolsExecutableStr);
 
 		System.out.println("Reading script");

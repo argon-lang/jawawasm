@@ -121,7 +121,7 @@ class ReflectionModuleLoader {
 	 * @throws ModuleFormatException if the class is not a valid result type.
 	 */
 	public ErasedResultType loadResultClass(Class<?> t) throws ModuleFormatException {
-		if(!t.getPackage().getName().equals("dev.argon.jawawasm.runtime")) {
+		if(!t.getPackageName().equals("dev.argon.jawawasm.runtime")) {
 			throw new ModuleFormatException("Result types must be defined in dev.argon.jawawasm.runtime");
 		}
 
@@ -278,12 +278,17 @@ class ReflectionModuleLoader {
 
 		var funcType = new FuncType(new ResultType(paramTypes.build()), new ResultType(ImmutableList.of()));
 
+		var declaringClass = innerClass.getDeclaringClass();
+		if(declaringClass == null) {
+			throw new ModuleFormatException("Exported inner class must have a declaring class");
+		}
+
 		return new WasmExportRealization.OfInnerClass(
 			name,
 			ClassDesc.ofDescriptor(innerClass.descriptorString()),
 			InnerClassInfo.of(
 				ClassDesc.ofDescriptor(innerClass.descriptorString()),
-				Optional.of(ClassDesc.ofDescriptor(innerClass.getDeclaringClass().descriptorString())),
+				Optional.of(ClassDesc.ofDescriptor(declaringClass.descriptorString())),
 				Optional.of(innerClass.getSimpleName()),
 				innerClass.getModifiers()
 			),

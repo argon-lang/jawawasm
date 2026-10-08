@@ -15,6 +15,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
 
@@ -67,14 +68,14 @@ public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionMod
 				result = stepMethod.invoke(result);
 			}
 
-			Object endResult = result;
+			Object endResult = Objects.requireNonNull(result, "WebAssembly function returned no result container");
 
 			var fields = Arrays.stream(endResult.getClass().getDeclaredFields())
 				.filter(f -> f.canAccess(endResult) && f.getName().startsWith("item"))
 				.sorted(Comparator.comparingInt(f -> Integer.parseInt(f.getName().substring(4))))
 				.toList();
 
-			Object[] results = new Object[fields.size()];
+			@Nullable Object[] results = new @Nullable Object[fields.size()];
 			for(int i = 0; i < fields.size(); ++i) {
 				results[i] = fields.get(i).get(endResult);
 			}
@@ -103,7 +104,7 @@ public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionMod
 						case GlobalF32 g -> g.get();
 						case GlobalF64 g -> g.get();
 						case GlobalRef<?> g -> g.get();
-						default -> throw new RuntimeException("Unexpected global container type");
+						case null, default -> throw new RuntimeException("Unexpected global container type");
 					};
 				}
 

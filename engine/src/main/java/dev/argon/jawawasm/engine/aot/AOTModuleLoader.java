@@ -98,17 +98,18 @@ class AOTModuleLoader {
 
 
 	private static Iterable<ClassDesc> nestedClasses(ClassModel model) {
-		return model.findAttribute(Attributes.innerClasses())
-			.map(attr -> attr.classes().stream()
-				.filter(ic ->
-					ic.outerClass()
-						.map(o -> o.asInternalName()
-							.equals(model.thisClass().asInternalName()))
-						.orElse(false))
-				.map(ic -> ic.innerClass().asSymbol())
-				.toList()
-			)
-			.orElseGet(List::of);
+		var attribute = model.findAttribute(Attributes.innerClasses());
+		if(attribute.isEmpty()) {
+			return List.of();
+		}
+		return attribute.get().classes().stream()
+			.filter(ic ->
+				ic.outerClass()
+					.map(o -> o.asInternalName()
+						.equals(model.thisClass().asInternalName()))
+					.orElse(false))
+			.map(ic -> ic.innerClass().asSymbol())
+			.toList();
 	}
 
 	private static ClassDesc getEnclosingClass(ClassModel model) throws ModuleFormatException {

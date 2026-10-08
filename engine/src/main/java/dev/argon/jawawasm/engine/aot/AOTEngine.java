@@ -98,7 +98,10 @@ public class AOTEngine {
 			}
 
 			var outputPath = outputDir.resolve(name);
-			Files.createDirectories(outputPath.getParent());
+			var parent = outputPath.getParent();
+			if(parent != null) {
+				Files.createDirectories(parent);
+			}
 			Files.write(outputPath, content);
 			nameToRealization.put(name, realization);
 		}

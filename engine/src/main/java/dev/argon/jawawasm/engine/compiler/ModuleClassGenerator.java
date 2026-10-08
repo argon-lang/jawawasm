@@ -2060,6 +2060,94 @@ class ModuleClassGenerator extends WasmClassGenerator {
 						case NEAREST -> cb.invokestatic(utilClass, "nearest" + nameSuffix, descriptor);
 					}
 				}
+				case NumericInstr.I64_Add128() -> {
+					int aLow = tempVarSlot;
+					int aHigh = tempVarSlot + 2;
+					int bLow = tempVarSlot + 4;
+					int bHigh = tempVarSlot + 6;
+					cb.lstore(bHigh);
+					cb.lstore(bLow);
+					cb.lstore(aHigh);
+					cb.lstore(aLow);
+
+					cb.lload(aLow);
+					cb.lload(bLow);
+					cb.ladd();
+
+					cb.lload(aHigh);
+					cb.lload(bHigh);
+					cb.ladd();
+					cb.lload(aLow);
+					cb.lload(bLow);
+					cb.ladd();
+					cb.lload(aLow);
+					cb.invokestatic(CD_Long, "compareUnsigned", MethodTypeDesc.of(CD_int, CD_long, CD_long));
+					cb.loadConstant(31);
+					cb.iushr();
+					cb.i2l();
+					cb.ladd();
+
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+				}
+				case NumericInstr.I64_Sub128() -> {
+					int aLow = tempVarSlot;
+					int aHigh = tempVarSlot + 2;
+					int bLow = tempVarSlot + 4;
+					int bHigh = tempVarSlot + 6;
+
+					cb.lstore(bHigh);
+					cb.lstore(bLow);
+					cb.lstore(aHigh);
+					cb.lstore(aLow);
+
+					cb.lload(aLow);
+					cb.lload(bLow);
+					cb.lsub();
+
+					cb.lload(aHigh);
+					cb.lload(bHigh);
+					cb.lsub();
+					cb.lload(aLow);
+					cb.lload(bLow);
+					cb.invokestatic(CD_Long, "compareUnsigned", MethodTypeDesc.of(CD_int, CD_long, CD_long));
+					cb.loadConstant(31);
+					cb.iushr();
+					cb.i2l();
+					cb.lsub();
+
+					stackTypes.removeLast();
+					stackTypes.removeLast();
+				}
+				case NumericInstr.I64_Mul_Wide_S() -> {
+					int a = tempVarSlot;
+					int b = tempVarSlot + 2;
+					cb.lstore(b);
+					cb.lstore(a);
+
+					cb.lload(a);
+					cb.lload(b);
+					cb.lmul();
+
+					cb.lload(a);
+					cb.lload(b);
+					cb.invokestatic(mathClass, "multiplyHigh", MethodTypeDesc.of(CD_long, CD_long, CD_long));
+				}
+				case NumericInstr.I64_Mul_Wide_U() -> {
+					int a = tempVarSlot;
+					int b = tempVarSlot + 2;
+					cb.lstore(b);
+					cb.lstore(a);
+
+					cb.lload(a);
+					cb.lload(b);
+					cb.lmul();
+
+					cb.lload(a);
+					cb.lload(b);
+					cb.invokestatic(mathClass, "unsignedMultiplyHigh", MethodTypeDesc.of(CD_long, CD_long, CD_long));
+				}
+
 				case NumericInstr.Inn_IBinOp op -> {
 					var size = op.size();
 					var descriptor = switch(size) {
@@ -2991,6 +3079,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 						case I32 -> {}
 						case I64 -> cb.i2l();
 					}
+					stackTypes.add(typeKind(addrDesc(tableInfo.tableType.addrType())));
 				}
 				case TableInstr.Table_Grow(var tableIdx) -> {
 					var tableInfo = tables.get(tableIdx.index());

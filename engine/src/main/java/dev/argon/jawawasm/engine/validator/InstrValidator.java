@@ -205,6 +205,21 @@ class InstrValidator extends ValidatorBase {
 					push(t);
 				}
 
+				case NumericInstr.I64_Add128(), NumericInstr.I64_Sub128() -> {
+					pop(NumType.I64);
+					pop(NumType.I64);
+					pop(NumType.I64);
+					pop(NumType.I64);
+					push(NumType.I64);
+					push(NumType.I64);
+				}
+				case NumericInstr.I64_Mul_Wide_S(), NumericInstr.I64_Mul_Wide_U() -> {
+					pop(NumType.I64);
+					pop(NumType.I64);
+					push(NumType.I64);
+					push(NumType.I64);
+				}
+
 				case NumericInstr.Inn_IBinOp(var numSize, _) -> {
 					var t = intTypeForSize(numSize);
 					pop(t);

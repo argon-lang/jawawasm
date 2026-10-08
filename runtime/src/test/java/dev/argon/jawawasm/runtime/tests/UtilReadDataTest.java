@@ -27,6 +27,11 @@ public class UtilReadDataTest {
 			public int read() throws IOException {
 				throw cause;
 			}
+
+			@Override
+			public int read(byte[] b, int off, int len) throws IOException {
+				throw cause;
+			}
 		};
 		assertSame(cause, assertThrows(UncheckedIOException.class, () -> Util.readData(stream)).getCause());
 	}

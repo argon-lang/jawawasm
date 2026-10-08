@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /** Generates direct Java calls; WAST files are read only during source generation. */
@@ -209,7 +210,7 @@ public final class GenerateV128Tests {
         Files.createDirectories(output);
         // This directory belongs to the generator; remove obsolete fixture classes.
         try (var files = Files.list(output)) {
-            for (Path file : files.filter(path -> path.getFileName().toString().endsWith(".java")).toList()) {
+            for (Path file : files.filter(path -> Objects.requireNonNull(path.getFileName()).toString().endsWith(".java")).toList()) {
                 Files.delete(file);
             }
         }
@@ -219,29 +220,29 @@ public final class GenerateV128Tests {
             String source = Files.readString(suite.resolve(fixture)).replaceAll(";;[^\\r\\n]*", "");
             int supported = 0;
             var invocations = INVOCATION.matcher(source);
-            while (invocations.find()) if (ops.containsKey(operationName(fixture, invocations.group(1)))) ++supported;
+            while (invocations.find()) if (ops.containsKey(operationName(fixture, Objects.requireNonNull(invocations.group(1))))) ++supported;
             Map<String, List<String>> methods = new LinkedHashMap<>();
             int parsed = 0;
             int line = 1;
             int countedThrough = 0;
             var assertions = ASSERTION.matcher(source);
             while (assertions.find()) {
-                String op = operationName(fixture, assertions.group(1));
+                String op = operationName(fixture, Objects.requireNonNull(assertions.group(1)));
                 if (!ops.containsKey(op)) continue;
                 ++parsed;
                 String expression = ops.get(op);
-                var constants = CONSTANT.matcher(assertions.group(2));
+                var constants = CONSTANT.matcher(Objects.requireNonNull(assertions.group(2)));
                 int index = 0;
-                while (constants.find()) expression = expression.replace("{" + index++ + "}", literal(constants.group(1), constants.group(2)));
-                String expected = assertions.group(4).trim();
+                while (constants.find()) expression = expression.replace("{" + index++ + "}", literal(Objects.requireNonNull(constants.group(1)), Objects.requireNonNull(constants.group(2))));
+                String expected = Objects.requireNonNull(assertions.group(4)).trim();
                 String statement;
-                if (assertions.group(3).equals("v128")) {
+                if (Objects.requireNonNull(assertions.group(3)).equals("v128")) {
                     Vector vector = vector(expected);
                     statement = "assertVector(" + vector.low() + ", " + vector.high() + ", " + expression;
                     if (vector.canonical != 0 || vector.arithmetic != 0)
                         statement += ", " + vector.width + ", " + vector.canonical + ", " + vector.arithmetic;
                     statement += ");";
-                } else statement = "assertEquals(" + literal(assertions.group(3), expected) + ", " + expression + ");";
+                } else statement = "assertEquals(" + literal(Objects.requireNonNull(assertions.group(3)), expected) + ", " + expression + ");";
                 while (countedThrough < assertions.start()) {
                     if (source.charAt(countedThrough++) == '\n') ++line;
                 }

@@ -38,7 +38,7 @@ public class ReflectionEngine {
 		this.context = context;
 
 		compiler = new ModuleCompiler(new CompilerOptions(
-			ClassHierarchyResolver.defaultResolver(),
+			ClassHierarchyResolver.ofClassLoading(ReflectionEngine.class.getClassLoader()),
 			packageName
 		));
 
@@ -289,6 +289,10 @@ public class ReflectionEngine {
 	}
 
 	private final class EngineClassLoaderImpl extends ClassLoader {
+		EngineClassLoaderImpl() {
+			super(ReflectionEngine.class.getClassLoader());
+		}
+
 		@Override
 		protected Class<?> findClass(String name) throws ClassNotFoundException {
 			byte[] data = generatedFiles.get(name.replace('.', '/') + ".class");
