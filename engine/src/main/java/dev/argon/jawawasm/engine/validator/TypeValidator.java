@@ -122,7 +122,7 @@ final class TypeValidator extends ValidatorBase {
 		validateCompositeType(subType.compositeType());
 
 		if(subType.superTypes().size() > 1) {
-			throw new ValidationException("More than one supertype");
+			throw new ValidationException("multiple supertypes");
 		}
 
 		for(var superTypeHeap : subType.superTypes()) {

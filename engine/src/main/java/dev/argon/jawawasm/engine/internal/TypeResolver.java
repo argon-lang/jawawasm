@@ -4,12 +4,16 @@ import com.google.common.collect.ImmutableList;
 import dev.argon.jawawasm.format.modules.TypeIdx;
 import dev.argon.jawawasm.format.types.*;
 
-import java.util.ArrayList;
+import org.jspecify.annotations.Nullable;
+
+import java.util.function.UnaryOperator;
 
 /**
  * Internal use only.
  * @hidden
  */
+// Identity comparisons detect unchanged immutable children without structural traversal.
+@SuppressWarnings("ReferenceEquality")
 public sealed abstract class TypeResolver permits TypeClosure, TypeRoll, TypeUnroll {
 	TypeResolver() {}
 
@@ -25,7 +29,8 @@ public sealed abstract class TypeResolver permits TypeClosure, TypeRoll, TypeUnr
 	}
 
 	public RefType resolveRefType(RefType t) {
-		return new RefType(t.isNullable(), resolveHeapType(t.heapType()));
+		var heapType = resolveHeapType(t.heapType());
+		return heapType == t.heapType() ? t : new RefType(t.isNullable(), heapType);
 	}
 
 	public HeapType resolveHeapType(HeapType t) {
@@ -52,67 +57,74 @@ public sealed abstract class TypeResolver permits TypeClosure, TypeRoll, TypeUnr
 	}
 
 	public FuncType resolveFuncType(FuncType t) {
-		return new FuncType(resolveResultType(t.args()), resolveResultType(t.results()));
+		var args = resolveResultType(t.args());
+		var results = resolveResultType(t.results());
+		return args == t.args() && results == t.results() ? t : new FuncType(args, results);
 	}
 
 	public AggregateType resolveAggregateType(AggregateType t) {
 		return switch(t) {
-			case StructType structType ->
-				new StructType(
-					structType.fields()
-						.stream()
-						.map(this::resolveFieldType)
-						.collect(ImmutableList.toImmutableList())
-				);
-
-			case ArrayType arrayType ->
-				new ArrayType(resolveFieldType(arrayType.fieldType()));
+			case StructType structType -> {
+				var fields = resolveList(structType.fields(), this::resolveFieldType);
+				yield fields == structType.fields() ? structType : new StructType(fields);
+			}
+			case ArrayType arrayType -> {
+				var field = resolveFieldType(arrayType.fieldType());
+				yield field == arrayType.fieldType() ? arrayType : new ArrayType(field);
+			}
 		};
 	}
 
 
 	public DefType resolveDefType(DefType t) {
-		return new DefType(resolveRecursiveType(t.recursiveType()), t.index());
+		var recursiveType = resolveRecursiveType(t.recursiveType());
+		return recursiveType == t.recursiveType() ? t : new DefType(recursiveType, t.index());
 	}
 
 	public RecursiveType resolveRecursiveType(RecursiveType t) {
-		var resolvedSubTypes = ImmutableList.<SubType>builderWithExpectedSize(t.subtypes().size());
-
-		for(var subType : t.subtypes()) {
-			resolvedSubTypes.add(resolveSubType(subType));
-		}
-
-		return new RecursiveType(resolvedSubTypes.build());
+		var subtypes = resolveList(t.subtypes(), this::resolveSubType);
+		return subtypes == t.subtypes() ? t : new RecursiveType(subtypes);
 	}
 
 	public SubType resolveSubType(SubType subType) {
-		var resolvedSuperTypes = ImmutableList.<HeapType>builder();
-		for(var superType : subType.superTypes()) {
-			resolvedSuperTypes.add(resolveHeapType(superType));
-		}
-
-		var resolvedType = resolveCompositeType(subType.compositeType());
-		return new SubType(subType.isFinal(), resolvedSuperTypes.build(), resolvedType);
+		var superTypes = resolveList(subType.superTypes(), this::resolveHeapType);
+		var compositeType = resolveCompositeType(subType.compositeType());
+		return superTypes == subType.superTypes() && compositeType == subType.compositeType()
+			? subType : new SubType(subType.isFinal(), superTypes, compositeType);
 	}
 
 	public FieldType resolveFieldType(FieldType t) {
-		return new FieldType(resolveStorageType(t.storageType()), t.mut());
+		var storageType = resolveStorageType(t.storageType());
+		return storageType == t.storageType() ? t : new FieldType(storageType, t.mut());
 	}
 
 	public ResultType resolveResultType(ResultType t) {
-		return new ResultType(
-			t.types()
-				.stream()
-				.map(this::resolveValType)
-				.collect(ImmutableList.toImmutableList())
-		);
+		var types = resolveList(t.types(), this::resolveValType);
+		return types == t.types() ? t : new ResultType(types);
+	}
+
+	@SuppressWarnings("unchecked") // Immutable lists safely widen their element type.
+	private static <T> ImmutableList<T> resolveList(ImmutableList<? extends T> items, UnaryOperator<T> resolve) {
+		ImmutableList.@Nullable Builder<T> builder = null;
+		for(int i = 0; i < items.size(); ++i) {
+			T original = items.get(i);
+			T resolved = resolve.apply(original);
+			if(builder == null && resolved != original) {
+				builder = ImmutableList.builderWithExpectedSize(items.size());
+				for(int j = 0; j < i; ++j) builder.add(items.get(j));
+			}
+			if(builder != null) builder.add(resolved);
+		}
+		return builder == null ? (ImmutableList<T>) items : builder.build();
 	}
 
 	public TableType resolveTableType(TableType t) {
-		return new TableType(t.addrType(), t.limits(), resolveRefType(t.elementType()));
+		var elementType = resolveRefType(t.elementType());
+		return elementType == t.elementType() ? t : new TableType(t.addrType(), t.limits(), elementType);
 	}
 
 	public GlobalType resolveGlobalType(GlobalType t) {
-		return new GlobalType(t.mutability(), resolveValType(t.type()));
+		var type = resolveValType(t.type());
+		return type == t.type() ? t : new GlobalType(t.mutability(), type);
 	}
 }

@@ -12,18 +12,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 class InstrValidator extends ValidatorBase {
-	public InstrValidator(Context context) {
+	public InstrValidator(Context context, Worker worker) {
 		super(context);
 		tv = new TypeValidator(context);
 		subtyping = new Subtyping(context);
+		this.worker = worker;
 	}
 
 	private final TypeValidator tv;
 	private final Subtyping subtyping;
-	
-	public void validateExpr(Expr expr, ResultType resultType) throws ValidationException {
-		validateInstructions(expr.body(), new ResultType(ImmutableList.of()), resultType);
-	}
+	private final Worker worker;
 
 	public void validateInstructions(List<? extends Instr> instrs, ResultType argType, ResultType resultType) throws ValidationException {
 		List<ValType> stack = new ArrayList<>(argType.types());
@@ -37,8 +35,8 @@ class InstrValidator extends ValidatorBase {
 		require(stack.isEmpty(), "type mismatch");
 	}
 
-	public void requireConstantExpr(Expr expr) throws ValidationException {
-		for(var instr : expr.body()) {
+	public void requireConstantExpr(List<? extends Instr> instrs) throws ValidationException {
+		for(var instr : instrs) {
 			requireConstantInstr(instr);
 		}
 	}
@@ -1355,8 +1353,7 @@ class InstrValidator extends ValidatorBase {
 					var t = expandBlockType(blockType);
 					var c2 = context.copy();
 					c2.addLabel(t.results());
-					var iv2 = new InstrValidator(c2);
-					iv2.validateInstructions(body, t.args(), t.results());
+					worker.add(new CodeValidateJob(c2, t.args(), t.results(), body, false));
 
 					pop(t.args());
 					push(t.results());
@@ -1367,8 +1364,7 @@ class InstrValidator extends ValidatorBase {
 					var t = expandBlockType(blockType);
 					var c2 = context.copy();
 					c2.addLabel(t.args());
-					var iv2 = new InstrValidator(c2);
-					iv2.validateInstructions(body, t.args(), t.results());
+					worker.add(new CodeValidateJob(c2, t.args(), t.results(), body, false));
 
 					pop(t.args());
 					push(t.results());
@@ -1380,11 +1376,8 @@ class InstrValidator extends ValidatorBase {
 					var c2 = context.copy();
 					c2.addLabel(t.results());
 
-					var iv2 = new InstrValidator(c2.copy());
-					iv2.validateInstructions(thenBody, t.args(), t.results());
-
-					iv2 = new InstrValidator(c2);
-					iv2.validateInstructions(elseBody, t.args(), t.results());
+					worker.add(new CodeValidateJob(c2.copy(), t.args(), t.results(), thenBody, false));
+					worker.add(new CodeValidateJob(c2, t.args(), t.results(), elseBody, false));
 
 					pop(NumType.I32);
 					pop(t.args());
@@ -1627,8 +1620,7 @@ class InstrValidator extends ValidatorBase {
 
 					var c2 = context.copy();
 					c2.addLabel(t.results());
-					var iv2 = new InstrValidator(c2);
-					iv2.validateInstructions(body, t.args(), t.results());
+					worker.add(new CodeValidateJob(c2, t.args(), t.results(), body, false));
 
 					pop(t.args());
 					push(t.results());

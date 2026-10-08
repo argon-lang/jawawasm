@@ -10,6 +10,8 @@ module dev.argon.jawawasm.engine {
 	requires org.apache.commons.io;
 	requires com.google.errorprone.annotations;
 
+	exports dev.argon.jawawasm.engine.internal to dev.argon.jawawasm.engine.tests;
+
 	exports dev.argon.jawawasm.engine;
 	exports dev.argon.jawawasm.engine.aot;
 	exports dev.argon.jawawasm.engine.validator;

@@ -124,7 +124,9 @@ public class ModuleValidator extends ValidatorBase {
 			validator.validateData(data);
 		}
 
-		parallelFor(module.funcs(), validator::validateFunc);
+		var jobs = new ArrayList<CodeValidateJob>(module.funcs().size());
+		for(var function : module.funcs()) jobs.add(prepareFunction(c, function));
+		new CodeValidatorQueue(jobs).run();
 
 		if(module.start() != null) {
 			validator.validateStart(module.start());
@@ -144,7 +146,8 @@ public class ModuleValidator extends ValidatorBase {
 		}
 	}
 
-	private void validateFunc(Func func) throws ValidationException {
+
+	private static CodeValidateJob prepareFunction(Context context, Func func) throws ValidationException {
 		context.requireFuncType(func.type());
 		var t = (FuncType)context.getCompositeType(func.type());
 		var c = context.copy();
@@ -158,7 +161,7 @@ public class ModuleValidator extends ValidatorBase {
 		c.addLocals(func.locals());
 		c.addLabel(t.results());
 		c.setReturn(t.results());
-		new InstrValidator(c).validateExpr(func.body(), t.results());
+		return new CodeValidateJob(c, new ResultType(ImmutableList.of()), t.results(), func.body().body(), false);
 	}
 
 	private void validateStart(Start start) throws ValidationException {
@@ -190,9 +193,14 @@ public class ModuleValidator extends ValidatorBase {
 		}
 	}
 
+	private void validateExpr(Expr expr, ResultType resultType, boolean constant) throws ValidationException {
+		var job = new CodeValidateJob(context.copy(), new ResultType(ImmutableList.of()), resultType, expr.body(), constant);
+		new CodeValidatorQueue(List.of(job)).run();
+	}
+
 	private void validateTable(Table table) throws ValidationException {
 		new TypeValidator(context).validateTableType(table.type());
-		new InstrValidator(context).validateExpr(table.init(), new ResultType(ImmutableList.of(table.type().elementType())));
+		validateExpr(table.init(), new ResultType(ImmutableList.of(table.type().elementType())), false);
 	}
 
 	private void validateMem(Mem mem) throws ValidationException {
@@ -204,16 +212,12 @@ public class ModuleValidator extends ValidatorBase {
 	}
 
 	private void validateGlobal(Global global) throws ValidationException {
-		var iv = new InstrValidator(context);
-		iv.requireConstantExpr(global.init());
-		iv.validateExpr(global.init(), new ResultType(ImmutableList.of(global.type().type())));
+		validateExpr(global.init(), new ResultType(ImmutableList.of(global.type().type())), true);
 	}
 
 	private void validateElem(Elem elem) throws ValidationException {
-		var iv = new InstrValidator(context);
 		for(Expr expr : elem.init()) {
-			iv.requireConstantExpr(expr);
-			iv.validateExpr(expr, new ResultType(ImmutableList.of(elem.type())));
+			validateExpr(expr, new ResultType(ImmutableList.of(elem.type())), true);
 		}
 
 		new TypeValidator(context).validateReferenceType(elem.type());
@@ -226,8 +230,7 @@ public class ModuleValidator extends ValidatorBase {
 				new TypeValidator(context).validateReferenceType(tableElementType);
 
 				require(new Subtyping(context).isSubtypeRef(elem.type(), tableElementType), "type mismatch " + elem.type() + ", " + tableElementType);
-				iv.requireConstantExpr(active.offset());
-				iv.validateExpr(active.offset(), new ResultType(ImmutableList.of(AddressTypeUtils.asNumType(table.addrType()))));
+				validateExpr(active.offset(), new ResultType(ImmutableList.of(AddressTypeUtils.asNumType(table.addrType()))), true);
 			}
 			case ElemMode.Declarative(), ElemMode.Passive() -> {}
 		}
@@ -236,37 +239,13 @@ public class ModuleValidator extends ValidatorBase {
 	private void validateData(Data data) throws ValidationException {
 		switch(data.mode()) {
 			case DataMode.Active active -> {
-				var iv = new InstrValidator(context);
 				context.requireMem(active.memory());
 				var memory = context.getMem(active.memory());
-				iv.requireConstantExpr(active.offset());
-				iv.validateExpr(active.offset(), new ResultType(ImmutableList.of(AddressTypeUtils.asNumType(memory.addrType()))));
+				validateExpr(active.offset(), new ResultType(ImmutableList.of(AddressTypeUtils.asNumType(memory.addrType()))), true);
 			}
 			case DataMode.Passive() -> {}
 		}
 	}
 
-	private static <A> void parallelFor(List<? extends A> items, ValidatorFunction<? super A> action) throws ValidationException {
-		var validationError = items.parallelStream()
-			.map(item -> {
-				try {
-					action.validate(item);
-					return null;
-				} catch(ValidationException ex) {
-					return ex;
-				}
-			})
-			.filter(Objects::nonNull)
-			.findFirst();
 
-		var ex = validationError.orElse(null);
-		if(ex != null) {
-			throw ex;
-		}
-	}
-
-	@FunctionalInterface
-	private interface ValidatorFunction<A> {
-		void validate(A a) throws ValidationException;
-	}
 }
