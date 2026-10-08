@@ -76,12 +76,7 @@ public abstract class WasmMemoryNoResize {
 	 * @return The value.
 	 */
 	public V128 loadV128(long address) {
-		int[] values = new int[4];
-		values[0] = loadI32(address);
-		values[1] = loadI32(address + 4);
-		values[2] = loadI32(address + 8);
-		values[3] = loadI32(address + 12);
-		return V128.build32(i -> values[i]);
+		return new V128(loadI64(address), loadI64(address + 8));
 	}
 
 

@@ -10,6 +10,7 @@ import dev.argon.jawawasm.format.types.*;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.nio.ByteOrder;
 import java.util.*;
 
 class StackFrame {
@@ -645,30 +646,21 @@ class StackFrame {
 			case VectorInstr.VVUnOp vvUnOp -> {
 				V128 a = popV128();
 
-				V128.Unary8Function f = switch(vvUnOp) {
-					case NOT -> b -> (byte)~b;
-
-				};
-
-
-				V128 result = a.unary8(f);
-
-				push(result);
+				push(switch(vvUnOp) {
+					case NOT -> a.bitNot();
+				});
 			}
 
 			case VectorInstr.VVBinOp vvBinOp -> {
 				V128 b = popV128();
 				V128 a = popV128();
 
-				V128.Binary8Function f = switch(vvBinOp) {
-					case AND -> (b0, b1) -> (byte)(b0 & b1);
-					case ANDNOT -> (b0, b1) -> (byte)(b0 & ~b1);
-					case OR -> (b0, b1) -> (byte)(b0 | b1);
-					case XOR -> (b0, b1) -> (byte)(b0 ^ b1);
-				};
-
-				V128 result = a.binary8(b, f);
-				push(result);
+				push(switch(vvBinOp) {
+					case AND -> a.and(b);
+					case ANDNOT -> a.andNot(b);
+					case OR -> a.or(b);
+					case XOR -> a.xor(b);
+				});
 			}
 
 			case VectorInstr.VVTernOp vvTernOp -> {
@@ -676,11 +668,9 @@ class StackFrame {
 				V128 b = popV128();
 				V128 a = popV128();
 
-				V128.Ternary8Function f = switch(vvTernOp) {
-					case BITSELECT -> (b0, b1, b2) -> (byte)((b0 & b2) | (b1 & ~b2));
+				V128 result = switch(vvTernOp) {
+					case BITSELECT -> a.bitselect(b, c);
 				};
-
-				V128 result = a.ternary8(b, c, f);
 				push(result);
 			}
 
@@ -736,40 +726,36 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary8Function f = switch(viRelOp) {
+						push(switch(viRelOp) {
 							case VectorInstr.VIRelOp_S viRelOpS -> switch(viRelOpS) {
-								case EQ -> (n0, n1) -> n0 == n1 ? (byte)-1 : (byte)0;
-								case NE -> (n0, n1) -> n0 != n1 ? (byte)-1 : (byte)0;
-								case LT_S -> (n0, n1) -> n0 < n1 ? (byte)-1 : (byte)0;
-								case GT_S -> (n0, n1) -> n0 > n1 ? (byte)-1 : (byte)0;
-								case LE_S -> (n0, n1) -> n0 <= n1 ? (byte)-1 : (byte)0;
-								case GE_S -> (n0, n1) -> n0 >= n1 ? (byte)-1 : (byte)0;
+								case EQ -> a.equals8(b);
+								case NE -> a.notEquals8(b);
+								case LT_S -> a.lessThanSigned8(b);
+								case GT_S -> a.greaterThanSigned8(b);
+								case LE_S -> a.lessThanOrEqualSigned8(b);
+								case GE_S -> a.greaterThanOrEqualSigned8(b);
 							};
 							case VectorInstr.VIRelOp_U viRelOpU -> switch(viRelOpU) {
-								case LT_U -> (n0, n1) -> Byte.compareUnsigned(n0, n1) < 0 ? (byte)-1 : (byte)0;
-								case GT_U -> (n0, n1) -> Byte.compareUnsigned(n0, n1) > 0 ? (byte)-1 : (byte)0;
-								case LE_U -> (n0, n1) -> Byte.compareUnsigned(n0, n1) <= 0 ? (byte)-1 : (byte)0;
-								case GE_U -> (n0, n1) -> Byte.compareUnsigned(n0, n1) >= 0 ? (byte)-1 : (byte)0;
+								case LT_U -> a.lessThanUnsigned8(b);
+								case GT_U -> a.greaterThanUnsigned8(b);
+								case LE_U -> a.lessThanOrEqualUnsigned8(b);
+								case GE_U -> a.greaterThanOrEqualUnsigned8(b);
 							};
-						};
-
-						push(a.binary8(b, f));
+						});
 					}
 
 					case VectorInstr.VIUnOp viUnOp -> {
 						V128 a = popV128();
 
-						V128.Unary8Function f = switch(viUnOp) {
-							case ABS -> n0 -> (byte)Math.abs(n0);
-							case NEG -> n0 -> (byte)-n0;
-						};
-
-						push(a.unary8(f));
+						push(switch(viUnOp) {
+							case ABS -> a.abs8();
+							case NEG -> a.neg8();
+						});
 					}
 
 					case VectorInstr.Popcnt() -> {
 						V128 a = popV128();
-						push(a.unary8(n0 -> (byte)Integer.bitCount(Byte.toUnsignedInt(n0))));
+						push(a.popcnt8());
 					}
 
 					case VectorInstr.All_True() -> {
@@ -788,7 +774,7 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128 result = V128.build8(i -> Util.narrowU16I8(i < 8 ? a.extractLane16(i) : b.extractLane16(i - 8)));
+						V128 result = a.narrow16To8Unsigned(b);
 						push(result);
 					}
 
@@ -796,72 +782,62 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128 result = V128.build8(i -> Util.narrowS16I8(i < 8 ? a.extractLane16(i) : b.extractLane16(i - 8)));
+						V128 result = a.narrow16To8Signed(b);
 						push(result);
 					}
 
 					case VectorInstr.VIShiftOp viShiftOp -> {
-						int b = popInt() & 0x07;
+						int b = popInt();
 						V128 a = popV128();
 
-						V128.Unary8Function f = switch(viShiftOp) {
-							case SHL -> n0 -> (byte)(n0 << b);
-							case SHR_U -> n0 -> (byte)(Byte.toUnsignedInt(n0) >>> b);
-							case SHR_S -> n0 -> (byte)(n0 >> b);
-						};
-
-						push(a.unary8(f));
+						push(switch(viShiftOp) {
+							case SHL -> a.shl8(b);
+							case SHR_U -> a.shrU8(b);
+							case SHR_S -> a.shrS8(b);
+						});
 					}
 
 					case VectorInstr.VIBinOp viBinOp -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary8Function f = switch(viBinOp) {
-							case ADD -> (n0, n1) -> (byte)(n0 + n1);
-							case SUB -> (n0, n1) -> (byte)(n0 - n1);
-						};
-
-						push(a.binary8(b, f));
+						push(switch(viBinOp) {
+							case ADD -> a.add8(b);
+							case SUB -> a.sub8(b);
+						});
 					}
 
 					case VectorInstr.VIMinMaxOp viBinOp -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary8Function f = switch(viBinOp) {
-							case MIN_U -> (n0, n1) -> (byte)Math.min(Byte.toUnsignedInt(n0), Byte.toUnsignedInt(n1));
-							case MIN_S -> (n0, n1) -> (byte)Math.min(n0, n1);
-							case MAX_U -> (n0, n1) -> (byte)Math.max(Byte.toUnsignedInt(n0), Byte.toUnsignedInt(n1));
-							case MAX_S -> (n0, n1) -> (byte)Math.max(n0, n1);
-						};
-
-						push(a.binary8(b, f));
+						push(switch(viBinOp) {
+							case MIN_U -> a.minU8(b);
+							case MIN_S -> a.minS8(b);
+							case MAX_U -> a.maxU8(b);
+							case MAX_S -> a.maxS8(b);
+						});
 					}
 
 					case VectorInstr.VISatBinOp viSatBinOp -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary8Function f = switch(viSatBinOp) {
-							case ADD_SAT_U -> Util::addSatU8;
-							case ADD_SAT_S -> Util::addSatS8;
-							case SUB_SAT_U -> Util::subSatU8;
-							case SUB_SAT_S -> Util::subSatS8;
-						};
-
-						push(a.binary8(b, f));
+						push(switch(viSatBinOp) {
+							case ADD_SAT_U -> a.addSatU8(b);
+							case ADD_SAT_S -> a.addSatS8(b);
+							case SUB_SAT_U -> a.subSatU8(b);
+							case SUB_SAT_S -> a.subSatS8(b);
+						});
 					}
 
 					case VectorInstr.VIAverageOps viAverageOps -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary8Function f = switch(viAverageOps) {
-							case AVGR_U -> (n0, n1) -> (byte)((Byte.toUnsignedInt(n0) + Byte.toUnsignedInt(n1) + 1) / 2);
-						};
-
-						push(a.binary8(b, f));
+						push(switch(viAverageOps) {
+							case AVGR_U -> a.avgrU8(b);
+						});
 					}
 				}
 			}
@@ -895,42 +871,38 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary16Function f = switch(viRelOp) {
+						push(switch(viRelOp) {
 							case VectorInstr.VIRelOp_S viRelOpS -> switch(viRelOpS) {
-								case EQ -> (n0, n1) -> n0 == n1 ? (short)-1 : (short)0;
-								case NE -> (n0, n1) -> n0 != n1 ? (short)-1 : (short)0;
-								case LT_S -> (n0, n1) -> n0 < n1 ? (short)-1 : (short)0;
-								case GT_S -> (n0, n1) -> n0 > n1 ? (short)-1 : (short)0;
-								case LE_S -> (n0, n1) -> n0 <= n1 ? (short)-1 : (short)0;
-								case GE_S -> (n0, n1) -> n0 >= n1 ? (short)-1 : (short)0;
+								case EQ -> a.equals16(b);
+								case NE -> a.notEquals16(b);
+								case LT_S -> a.lessThanSigned16(b);
+								case GT_S -> a.greaterThanSigned16(b);
+								case LE_S -> a.lessThanOrEqualSigned16(b);
+								case GE_S -> a.greaterThanOrEqualSigned16(b);
 							};
 							case VectorInstr.VIRelOp_U viRelOpU -> switch(viRelOpU) {
-								case LT_U -> (n0, n1) -> Short.compareUnsigned(n0, n1) < 0 ? (short)-1 : (short)0;
-								case GT_U -> (n0, n1) -> Short.compareUnsigned(n0, n1) > 0 ? (short)-1 : (short)0;
-								case LE_U -> (n0, n1) -> Short.compareUnsigned(n0, n1) <= 0 ? (short)-1 : (short)0;
-								case GE_U -> (n0, n1) -> Short.compareUnsigned(n0, n1) >= 0 ? (short)-1 : (short)0;
+								case LT_U -> a.lessThanUnsigned16(b);
+								case GT_U -> a.greaterThanUnsigned16(b);
+								case LE_U -> a.lessThanOrEqualUnsigned16(b);
+								case GE_U -> a.greaterThanOrEqualUnsigned16(b);
 							};
-						};
-
-						push(a.binary16(b, f));
+						});
 					}
 
 					case VectorInstr.VIUnOp viUnOp -> {
 						V128 a = popV128();
 
-						V128.Unary16Function f = switch(viUnOp) {
-							case ABS -> n0 -> (short)Math.abs(n0);
-							case NEG -> n0 -> (short)-n0;
-						};
-
-						push(a.unary16(f));
+						push(switch(viUnOp) {
+							case ABS -> a.abs16();
+							case NEG -> a.neg16();
+						});
 					}
 
 					case VectorInstr.Q15mulr_Sat_S() -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128 result = a.binary16(b, (n0, n1) -> Util.narrowS32I16((n0 * n1 + (1 << 14)) >> 15));
+						V128 result = a.q15mulrSatS(b);
 
 						push(result);
 					}
@@ -951,7 +923,7 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128 result = V128.build16(i -> Util.narrowU32I16(i < 4 ? a.extractLane32(i) : b.extractLane32(i - 4)));
+						V128 result = a.narrow32To16Unsigned(b);
 						push(result);
 					}
 
@@ -959,103 +931,93 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128 result = V128.build16(i -> Util.narrowS32I16(i < 4 ? a.extractLane32(i) : b.extractLane32(i - 4)));
+						V128 result = a.narrow32To16Signed(b);
 						push(result);
 					}
 
 					case VectorInstr.I16x8_Extend_Low_I8x16_U() -> {
 						V128 a = popV128();
-						V128 result = V128.build16(i -> (short)Byte.toUnsignedInt(a.extractLane8(i)));
+						V128 result = a.extendLowU8To16();
 						push(result);
 					}
 
 					case VectorInstr.I16x8_Extend_Low_I8x16_S() -> {
 						V128 a = popV128();
-						V128 result = V128.build16(i -> (short)a.extractLane8(i));
+						V128 result = a.extendLowS8To16();
 						push(result);
 					}
 
 					case VectorInstr.I16x8_Extend_High_I8x16_U() -> {
 						V128 a = popV128();
-						V128 result = V128.build16(i -> (short)Byte.toUnsignedInt(a.extractLane8(i + 8)));
+						V128 result = a.extendHighU8To16();
 						push(result);
 					}
 
 					case VectorInstr.I16x8_Extend_High_I8x16_S() -> {
 						V128 a = popV128();
-						V128 result = V128.build16(i -> (short)a.extractLane8(i + 8));
+						V128 result = a.extendHighS8To16();
 						push(result);
 					}
 
 					case VectorInstr.VIShiftOp viShiftOp -> {
-						int b = popInt() & 0x0F;
+						int b = popInt();
 						V128 a = popV128();
 
-						V128.Unary16Function f = switch(viShiftOp) {
-							case SHL -> n0 -> (short)(n0 << b);
-							case SHR_U -> n0 -> (short)(Short.toUnsignedInt(n0) >>> b);
-							case SHR_S -> n0 -> (short)(n0 >> b);
-						};
-
-						push(a.unary16(f));
+						push(switch(viShiftOp) {
+							case SHL -> a.shl16(b);
+							case SHR_U -> a.shrU16(b);
+							case SHR_S -> a.shrS16(b);
+						});
 					}
 
 					case VectorInstr.VIBinOp viBinOp -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary16Function f = switch(viBinOp) {
-							case ADD -> (n0, n1) -> (short)(n0 + n1);
-							case SUB -> (n0, n1) -> (short)(n0 - n1);
-						};
-
-						push(a.binary16(b, f));
+						push(switch(viBinOp) {
+							case ADD -> a.add16(b);
+							case SUB -> a.sub16(b);
+						});
 					}
 
 					case VectorInstr.VIMinMaxOp viBinOp -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary16Function f = switch(viBinOp) {
-							case MIN_U -> (n0, n1) -> (short)Math.min(Short.toUnsignedInt(n0), Short.toUnsignedInt(n1));
-							case MIN_S -> (n0, n1) -> (short)Math.min(n0, n1);
-							case MAX_U -> (n0, n1) -> (short)Math.max(Short.toUnsignedInt(n0), Short.toUnsignedInt(n1));
-							case MAX_S -> (n0, n1) -> (short)Math.max(n0, n1);
-						};
-
-						push(a.binary16(b, f));
+						push(switch(viBinOp) {
+							case MIN_U -> a.minU16(b);
+							case MIN_S -> a.minS16(b);
+							case MAX_U -> a.maxU16(b);
+							case MAX_S -> a.maxS16(b);
+						});
 					}
 
 					case VectorInstr.VISatBinOp viSatBinOp -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary16Function f = switch(viSatBinOp) {
-							case ADD_SAT_U -> Util::addSatU16;
-							case ADD_SAT_S -> Util::addSatS16;
-							case SUB_SAT_U -> Util::subSatU16;
-							case SUB_SAT_S -> Util::subSatS16;
-						};
-
-						push(a.binary16(b, f));
+						push(switch(viSatBinOp) {
+							case ADD_SAT_U -> a.addSatU16(b);
+							case ADD_SAT_S -> a.addSatS16(b);
+							case SUB_SAT_U -> a.subSatU16(b);
+							case SUB_SAT_S -> a.subSatS16(b);
+						});
 					}
 
 					case VectorInstr.VIMulOp viMulOp -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary16Function f = switch(viMulOp) {
-							case MUL -> (n0, n1) -> (short)(n0 * n1);
-						};
-
-						push(a.binary16(b, f));
+						push(switch(viMulOp) {
+							case MUL -> a.mul16(b);
+						});
 					}
 
 					case VectorInstr.I16x8_ExtMul_Low_I8x16_U() -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128 result = V128.build16(i -> (short)(Byte.toUnsignedInt(a.extractLane8(i)) * Byte.toUnsignedInt(b.extractLane8(i))));
+						V128 result = a.extmulLowU8(b);
 
 						push(result);
 					}
@@ -1064,7 +1026,7 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128 result = V128.build16(i -> (short)(a.extractLane8(i) * b.extractLane8(i)));
+						V128 result = a.extmulLowS8(b);
 
 						push(result);
 					}
@@ -1073,7 +1035,7 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128 result = V128.build16(i -> (short)(Byte.toUnsignedInt(a.extractLane8(i + 8)) * Byte.toUnsignedInt(b.extractLane8(i + 8))));
+						V128 result = a.extmulHighU8(b);
 
 						push(result);
 					}
@@ -1082,7 +1044,7 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128 result = V128.build16(i -> (short)(a.extractLane8(i + 8) * b.extractLane8(i + 8)));
+						V128 result = a.extmulHighS8(b);
 
 						push(result);
 					}
@@ -1091,17 +1053,15 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary16Function f = switch(viAverageOps) {
-							case AVGR_U -> (n0, n1) -> (short)((Short.toUnsignedInt(n0) + Short.toUnsignedInt(n1) + 1) / 2);
-						};
-
-						push(a.binary16(b, f));
+						push(switch(viAverageOps) {
+							case AVGR_U -> a.avgrU16(b);
+						});
 					}
 
 					case VectorInstr.I16x8_ExtAdd_Pairwise_I8x16_U() -> {
 						V128 a = popV128();
 
-						V128 result = V128.build16(i -> (short)(Byte.toUnsignedInt(a.extractLane8(i)) + Byte.toUnsignedInt(a.extractLane8(i + 8))));
+						V128 result = a.extaddPairwiseU8();
 
 						push(result);
 					}
@@ -1109,7 +1069,7 @@ class StackFrame {
 					case VectorInstr.I16x8_ExtAdd_Pairwise_I8x16_S() -> {
 						V128 a = popV128();
 
-						V128 result = V128.build16(i -> (short)(a.extractLane8(i) + a.extractLane8(i + 8)));
+						V128 result = a.extaddPairwiseS8();
 
 						push(result);
 					}
@@ -1140,35 +1100,31 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary32Function f = switch(viRelOp) {
+						push(switch(viRelOp) {
 							case VectorInstr.VIRelOp_S viRelOpS -> switch(viRelOpS) {
-								case EQ -> (n0, n1) -> n0 == n1 ? -1 : 0;
-								case NE -> (n0, n1) -> n0 != n1 ? -1 : 0;
-								case LT_S -> (n0, n1) -> n0 < n1 ? -1 : 0;
-								case GT_S -> (n0, n1) -> n0 > n1 ? -1 : 0;
-								case LE_S -> (n0, n1) -> n0 <= n1 ? -1 : 0;
-								case GE_S -> (n0, n1) -> n0 >= n1 ? -1 : 0;
+								case EQ -> a.equals32(b);
+								case NE -> a.notEquals32(b);
+								case LT_S -> a.lessThanSigned32(b);
+								case GT_S -> a.greaterThanSigned32(b);
+								case LE_S -> a.lessThanOrEqualSigned32(b);
+								case GE_S -> a.greaterThanOrEqualSigned32(b);
 							};
 							case VectorInstr.VIRelOp_U viRelOpU -> switch(viRelOpU) {
-								case LT_U -> (n0, n1) -> Integer.compareUnsigned(n0, n1) < 0 ? -1 : 0;
-								case GT_U -> (n0, n1) -> Integer.compareUnsigned(n0, n1) > 0 ? -1 : 0;
-								case LE_U -> (n0, n1) -> Integer.compareUnsigned(n0, n1) <= 0 ? -1 : 0;
-								case GE_U -> (n0, n1) -> Integer.compareUnsigned(n0, n1) >= 0 ? -1 : 0;
+								case LT_U -> a.lessThanUnsigned32(b);
+								case GT_U -> a.greaterThanUnsigned32(b);
+								case LE_U -> a.lessThanOrEqualUnsigned32(b);
+								case GE_U -> a.greaterThanOrEqualUnsigned32(b);
 							};
-						};
-
-						push(a.binary32(b, f));
+						});
 					}
 
 					case VectorInstr.VIUnOp viUnOp -> {
 						V128 a = popV128();
 
-						V128.Unary32Function f = switch(viUnOp) {
-							case ABS -> Math::abs;
-							case NEG -> n0 -> -n0;
-						};
-
-						push(a.unary32(f));
+						push(switch(viUnOp) {
+							case ABS -> a.abs32();
+							case NEG -> a.neg32();
+						});
 					}
 
 					case VectorInstr.Dot_I16x8_S() -> {
@@ -1192,25 +1148,25 @@ class StackFrame {
 
 					case VectorInstr.I32x4_Extend_Low_I16x8_U() -> {
 						V128 a = popV128();
-						V128 result = V128.build32(i -> Short.toUnsignedInt(a.extractLane16(i)));
+						V128 result = a.extendLowU16To32();
 						push(result);
 					}
 
 					case VectorInstr.I32x4_Extend_Low_I16x8_S() -> {
 						V128 a = popV128();
-						V128 result = V128.build32(a::extractLane16);
+						V128 result = a.extendLowS16To32();
 						push(result);
 					}
 
 					case VectorInstr.I32x4_Extend_High_I16x8_U() -> {
 						V128 a = popV128();
-						V128 result = V128.build32(i -> Short.toUnsignedInt(a.extractLane16(i + 4)));
+						V128 result = a.extendHighU16To32();
 						push(result);
 					}
 
 					case VectorInstr.I32x4_Extend_High_I16x8_S() -> {
 						V128 a = popV128();
-						V128 result = V128.build32(i -> a.extractLane16(i + 4));
+						V128 result = a.extendHighS16To32();
 						push(result);
 					}
 
@@ -1218,112 +1174,104 @@ class StackFrame {
 						int b = popInt();
 						V128 a = popV128();
 
-						V128.Unary32Function f = switch(viShiftOp) {
-							case SHL -> n0 -> n0 << b;
-							case SHR_U -> n0 -> n0 >>> b;
-							case SHR_S -> n0 -> n0 >> b;
-						};
-
-						push(a.unary32(f));
+						push(switch(viShiftOp) {
+							case SHL -> a.shl32(b);
+							case SHR_U -> a.shrU32(b);
+							case SHR_S -> a.shrS32(b);
+						});
 					}
 
 					case VectorInstr.VIBinOp viBinOp -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary32Function f = switch(viBinOp) {
-							case ADD -> Integer::sum;
-							case SUB -> (n0, n1) -> n0 - n1;
-						};
-
-						push(a.binary32(b, f));
+						push(switch(viBinOp) {
+							case ADD -> a.add32(b);
+							case SUB -> a.sub32(b);
+						});
 					}
 
 					case VectorInstr.VIMinMaxOp viBinOp -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary32Function f = switch(viBinOp) {
-							case MIN_U -> Util::minU32;
-							case MIN_S -> Math::min;
-							case MAX_U -> Util::maxU32;
-							case MAX_S -> Math::max;
-						};
-
-						push(a.binary32(b, f));
+						push(switch(viBinOp) {
+							case MIN_U -> a.minU32(b);
+							case MIN_S -> a.minS32(b);
+							case MAX_U -> a.maxU32(b);
+							case MAX_S -> a.maxS32(b);
+						});
 					}
 
 					case VectorInstr.VIMulOp viMulOp -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary32Function f = switch(viMulOp) {
-							case MUL -> (n0, n1) -> n0 * n1;
-						};
-
-						push(a.binary32(b, f));
+						push(switch(viMulOp) {
+							case MUL -> a.mul32(b);
+						});
 					}
 
 					case VectorInstr.I32x4_ExtMul_Low_I16x8_U() -> {
 						V128 b = popV128();
 						V128 a = popV128();
-						V128 result = V128.build32(i -> Short.toUnsignedInt(a.extractLane16(i)) * Short.toUnsignedInt(b.extractLane16(i)));
+						V128 result = a.extmulLowU16(b);
 						push(result);
 					}
 
 					case VectorInstr.I32x4_ExtMul_Low_I16x8_S() -> {
 						V128 b = popV128();
 						V128 a = popV128();
-						V128 result = V128.build32(i -> a.extractLane16(i) * b.extractLane16(i));
+						V128 result = a.extmulLowS16(b);
 						push(result);
 					}
 
 					case VectorInstr.I32x4_ExtMul_High_I16x8_U() -> {
 						V128 b = popV128();
 						V128 a = popV128();
-						V128 result = V128.build32(i -> Short.toUnsignedInt(a.extractLane16(i + 4)) * Short.toUnsignedInt(b.extractLane16(i + 4)));
+						V128 result = a.extmulHighU16(b);
 						push(result);
 					}
 
 					case VectorInstr.I32x4_ExtMul_High_I16x8_S() -> {
 						V128 b = popV128();
 						V128 a = popV128();
-						V128 result = V128.build32(i -> a.extractLane16(i + 4) * b.extractLane16(i + 4));
+						V128 result = a.extmulHighS16(b);
 						push(result);
 					}
 
 					case VectorInstr.I32x4_ExtAdd_Pairwise_I16x8_U() -> {
 						V128 a = popV128();
-						V128 result = V128.build32(i -> Short.toUnsignedInt(a.extractLane16(i)) + Short.toUnsignedInt(a.extractLane16(i + 4)));
+						V128 result = a.extaddPairwiseU16();
 						push(result);
 					}
 
 					case VectorInstr.I32x4_ExtAdd_Pairwise_I16x8_S() -> {
 						V128 a = popV128();
-						V128 result = V128.build32(i -> a.extractLane16(i) + a.extractLane16(i + 4));
+						V128 result = a.extaddPairwiseS16();
 						push(result);
 					}
 
 					case VectorInstr.I32x4_Trunc_Sat_F32x4_U() -> {
 						V128 a = popV128();
-						V128 result = V128.build32(i -> Util.truncSatF32U32(a.extractLaneF32(i)));
+						V128 result = a.truncateSatF32ToU32();
 						push(result);
 					}
 
 					case VectorInstr.I32x4_Trunc_Sat_F32x4_S() -> {
 						V128 a = popV128();
-						V128 result = V128.build32(i -> (int)a.extractLaneF32(i));
+						V128 result = a.truncateSatF32ToS32();
 						push(result);
 					}
 
 					case VectorInstr.I32x4_Trunc_Sat_F64x4_U_Zero() -> {
 						V128 a = popV128();
-						V128 result = V128.build32(i -> i < 2 ? Util.truncSatF64U32(a.extractLaneF64(i)) : 0);
+						V128 result = a.truncateSatF64ToU32Zero();
 						push(result);
 					}
 					case VectorInstr.I32x4_Trunc_Sat_F64x2_S_Zero() -> {
 						V128 a = popV128();
-						V128 result = V128.build32(i -> i < 2 ? (int)a.extractLaneF64(i) : 0);
+						V128 result = a.truncateSatF64ToS32Zero();
 						push(result);
 					}
 				}
@@ -1353,27 +1301,23 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary64Function f = switch(viRelOpS) {
-							case EQ -> (n0, n1) -> n0 == n1 ? -1 : 0;
-							case NE -> (n0, n1) -> n0 != n1 ? -1 : 0;
-							case LT_S -> (n0, n1) -> n0 < n1 ? -1 : 0;
-							case GT_S -> (n0, n1) -> n0 > n1 ? -1 : 0;
-							case LE_S -> (n0, n1) -> n0 <= n1 ? -1 : 0;
-							case GE_S -> (n0, n1) -> n0 >= n1 ? -1 : 0;
-						};
-
-						push(a.binary64(b, f));
+						push(switch(viRelOpS) {
+							case EQ -> a.equals64(b);
+							case NE -> a.notEquals64(b);
+							case LT_S -> a.lessThanSigned64(b);
+							case GT_S -> a.greaterThanSigned64(b);
+							case LE_S -> a.lessThanOrEqualSigned64(b);
+							case GE_S -> a.greaterThanOrEqualSigned64(b);
+						});
 					}
 
 					case VectorInstr.VIUnOp viUnOp -> {
 						V128 a = popV128();
 
-						V128.Unary64Function f = switch(viUnOp) {
-							case ABS -> Math::abs;
-							case NEG -> n0 -> -n0;
-						};
-
-						push(a.unary64(f));
+						push(switch(viUnOp) {
+							case ABS -> a.abs64();
+							case NEG -> a.neg64();
+						});
 					}
 
 					case VectorInstr.All_True() -> {
@@ -1390,25 +1334,25 @@ class StackFrame {
 
 					case VectorInstr.I64x2_Extend_Low_I32x4_U() -> {
 						V128 a = popV128();
-						V128 result = V128.build64(i -> Integer.toUnsignedLong(a.extractLane32(i)));
+						V128 result = a.extendLowU32To64();
 						push(result);
 					}
 
 					case VectorInstr.I64x2_Extend_Low_I32x4_S() -> {
 						V128 a = popV128();
-						V128 result = V128.build64(i -> (long)a.extractLane32(i));
+						V128 result = a.extendLowS32To64();
 						push(result);
 					}
 
 					case VectorInstr.I64x2_Extend_High_I32x4_U() -> {
 						V128 a = popV128();
-						V128 result = V128.build64(i -> Integer.toUnsignedLong(a.extractLane32(i + 2)));
+						V128 result = a.extendHighU32To64();
 						push(result);
 					}
 
 					case VectorInstr.I64x2_Extend_High_I32x4_S() -> {
 						V128 a = popV128();
-						V128 result = V128.build64(i -> (long)a.extractLane32(i + 2));
+						V128 result = a.extendHighS32To64();
 						push(result);
 					}
 
@@ -1416,43 +1360,37 @@ class StackFrame {
 						int b = popInt();
 						V128 a = popV128();
 
-						V128.Unary64Function f = switch(viShiftOp) {
-							case SHL -> n0 -> n0 << b;
-							case SHR_U -> n0 -> n0 >>> b;
-							case SHR_S -> n0 -> n0 >> b;
-						};
-
-						push(a.unary64(f));
+						push(switch(viShiftOp) {
+							case SHL -> a.shl64(b);
+							case SHR_U -> a.shrU64(b);
+							case SHR_S -> a.shrS64(b);
+						});
 					}
 
 					case VectorInstr.VIBinOp viBinOp -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary64Function f = switch(viBinOp) {
-							case ADD -> Long::sum;
-							case SUB -> (n0, n1) -> n0 - n1;
-						};
-
-						push(a.binary64(b, f));
+						push(switch(viBinOp) {
+							case ADD -> a.add64(b);
+							case SUB -> a.sub64(b);
+						});
 					}
 
 					case VectorInstr.VIMulOp viMulOp -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.Binary64Function f = switch(viMulOp) {
-							case MUL -> (n0, n1) -> n0 * n1;
-						};
-
-						push(a.binary64(b, f));
+						push(switch(viMulOp) {
+							case MUL -> a.mul64(b);
+						});
 					}
 
 					case VectorInstr.I64x2_ExtMul_Low_I32x4_U() -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128 result = V128.build64(i -> Integer.toUnsignedLong(a.extractLane32(i)) * Integer.toUnsignedLong(b.extractLane32(i)));
+						V128 result = a.extmulLowU32(b);
 
 						push(result);
 					}
@@ -1461,7 +1399,7 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128 result = V128.build64(i -> (long)a.extractLane32(i) * (long)b.extractLane32(i));
+						V128 result = a.extmulLowS32(b);
 
 						push(result);
 					}
@@ -1470,7 +1408,7 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128 result = V128.build64(i -> Integer.toUnsignedLong(a.extractLane32(i + 2)) * Integer.toUnsignedLong(b.extractLane32(i + 2)));
+						V128 result = a.extmulHighU32(b);
 
 						push(result);
 					}
@@ -1479,7 +1417,7 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128 result = V128.build64(i -> (long)a.extractLane32(i + 2) * (long)b.extractLane32(i + 2));
+						V128 result = a.extmulHighS32(b);
 
 						push(result);
 					}
@@ -1510,14 +1448,14 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128 result = V128.build32(switch(vfRelOp) {
-							case EQ -> i -> a.extractLaneF32(i) == b.extractLaneF32(i) ? -1 : 0;
-							case NE -> i -> a.extractLaneF32(i) != b.extractLaneF32(i) ? -1 : 0;
-							case LT -> i -> a.extractLaneF32(i) < b.extractLaneF32(i) ? -1 : 0;
-							case GT -> i -> a.extractLaneF32(i) > b.extractLaneF32(i) ? -1 : 0;
-							case LE -> i -> a.extractLaneF32(i) <= b.extractLaneF32(i) ? -1 : 0;
-							case GE -> i -> a.extractLaneF32(i) >= b.extractLaneF32(i) ? -1 : 0;
-						});
+						V128 result = switch(vfRelOp) {
+							case EQ -> a.equalsF32(b);
+							case NE -> a.notEqualsF32(b);
+							case LT -> a.lessThanF32(b);
+							case GT -> a.greaterThanF32(b);
+							case LE -> a.lessThanOrEqualF32(b);
+							case GE -> a.greaterThanOrEqualF32(b);
+						};
 
 						push(result);
 					}
@@ -1525,52 +1463,48 @@ class StackFrame {
 					case VectorInstr.VFUnOp vfUnOp -> {
 						V128 a = popV128();
 
-						V128.UnaryF32Function f = switch(vfUnOp) {
-							case ABS -> Math::abs;
-							case NEG -> n0 -> -n0;
-							case SQRT -> n0 -> (float)Math.sqrt(n0);
-							case CEIL -> Util::ceilF32;
-							case FLOOR -> Util::floorF32;
-							case TRUNC -> Util::truncF32;
-							case NEAREST -> Util::nearestF32;
-						};
-
-						push(a.unaryF32(f));
+						push(switch(vfUnOp) {
+							case ABS -> a.absF32();
+							case NEG -> a.negF32();
+							case SQRT -> a.sqrtF32();
+							case CEIL -> a.ceilF32();
+							case FLOOR -> a.floorF32();
+							case TRUNC -> a.truncF32();
+							case NEAREST -> a.nearestF32();
+						});
 					}
 
 					case VectorInstr.VFBinOp vfBinOp -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.BinaryF32Function f = switch(vfBinOp) {
-							case ADD -> Float::sum;
-							case SUB -> (n0, n1) -> n0 - n1;
-							case MUL -> (n0, n1) -> n0 * n1;
-							case DIV -> (n0, n1) -> n0 / n1;
-							case MIN -> Util::min;
-							case MAX -> Util::max;
-							case PMIN -> (n0, n1) -> n1 < n0 ? n1 : n0;
-							case PMAX -> (n0, n1) -> n0 < n1 ? n1 : n0;
-						};
-
-						push(a.binaryF32(b, f));
+						push(switch(vfBinOp) {
+							case ADD -> a.addF32(b);
+							case SUB -> a.subF32(b);
+							case MUL -> a.mulF32(b);
+							case DIV -> a.divF32(b);
+							case MIN -> a.minF32(b);
+							case MAX -> a.maxF32(b);
+							case PMIN -> a.pminF32(b);
+							case PMAX -> a.pmaxF32(b);
+						});
 					}
 
 					case VectorInstr.F32x4_Convert_I32x4_U() -> {
 						V128 a = popV128();
-						V128 result = V128.buildF32(i -> (float)Integer.toUnsignedLong(a.extractLane32(i)));
+						V128 result = a.convertU32ToF32();
 						push(result);
 					}
 
 					case VectorInstr.F32x4_Convert_I32x4_S() -> {
 						V128 a = popV128();
-						V128 result = V128.buildF32(i -> (float)a.extractLane32(i));
+						V128 result = a.convertS32ToF32();
 						push(result);
 					}
 
 					case VectorInstr.F32x4_Demote_F64x2_Zero() -> {
 						V128 a = popV128();
-						V128 result = V128.buildF32(i -> i < 2 ? (float)a.extractLaneF64(i) : 0.0f);
+						V128 result = a.demoteF64ToF32Zero();
 						push(result);
 					}
 				}
@@ -1582,14 +1516,14 @@ class StackFrame {
 						V128 c = popV128();
 						V128 b = popV128();
 						V128 a = popV128();
-						push(a.ternaryF32(b, c, (ai, bi, ci) -> ai * bi + ci));
+						push(a.relaxedMaddF32(b, c));
 					}
 
 					case VectorInstr.Relaxed_F32x4_NMAdd() -> {
 						V128 c = popV128();
 						V128 b = popV128();
 						V128 a = popV128();
-						push(a.ternaryF32(b, c, (ai, bi, ci) -> -(ai * bi) + ci));
+						push(a.relaxedNmaddF32(b, c));
 					}
 				}
 			}
@@ -1618,14 +1552,14 @@ class StackFrame {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128 result = V128.build64(switch(vfRelOp) {
-							case EQ -> i -> a.extractLaneF64(i) == b.extractLaneF64(i) ? -1 : 0;
-							case NE -> i -> a.extractLaneF64(i) != b.extractLaneF64(i) ? -1 : 0;
-							case LT -> i -> a.extractLaneF64(i) < b.extractLaneF64(i) ? -1 : 0;
-							case GT -> i -> a.extractLaneF64(i) > b.extractLaneF64(i) ? -1 : 0;
-							case LE -> i -> a.extractLaneF64(i) <= b.extractLaneF64(i) ? -1 : 0;
-							case GE -> i -> a.extractLaneF64(i) >= b.extractLaneF64(i) ? -1 : 0;
-						});
+						V128 result = switch(vfRelOp) {
+							case EQ -> a.equalsF64(b);
+							case NE -> a.notEqualsF64(b);
+							case LT -> a.lessThanF64(b);
+							case GT -> a.greaterThanF64(b);
+							case LE -> a.lessThanOrEqualF64(b);
+							case GE -> a.greaterThanOrEqualF64(b);
+						};
 
 						push(result);
 					}
@@ -1633,52 +1567,48 @@ class StackFrame {
 					case VectorInstr.VFUnOp vfUnOp -> {
 						V128 a = popV128();
 
-						V128.UnaryF64Function f = switch(vfUnOp) {
-							case ABS -> Math::abs;
-							case NEG -> n0 -> -n0;
-							case SQRT -> Math::sqrt;
-							case CEIL -> Util::ceilF64;
-							case FLOOR -> Util::floorF64;
-							case TRUNC -> Util::truncF64;
-							case NEAREST -> Util::nearestF64;
-						};
-
-						push(a.unaryF64(f));
+						push(switch(vfUnOp) {
+							case ABS -> a.absF64();
+							case NEG -> a.negF64();
+							case SQRT -> a.sqrtF64();
+							case CEIL -> a.ceilF64();
+							case FLOOR -> a.floorF64();
+							case TRUNC -> a.truncF64();
+							case NEAREST -> a.nearestF64();
+						});
 					}
 
 					case VectorInstr.VFBinOp vfBinOp -> {
 						V128 b = popV128();
 						V128 a = popV128();
 
-						V128.BinaryF64Function f = switch(vfBinOp) {
-							case ADD -> Double::sum;
-							case SUB -> (n0, n1) -> n0 - n1;
-							case MUL -> (n0, n1) -> n0 * n1;
-							case DIV -> (n0, n1) -> n0 / n1;
-							case MIN -> Util::min;
-							case MAX -> Util::max;
-							case PMIN -> (n0, n1) -> n1 < n0 ? n1 : n0;
-							case PMAX -> (n0, n1) -> n0 < n1 ? n1 : n0;
-						};
-
-						push(a.binaryF64(b, f));
+						push(switch(vfBinOp) {
+							case ADD -> a.addF64(b);
+							case SUB -> a.subF64(b);
+							case MUL -> a.mulF64(b);
+							case DIV -> a.divF64(b);
+							case MIN -> a.minF64(b);
+							case MAX -> a.maxF64(b);
+							case PMIN -> a.pminF64(b);
+							case PMAX -> a.pmaxF64(b);
+						});
 					}
 
 					case VectorInstr.F64x2_Convert_Low_I32x4_U() -> {
 						V128 a = popV128();
-						V128 result = V128.buildF64(i -> (double)Integer.toUnsignedLong(a.extractLane32(i)));
+						V128 result = a.convertU32LowToF64();
 						push(result);
 					}
 
 					case VectorInstr.F64x2_Convert_Low_I32x4_S() -> {
 						V128 a = popV128();
-						V128 result = V128.buildF64(i -> (double)a.extractLane32(i));
+						V128 result = a.convertS32LowToF64();
 						push(result);
 					}
 
 					case VectorInstr.F64x2_Promote_Low_F32x4() -> {
 						V128 a = popV128();
-						V128 result = V128.buildF64(i -> (double)a.extractLaneF32(i));
+						V128 result = a.promoteF32LowToF64();
 						push(result);
 					}
 				}
@@ -1690,44 +1620,29 @@ class StackFrame {
 						V128 c = popV128();
 						V128 b = popV128();
 						V128 a = popV128();
-						push(a.ternaryF64(b, c, (ai, bi, ci) -> ai * bi + ci));
+						push(a.relaxedMaddF64(b, c));
 					}
 
 					case VectorInstr.Relaxed_F64x2_NMAdd() -> {
 						V128 c = popV128();
 						V128 b = popV128();
 						V128 a = popV128();
-						push(a.ternaryF64(b, c, (ai, bi, ci) -> -(ai * bi) + ci));
+						push(a.relaxedNmaddF64(b, c));
 					}
 				}
 			}
 
 			case VectorInstr.I16x8_Relaxed_Dot_I8x16_I7x16_S() -> {
-				short[] intermediate = new short[16];
 				V128 b = popV128();
 				V128 a = popV128();
-
-				for(int i = 0; i < intermediate.length; ++i) {
-					intermediate[i] = (short)(a.extractLane8(i) * b.extractLane8(i));
-				}
-				push(V128.build16(i -> Util.addSatS16(intermediate[2 * i], intermediate[2 * i + 1])));
+				push(a.relaxedDotI8x16ByI7x16Signed(b));
 			}
 
 			case VectorInstr.I32x4_Relaxed_Dot_I8x16_I7x16_Add_S() -> {
-				int[] intermediate = new int[16];
 				V128 c = popV128();
 				V128 b = popV128();
 				V128 a = popV128();
-				for(int i = 0; i < intermediate.length; ++i) {
-					intermediate[i] = a.extractLane8(i) * b.extractLane8(i);
-				}
-
-				int[] tmp = new int[8];
-				for(int i = 0; i < tmp.length; ++i) {
-					tmp[i] = intermediate[2 * i] + intermediate[2 * i + 1];
-				}
-
-				push(V128.build32(i -> tmp[2 * i] + tmp[2 * i + 1] + c.extractLane32(i)));
+				push(a.relaxedDotI8x16ByI7x16AddSigned(b, c));
 			}
 		}
 	}
@@ -2269,9 +2184,10 @@ class StackFrame {
 		Objects.checkFromIndexSize(s, (long)n * 16, src.size());
 		Objects.checkFromIndexSize(d, n, dest.length());
 
+		var bytes = src.asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN);
 		for(int i = 0; i < n; ++i) {
-			final int i2 = i;
-			V128 value = V128.build8(j -> src.byteAt(s + i2 * 16 + j));
+			int offset = s + i * 16;
+			V128 value = new V128(bytes.getLong(offset), bytes.getLong(offset + 8));
 			dest.set(d + i, value);
 		}
 	}
@@ -2565,12 +2481,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 
-				byte[] values = new byte[8];
-				for(int j = 0; j < values.length; ++j) {
-					values[j] = memory.loadI8(calculateMemoryAddress(address, j));
-				}
-
-				V128 result = V128.build16(j -> (short)Byte.toUnsignedInt(values[j]));
+				V128 result = V128.of8x8U(memory.loadI64(address));
 				push(result);
 			}
 
@@ -2579,12 +2490,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 
-				byte[] values = new byte[8];
-				for(int j = 0; j < values.length; ++j) {
-					values[j] = memory.loadI8(calculateMemoryAddress(address, j));
-				}
-
-				V128 result = V128.build16(j -> values[j]);
+				V128 result = V128.of8x8S(memory.loadI64(address));
 				push(result);
 			}
 
@@ -2593,13 +2499,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 
-				short[] values = new short[4];
-				values[0] = memory.loadI16(calculateMemoryAddress(address, 0));
-				values[1] = memory.loadI16(calculateMemoryAddress(address, 2));
-				values[2] = memory.loadI16(calculateMemoryAddress(address, 4));
-				values[3] = memory.loadI16(calculateMemoryAddress(address, 6));
-
-				V128 result = V128.build32(j -> Short.toUnsignedInt(values[j]));
+				V128 result = V128.of16x4U(memory.loadI64(address));
 				push(result);
 			}
 
@@ -2608,13 +2508,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 
-				short[] values = new short[4];
-				values[0] = memory.loadI16(calculateMemoryAddress(address, 0));
-				values[1] = memory.loadI16(calculateMemoryAddress(address, 2));
-				values[2] = memory.loadI16(calculateMemoryAddress(address, 4));
-				values[3] = memory.loadI16(calculateMemoryAddress(address, 6));
-
-				V128 result = V128.build32(j -> values[j]);
+				V128 result = V128.of16x4S(memory.loadI64(address));
 				push(result);
 			}
 
@@ -2623,11 +2517,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 
-				int[] values = new int[2];
-				values[0] = memory.loadI32(calculateMemoryAddress(address, 0));
-				values[1] = memory.loadI32(calculateMemoryAddress(address, 4));
-
-				V128 result = V128.build64(j -> Integer.toUnsignedLong(values[j]));
+				V128 result = V128.of32x2U(memory.loadI64(address));
 				push(result);
 			}
 
@@ -2636,11 +2526,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 
-				int[] values = new int[4];
-				values[0] = memory.loadI32(calculateMemoryAddress(address, 0));
-				values[1] = memory.loadI32(calculateMemoryAddress(address, 4));
-
-				V128 result = V128.build64(j -> values[j]);
+				V128 result = V128.of32x2S(memory.loadI64(address));
 				push(result);
 			}
 
@@ -2650,7 +2536,7 @@ class StackFrame {
 				long address = calculateMemoryAddress(i, memArg.offset());
 
 				int value = memory.loadI32(address);
-				V128 result = V128.build32(j -> j == 0 ? value : 0);
+				V128 result = V128.ofIntZero(value);
 				push(result);
 			}
 
@@ -2660,7 +2546,7 @@ class StackFrame {
 				long address = calculateMemoryAddress(i, memArg.offset());
 
 				long value = memory.loadI64(address);
-				V128 result = V128.build64(j -> j == 0 ? value : 0);
+				V128 result = V128.ofLongZero(value);
 				push(result);
 			}
 

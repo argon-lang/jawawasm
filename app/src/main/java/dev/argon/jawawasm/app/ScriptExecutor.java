@@ -547,12 +547,21 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 	}
 
 	private V128 getV128Value(WastValue.V128 v) {
-		return switch(v.laneType()) {
-			case I8 -> V128.build8(i -> new BigInteger(v.value().get(i)).byteValue());
-			case I16 -> V128.build16(i -> new BigInteger(v.value().get(i)).shortValue());
-			case I32, F32 -> V128.build32(i -> new BigInteger(v.value().get(i)).intValue());
-			case I64, F64 -> V128.build64(i -> new BigInteger(v.value().get(i)).longValue());
+		int width = switch(v.laneType()) {
+			case I8 -> 8;
+			case I16 -> 16;
+			case I32, F32 -> 32;
+			case I64, F64 -> 64;
 		};
+		long mask = -1L >>> (64 - width);
+		long low = 0, high = 0;
+		for(int i = 0; i < 128 / width; ++i) {
+			long bits = new BigInteger(v.value().get(i)).longValue() & mask;
+			int shift = (i * width) & 63;
+			if(i * width < 64) low |= bits << shift;
+			else high |= bits << shift;
+		}
+		return new V128(low, high);
 	}
 
 //	private Object getFloat32LiteralValue(SExpr expr) {

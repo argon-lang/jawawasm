@@ -18,6 +18,7 @@ repositories {
 dependencies {
     compileOnly(libs.jspecify)
     testImplementation(libs.junit.jupiter)
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     errorprone(libs.nullaway)
     errorprone(libs.errorprone)
@@ -30,6 +31,30 @@ java {
 
     withSourcesJar()
     withJavadocJar()
+}
+
+tasks.named<Test>("test") {
+    useJUnitPlatform()
+}
+
+val testGenerator = sourceSets.create("testGenerator")
+val generatedV128Tests = layout.buildDirectory.dir("generated/sources/v128Test/java")
+val wasmTestSuite = rootProject.layout.projectDirectory.dir("webassembly-testsuite")
+
+val generateV128Tests = tasks.register<JavaExec>("generateV128Tests") {
+    group = "verification"
+    description = "Generate direct V128 tests from the WebAssembly SIMD suite."
+    classpath = testGenerator.runtimeClasspath
+    mainClass.set("dev.argon.jawawasm.runtime.generator.GenerateV128Tests")
+    javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
+    args(wasmTestSuite.asFile.absolutePath, generatedV128Tests.get().asFile.absolutePath)
+    inputs.files(fileTree(wasmTestSuite) { include("simd_*.wast") })
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(generatedV128Tests)
+}
+
+sourceSets.test {
+    java.srcDir(generateV128Tests)
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -89,4 +114,3 @@ publishing {
 signing {
     sign(publishing.publications["mavenJava"])
 }
-

@@ -7,10 +7,9 @@ import java.lang.classfile.CodeBuilder;
 import java.lang.classfile.TypeKind;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
-import java.util.Collections;
 
 import static dev.argon.jawawasm.engine.internal.Constants.*;
-import static java.lang.constant.ConstantDescs.CD_byte;
+import static java.lang.constant.ConstantDescs.CD_long;
 import static java.lang.constant.ConstantDescs.CD_void;
 
 
@@ -49,10 +48,9 @@ final class WasmClassGeneratorUtils {
 		else {
 			cb.new_(v128Type);
 			cb.dup();
-			for(int i = 0; i < 16; ++i) {
-				cb.loadConstant(value.extractLane8(i));
-			}
-			cb.invokespecial(v128Type, "<init>", MethodTypeDesc.of(CD_void, Collections.nCopies(16, CD_byte)));
+			cb.loadConstant(value.low());
+			cb.loadConstant(value.high());
+			cb.invokespecial(v128Type, "<init>", MethodTypeDesc.of(CD_void, CD_long, CD_long));
 		}
 	}
 }

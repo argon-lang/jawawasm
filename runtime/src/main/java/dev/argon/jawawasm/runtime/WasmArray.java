@@ -1,6 +1,8 @@
 package dev.argon.jawawasm.runtime;
 
 import java.util.Objects;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * WebAssembly array
@@ -206,9 +208,10 @@ public sealed abstract class WasmArray implements WasmEq permits WasmArrayMutabl
 		Objects.checkFromIndexSize(d, n, array.length);
 		if(n * 16 < 0) throw new IndexOutOfBoundsException("Number of items copied results in overflow when multiplied by byte size.");
 		Objects.checkFromIndexSize(s, n * 16, data.length / 16);
+		var bytes = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
 		for(int i = 0; i < n; ++i) {
-			int i2 = i;
-			array[d + i] = V128.build8(j -> data[s + i2 * 16 + j]);
+			int offset = s + i * 16;
+			array[d + i] = new V128(bytes.getLong(offset), bytes.getLong(offset + 8));
 		}
 	}
 }

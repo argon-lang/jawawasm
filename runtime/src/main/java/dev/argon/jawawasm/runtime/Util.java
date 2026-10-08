@@ -1,12 +1,8 @@
 package dev.argon.jawawasm.runtime;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.util.Objects;
 
 /**
  * Utility methods called by WebAssembly
@@ -82,16 +78,11 @@ public final class Util {
 	 * @throws ArithmeticException if the value cannot be represented as a signed integer.
 	 */
 	public static int truncF64ToS32(double a) {
-		if(!Double.isFinite(a)) {
+		// The lower bound permits negative fractions that truncate into range.
+		if(!(a > -2147483649.0 && a < 0x1p31)) {
 			throw new ArithmeticException();
 		}
-
-		var value = new BigDecimal(a);
-		if(value.compareTo(new BigDecimal((long)Integer.MIN_VALUE - 1)) <= 0 || value.compareTo(new BigDecimal((long)Integer.MAX_VALUE + 1)) >= 0) {
-			throw new ArithmeticException();
-		}
-
-		return value.intValue();
+		return (int)a;
 	}
 
 	/**
@@ -101,57 +92,45 @@ public final class Util {
 	 * @throws ArithmeticException if the value cannot be represented as a signed long integer.
 	 */
 	public static long truncF64ToS64(double a) {
-		if(!Double.isFinite(a)) {
+		// No double lies between -2^63 - 1 and -2^63.
+		if(!(a >= -0x1p63 && a < 0x1p63)) {
 			throw new ArithmeticException();
 		}
-
-		var value = new BigDecimal(a);
-		if(value.compareTo(new BigDecimal(Long.MIN_VALUE).subtract(BigDecimal.ONE)) <= 0 || value.compareTo(new BigDecimal(Long.MAX_VALUE).add(BigDecimal.ONE)) >= 0) {
-			throw new ArithmeticException();
-		}
-
-		return value.longValue();
+		return (long)a;
 	}
 
 	/**
 	 * Truncate F64 to U32
 	 * @param a The F64 value
 	 * @return The value as an unsigned 32-bit integer
-	 * @throws ArithmeticException if the value is negative, infinite, NaN, or exceeds U32 max range.
+	 * @throws ArithmeticException if the truncated value is outside the unsigned range, or the input is infinite or NaN.
 	 */
 	public static int truncF64ToU32(double a) {
-		if(!Double.isFinite(a) || a <= -1.0) {
+		// The lower bound permits negative fractions that truncate into range.
+		if(!(a > -1.0 && a < 0x1p32)) {
 			throw new ArithmeticException();
 		}
-
-		var value = new BigDecimal(a);
-		if(value.compareTo(new BigDecimal(4294967296L)) >= 0) {
-			throw new ArithmeticException();
-		}
-
-		return value.intValue();
+		return (int)(long)a;
 	}
 
 	/**
 	 * Truncate F64 to U64
 	 * @param a The F64 value
 	 * @return The value as an unsigned 64-bit integer
-	 * @throws ArithmeticException if the value is negative, infinite, NaN, or exceeds U32 max range.
+	 * @throws ArithmeticException if the truncated value is outside the unsigned range, or the input is infinite or NaN.
 	 */
 	public static long truncF64ToU64(double a) {
-		if(!Double.isFinite(a) || a <= -1.0) {
+		// The lower bound permits negative fractions that truncate into range.
+		if(!(a > -1.0 && a < 0x1p64)) {
 			throw new ArithmeticException();
 		}
-
-		var value = new BigDecimal(a);
-		if(value.compareTo(new BigDecimal("18446744073709551616")) >= 0) {
-			throw new ArithmeticException();
-		}
-
-		return value.longValue();
+		return truncInRangeF64ToU64(a);
 	}
 
-	private static final BigInteger UNSIGNED_LONG_MASK = BigInteger.ONE.shiftLeft(Long.SIZE).subtract(BigInteger.ONE);
+	// Preconditions: finite input, -1 < a < 2^64. Subtraction is exact in the upper half.
+	private static long truncInRangeF64ToU64(double a) {
+		return a < 0x1p63 ? (long)a : (long)(a - 0x1p63) ^ Long.MIN_VALUE;
+	}
 
 	/**
 	 * Convert unsigned 64-bit integer to F32.
@@ -159,7 +138,8 @@ public final class Util {
 	 * @return The floating-point representation.
 	 */
 	public static float u64ToF32(long a) {
-		return BigInteger.valueOf(a).and(UNSIGNED_LONG_MASK).floatValue();
+		// Keep a sticky low bit when halving, so the cast preserves ties-to-even.
+		return a >= 0 ? (float)a : (float)((a >>> 1) | (a & 1)) * 2.0f;
 	}
 	/**
 	 * Convert unsigned 64-bit integer to F64.
@@ -167,7 +147,8 @@ public final class Util {
 	 * @return The double-precision floating-point representation.
 	 */
 	public static double u64ToF64(long a) {
-		return BigInteger.valueOf(a).and(UNSIGNED_LONG_MASK).doubleValue();
+		// Keep a sticky low bit when halving, so the cast preserves ties-to-even.
+		return a >= 0 ? (double)a : (double)((a >>> 1) | (a & 1)) * 2.0;
 	}
 
 	/**
@@ -426,18 +407,7 @@ public final class Util {
 		if(Float.isNaN(a)) {
 			return Float.NaN;
 		}
-		else if(Float.isInfinite(a) || a == 0) {
-			return a;
-		}
-		else if(a < 0 && a > -1) {
-			return -0.0f;
-		}
-		else if(a < 0) {
-			return (float)Math.ceil(a);
-		}
-		else {
-			return (float)Math.floor(a);
-		}
+		return (float)(a < 0 ? Math.ceil(a) : Math.floor(a));
 	}
 
 	/**
@@ -451,18 +421,7 @@ public final class Util {
 		if(Double.isNaN(a)) {
 			return Double.NaN;
 		}
-		else if(Double.isInfinite(a) || a == 0) {
-			return a;
-		}
-		else if(a < 0 && a > -1) {
-			return -0.0;
-		}
-		else if(a < 0) {
-			return Math.ceil(a);
-		}
-		else {
-			return Math.floor(a);
-		}
+		return a < 0 ? Math.ceil(a) : Math.floor(a);
 	}
 
 	/**
@@ -473,18 +432,7 @@ public final class Util {
 	 *         the input if infinite or zero, -0.0f for values between -0.5 and 0
 	 */
 	public static float nearestF32(float a) {
-		if(Float.isNaN(a)) {
-			return Float.NaN;
-		}
-		else if(Float.isInfinite(a) || a == 0) {
-			return a;
-		}
-		else if(a < 0 && a >= -0.5f) {
-			return -0.0f;
-		}
-		else {
-			return (float)Math.rint(a);
-		}
+		return Float.isNaN(a) ? Float.NaN : (float)Math.rint(a);
 	}
 
 	/**
@@ -495,18 +443,7 @@ public final class Util {
 	 *         the input if infinite or zero, -0.0 for values between -0.5 and 0
 	 */
 	public static double nearestF64(double a) {
-		if(Double.isNaN(a)) {
-			return Double.NaN;
-		}
-		else if(Double.isInfinite(a) || a == 0) {
-			return a;
-		}
-		else if(a < 0 && a >= -0.5) {
-			return -0.0;
-		}
-		else {
-			return Math.rint(a);
-		}
+		return Double.isNaN(a) ? Double.NaN : Math.rint(a);
 	}
 
 	/**
@@ -566,21 +503,13 @@ public final class Util {
 	 *         -1 (max unsigned long) if infinity or exceeds 2^64-1
 	 */
 	public static long truncSatF32U64(float a) {
-		if(Float.isNaN(a) || a < 0) {
+		if(!(a > 0)) {
 			return 0L;
 		}
-		else if(a == Float.POSITIVE_INFINITY) {
+		if(a >= 0x1p64f) {
 			return -1L;
 		}
-		else {
-			BigDecimal value = new BigDecimal(a);
-			if(value.compareTo(new BigDecimal("18446744073709551615")) <= 0) {
-				return value.longValue();
-			}
-			else {
-				return -1L;
-			}
-		}
+		return truncInRangeF64ToU64(a);
 	}
 
 	/**
@@ -591,21 +520,13 @@ public final class Util {
 	 *         -1 (max unsigned long) if infinity or exceeds 2^64-1
 	 */
 	public static long truncSatF64U64(double a) {
-		if(Double.isNaN(a) || a < 0) {
+		if(!(a > 0)) {
 			return 0L;
 		}
-		else if(a == Double.POSITIVE_INFINITY) {
+		if(a >= 0x1p64) {
 			return -1L;
 		}
-		else {
-			BigDecimal value = new BigDecimal(a);
-			if(value.compareTo(new BigDecimal("18446744073709551615")) <= 0) {
-				return value.longValue();
-			}
-			else {
-				return -1L;
-			}
-		}
+		return truncInRangeF64ToU64(a);
 	}
 
 	/**
@@ -617,20 +538,8 @@ public final class Util {
 	 *         prefers -0.0f over +0.0f when both are zero
 	 */
 	public static float min(float a, float b) {
-		if(Float.isNaN(a) || Float.isNaN(b)) {
-			return Float.NaN;
-		}
-		else if(b == 0.0f && a == 0.0f) {
-			if(Math.copySign(1.0f, a) < 0) {
-				return a;
-			}
-			else {
-				return b;
-			}
-		}
-		else {
-			return Math.min(a, b);
-		}
+		return Float.isNaN(a) || Float.isNaN(b)
+			? Float.NaN : Math.min(a, b);
 	}
 
 	/**
@@ -642,20 +551,8 @@ public final class Util {
 	 *         prefers -0.0 over +0.0 when both are zero
 	 */
 	public static double min(double a, double b) {
-		if(Double.isNaN(a) || Double.isNaN(b)) {
-			return Double.NaN;
-		}
-		else if(b == 0.0 && a == 0.0) {
-			if(Math.copySign(1.0, a) < 0) {
-				return a;
-			}
-			else {
-				return b;
-			}
-		}
-		else {
-			return Math.min(a, b);
-		}
+		return Double.isNaN(a) || Double.isNaN(b)
+			? Double.NaN : Math.min(a, b);
 	}
 
 	/**
@@ -667,20 +564,8 @@ public final class Util {
 	 *         prefers +0.0f over -0.0f when both are zero
 	 */
 	public static float max(float a, float b) {
-		if(Float.isNaN(a) || Float.isNaN(b)) {
-			return Float.NaN;
-		}
-		else if(b == 0.0f && a == 0.0f) {
-			if(Math.copySign(1.0f, a) > 0) {
-				return a;
-			}
-			else {
-				return b;
-			}
-		}
-		else {
-			return Math.max(a, b);
-		}
+		return Float.isNaN(a) || Float.isNaN(b)
+			? Float.NaN : Math.max(a, b);
 	}
 
 	/**
@@ -692,20 +577,8 @@ public final class Util {
 	 *         prefers +0.0 over -0.0 when both are zero
 	 */
 	public static double max(double a, double b) {
-		if(Double.isNaN(a) || Double.isNaN(b)) {
-			return Double.NaN;
-		}
-		else if(b == 0.0 && a == 0.0) {
-			if(Math.copySign(1.0, a) > 0) {
-				return a;
-			}
-			else {
-				return b;
-			}
-		}
-		else {
-			return Math.max(a, b);
-		}
+		return Double.isNaN(a) || Double.isNaN(b)
+			? Double.NaN : Math.max(a, b);
 	}
 
 	/**
@@ -1075,17 +948,7 @@ public final class Util {
 	 */
 	public static byte[] readData(InputStream is) {
 		try {
-			var os = new ByteArrayOutputStream();
-			byte[] buff = new byte[4096];
-			for(;;) {
-				int bytesRead = is.read(buff);
-				if(bytesRead < 0) {
-					break;
-				}
-
-				os.write(buff, 0, bytesRead);
-			}
-			return os.toByteArray();
+			return is.readAllBytes();
 		}
 		catch(IOException ex) {
 			throw new UncheckedIOException(ex);

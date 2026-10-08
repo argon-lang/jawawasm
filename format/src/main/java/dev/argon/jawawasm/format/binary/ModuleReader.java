@@ -370,6 +370,11 @@ public class ModuleReader {
 		return value;
 	}
 
+	private V128 readV128() throws IOException, ModuleFormatException {
+		var buffer = ByteBuffer.wrap(readAllNBytes(16)).order(ByteOrder.LITTLE_ENDIAN);
+		return new V128(buffer.getLong(0), buffer.getLong(8));
+	}
+
 	private float readF32() throws IOException, ModuleFormatException {
 		byte[] buff = readAllNBytes(4);
 		return ByteBuffer.wrap(buff).order(ByteOrder.LITTLE_ENDIAN).getFloat(0);
@@ -1480,81 +1485,9 @@ public class ModuleReader {
 						yield new MemoryInstr.V128_Store64_Lane(memArg, laneIdx);
 					}
 					
-					case 12 -> {
-						byte b0 = readByte();
-						byte b1 = readByte();
-						byte b2 = readByte();
-						byte b3 = readByte();
-						byte b4 = readByte();
-						byte b5 = readByte();
-						byte b6 = readByte();
-						byte b7 = readByte();
-						byte b8 = readByte();
-						byte b9 = readByte();
-						byte b10 = readByte();
-						byte b11 = readByte();
-						byte b12 = readByte();
-						byte b13 = readByte();
-						byte b14 = readByte();
-						byte b15 = readByte();
-						
-						yield new VectorInstr.V128_Const(new V128(
-								b0,
-								b1,
-								b2,
-								b3,
-								b4,
-								b5,
-								b6,
-								b7,
-								b8,
-								b9,
-								b10,
-								b11,
-								b12,
-								b13,
-								b14,
-								b15
-						));
-					}
-					
-					case 13 -> {
-						byte laneIdx0 = readByte();
-						byte laneIdx1 = readByte();
-						byte laneIdx2 = readByte();
-						byte laneIdx3 = readByte();
-						byte laneIdx4 = readByte();
-						byte laneIdx5 = readByte();
-						byte laneIdx6 = readByte();
-						byte laneIdx7 = readByte();
-						byte laneIdx8 = readByte();
-						byte laneIdx9 = readByte();
-						byte laneIdx10 = readByte();
-						byte laneIdx11 = readByte();
-						byte laneIdx12 = readByte();
-						byte laneIdx13 = readByte();
-						byte laneIdx14 = readByte();
-						byte laneIdx15 = readByte();
+					case 12 -> new VectorInstr.V128_Const(readV128());
 
-						yield new VectorInstr.I8x16_Op_Instr(new VectorInstr.Shuffle(new V128(
-								laneIdx0,
-								laneIdx1,
-								laneIdx2,
-								laneIdx3,
-								laneIdx4,
-								laneIdx5,
-								laneIdx6,
-								laneIdx7,
-								laneIdx8,
-								laneIdx9,
-								laneIdx10,
-								laneIdx11,
-								laneIdx12,
-								laneIdx13,
-								laneIdx14,
-								laneIdx15
-						)));
-					}
+					case 13 -> new VectorInstr.I8x16_Op_Instr(new VectorInstr.Shuffle(readV128()));
 
 					case 21 -> {
 						byte laneIndex = readByte();
