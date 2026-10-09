@@ -2349,8 +2349,8 @@ class StackFrame {
 				long address = calculateMemoryAddress(i, innLoad.memArg().offset());
 
 				switch(innLoad.numSize()) {
-					case _32 -> push(memory.loadI32(address));
-					case _64 -> push(memory.loadI64(address));
+					case _32 -> push(MemoryAccess.loadI32(memory, address));
+					case _64 -> push(MemoryAccess.loadI64(memory, address));
 				}
 			}
 
@@ -2360,8 +2360,8 @@ class StackFrame {
 				long address = calculateMemoryAddress(i, fnnLoad.memArg().offset());
 
 				switch(fnnLoad.numSize()) {
-					case _32 -> push(memory.loadF32(address));
-					case _64 -> push(memory.loadF64(address));
+					case _32 -> push(MemoryAccess.loadF32(memory, address));
+					case _64 -> push(MemoryAccess.loadF64(memory, address));
 				}
 			}
 			
@@ -2372,8 +2372,8 @@ class StackFrame {
 				long address = calculateMemoryAddress(i, innStore.memArg().offset());
 
 				switch(innStore.numSize()) {
-					case _32 -> memory.storeI32(address, (int)value);
-					case _64 -> memory.storeI64(address, (long)value);
+					case _32 -> MemoryAccess.storeI32(memory, address, (int)value);
+					case _64 -> MemoryAccess.storeI64(memory, address, (long)value);
 				}
 			}
 
@@ -2384,8 +2384,8 @@ class StackFrame {
 				long address = calculateMemoryAddress(i, fnnStore.memArg().offset());
 
 				switch(fnnStore.numSize()) {
-					case _32 -> memory.storeF32(address, (float)value);
-					case _64 -> memory.storeF64(address, (double)value);
+					case _32 -> MemoryAccess.storeF32(memory, address, (float)value);
+					case _64 -> MemoryAccess.storeF64(memory, address, (double)value);
 				}
 			}
 
@@ -2393,7 +2393,7 @@ class StackFrame {
 				var memory = module.getMemory(v128Load.memArg().memIdx());
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, v128Load.memArg().offset());
-				push(memory.loadV128(address));
+				push(MemoryAccess.loadV128(memory, address));
 			}
 
 			case MemoryInstr.V128_Store v128Store -> {
@@ -2402,14 +2402,14 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, v128Store.memArg().offset());
 
-				memory.storeV128(address, value);
+				MemoryAccess.storeV128(memory, address, value);
 			}
 
 			case MemoryInstr.Inn_Load8_U innLoad8U -> {
 				var memory = module.getMemory(innLoad8U.memArg().memIdx());
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, innLoad8U.memArg().offset());
-				byte value = memory.loadI8(address);
+				byte value = MemoryAccess.loadI8(memory, address);
 
 				switch(innLoad8U.numSize()) {
 					case _32 -> push(Byte.toUnsignedInt(value));
@@ -2421,7 +2421,7 @@ class StackFrame {
 				var memory = module.getMemory(innLoad8S.memArg().memIdx());
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, innLoad8S.memArg().offset());
-				byte value = memory.loadI8(address);
+				byte value = MemoryAccess.loadI8(memory, address);
 
 				switch(innLoad8S.numSize()) {
 					case _32 -> push((int)value);
@@ -2433,7 +2433,7 @@ class StackFrame {
 				var memory = module.getMemory(innLoad16U.memArg().memIdx());
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, innLoad16U.memArg().offset());
-				short value = memory.loadI16(address);
+				short value = MemoryAccess.loadI16(memory, address);
 
 				switch(innLoad16U.numSize()) {
 					case _32 -> push(Short.toUnsignedInt(value));
@@ -2445,7 +2445,7 @@ class StackFrame {
 				var memory = module.getMemory(innLoad16S.memArg().memIdx());
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, innLoad16S.memArg().offset());
-				short value = memory.loadI16(address);
+				short value = MemoryAccess.loadI16(memory, address);
 
 				switch(innLoad16S.numSize()) {
 					case _32 -> push((int)value);
@@ -2457,7 +2457,7 @@ class StackFrame {
 				var memory = module.getMemory(memArg.memIdx());
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
-				int value = memory.loadI32(address);
+				int value = MemoryAccess.loadI32(memory, address);
 				push(Integer.toUnsignedLong(value));
 			}
 
@@ -2465,7 +2465,7 @@ class StackFrame {
 				var memory = module.getMemory(memArg.memIdx());
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
-				int value = memory.loadI32(address);
+				int value = MemoryAccess.loadI32(memory, address);
 				push((long)value);
 			}
 
@@ -2480,7 +2480,7 @@ class StackFrame {
 					case _64 -> (byte)(long)value;
 				};
 
-				memory.storeI8(address, numValue);
+				MemoryAccess.storeI8(memory, address, numValue);
 			}
 
 			case MemoryInstr.Inn_Store16 innStore16 -> {
@@ -2494,7 +2494,7 @@ class StackFrame {
 					case _64 -> (short)(long)value;
 				};
 
-				memory.storeI16(address, numValue);
+				MemoryAccess.storeI16(memory, address, numValue);
 			}
 
 			case MemoryInstr.I64_Store32(var memArg) -> {
@@ -2503,7 +2503,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 
-				memory.storeI32(address, value);
+				MemoryAccess.storeI32(memory, address, value);
 			}
 
 
@@ -2513,7 +2513,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 
-				V128 result = V128.of8x8U(memory.loadI64(address));
+				V128 result = V128.of8x8U(MemoryAccess.loadI64(memory, address));
 				push(result);
 			}
 
@@ -2522,7 +2522,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 
-				V128 result = V128.of8x8S(memory.loadI64(address));
+				V128 result = V128.of8x8S(MemoryAccess.loadI64(memory, address));
 				push(result);
 			}
 
@@ -2531,7 +2531,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 
-				V128 result = V128.of16x4U(memory.loadI64(address));
+				V128 result = V128.of16x4U(MemoryAccess.loadI64(memory, address));
 				push(result);
 			}
 
@@ -2540,7 +2540,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 
-				V128 result = V128.of16x4S(memory.loadI64(address));
+				V128 result = V128.of16x4S(MemoryAccess.loadI64(memory, address));
 				push(result);
 			}
 
@@ -2549,7 +2549,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 
-				V128 result = V128.of32x2U(memory.loadI64(address));
+				V128 result = V128.of32x2U(MemoryAccess.loadI64(memory, address));
 				push(result);
 			}
 
@@ -2558,7 +2558,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 
-				V128 result = V128.of32x2S(memory.loadI64(address));
+				V128 result = V128.of32x2S(MemoryAccess.loadI64(memory, address));
 				push(result);
 			}
 
@@ -2567,7 +2567,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 
-				int value = memory.loadI32(address);
+				int value = MemoryAccess.loadI32(memory, address);
 				V128 result = V128.ofIntZero(value);
 				push(result);
 			}
@@ -2577,7 +2577,7 @@ class StackFrame {
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
 
-				long value = memory.loadI64(address);
+				long value = MemoryAccess.loadI64(memory, address);
 				V128 result = V128.ofLongZero(value);
 				push(result);
 			}
@@ -2586,7 +2586,7 @@ class StackFrame {
 				var memory = module.getMemory(memArg.memIdx());
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
-				byte value = memory.loadI8(address);
+				byte value = MemoryAccess.loadI8(memory, address);
 				V128 result = V128.splat8(value);
 				push(result);
 			}
@@ -2595,7 +2595,7 @@ class StackFrame {
 				var memory = module.getMemory(memArg.memIdx());
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
-				short value = memory.loadI16(address);
+				short value = MemoryAccess.loadI16(memory, address);
 				V128 result = V128.splat16(value);
 				push(result);
 			}
@@ -2604,7 +2604,7 @@ class StackFrame {
 				var memory = module.getMemory(memArg.memIdx());
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
-				int value = memory.loadI32(address);
+				int value = MemoryAccess.loadI32(memory, address);
 				V128 result = V128.splat32(value);
 				push(result);
 			}
@@ -2613,7 +2613,7 @@ class StackFrame {
 				var memory = module.getMemory(memArg.memIdx());
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
-				long value = memory.loadI64(address);
+				long value = MemoryAccess.loadI64(memory, address);
 				V128 result = V128.splat64(value);
 				push(result);
 			}
@@ -2623,7 +2623,7 @@ class StackFrame {
 				V128 v = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
-				byte value = memory.loadI8(address);
+				byte value = MemoryAccess.loadI8(memory, address);
 				V128 result = v.replaceLane8(value, laneIdx);
 				push(result);
 			}
@@ -2633,7 +2633,7 @@ class StackFrame {
 				V128 v = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
-				short value = memory.loadI16(address);
+				short value = MemoryAccess.loadI16(memory, address);
 				V128 result = v.replaceLane16(value, laneIdx);
 				push(result);
 			}
@@ -2643,7 +2643,7 @@ class StackFrame {
 				V128 v = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
-				int value = memory.loadI32(address);
+				int value = MemoryAccess.loadI32(memory, address);
 				V128 result = v.replaceLane32(value, laneIdx);
 				push(result);
 			}
@@ -2653,7 +2653,7 @@ class StackFrame {
 				V128 v = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
-				long value = memory.loadI64(address);
+				long value = MemoryAccess.loadI64(memory, address);
 				V128 result = v.replaceLane64(value, laneIdx);
 				push(result);
 			}
@@ -2663,7 +2663,7 @@ class StackFrame {
 				V128 v = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
-				memory.storeI8(address, v.extractLane8(laneIdx));
+				MemoryAccess.storeI8(memory, address, v.extractLane8(laneIdx));
 			}
 
 			case MemoryInstr.V128_Store16_Lane(var memArg, var laneIdx) -> {
@@ -2671,33 +2671,33 @@ class StackFrame {
 				V128 v = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
-				memory.storeI16(address, v.extractLane16(laneIdx));
+				MemoryAccess.storeI16(memory, address, v.extractLane16(laneIdx));
 			}
 			case MemoryInstr.V128_Store32_Lane(var memArg, var laneIdx) -> {
 				var memory = module.getMemory(memArg.memIdx());
 				V128 v = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
-				memory.storeI32(address, v.extractLane32(laneIdx));
+				MemoryAccess.storeI32(memory, address, v.extractLane32(laneIdx));
 			}
 			case MemoryInstr.V128_Store64_Lane(var memArg, var laneIdx) -> {
 				var memory = module.getMemory(memArg.memIdx());
 				V128 v = popV128();
 				long i = popAddress(memory);
 				long address = calculateMemoryAddress(i, memArg.offset());
-				memory.storeI64(address, v.extractLane64(laneIdx));
+				MemoryAccess.storeI64(memory, address, v.extractLane64(laneIdx));
 			}
 
 			case MemoryInstr.Memory_Size(var memIdx) -> {
 				var memory = module.getMemory(memIdx);
-				long size = memory.pageSize();
+				long size = MemoryAccess.pageSize(memory);
 				pushAddress(memory, size);
 			}
 
 			case MemoryInstr.Memory_Grow(var memIdx) -> {
 				var memory = module.getMemory(memIdx);
 				long n = popAddress(memory);
-				long growRes = memory.grow(n);
+				long growRes = MemoryAccess.grow(memory, n);
 				pushAddress(memory, growRes);
 			}
 
@@ -2707,15 +2707,7 @@ class StackFrame {
 				byte val = (byte)popInt();
 				long d = popAddress(memory);
 
-				if(!Util.sumInRange(d, n, memory.byteSize())) {
-					throw new IndexOutOfBoundsException();
-				}
-
-				while(n != 0) {
-					memory.storeI8(d, val);
-					++d;
-					--n;
-				}
+				MemoryAccess.fill(memory, d, val, n);
 			}
 
 			case MemoryInstr.Memory_Copy(var dstMemIdx, var srcMemIdx) -> {
@@ -2725,26 +2717,7 @@ class StackFrame {
 				long s = popAddress(srcMemory);
 				long d = popAddress(dstMemory);
 
-				if(!Util.sumInRange(d, n, dstMemory.byteSize()) || !Util.sumInRange(s, n, srcMemory.byteSize())) {
-					throw new IndexOutOfBoundsException();
-				}
-
-				if(d <= s) {
-					while(n != 0) {
-						byte b = srcMemory.loadI8(s);
-						dstMemory.storeI8(d, b);
-						++d;
-						++s;
-						--n;
-					}
-				}
-				else {
-					while(n != 0) {
-						byte b = srcMemory.loadI8(s + n - 1);
-						dstMemory.storeI8(d + n - 1, b);
-						--n;
-					}
-				}
+				MemoryAccess.copy(dstMemory, srcMemory, d, s, n);
 			}
 
 			case MemoryInstr.Memory_Init(var memIdx, var dataIdx) -> {
@@ -2754,7 +2727,7 @@ class StackFrame {
 				int s = popInt();
 				long d = popAddress(memory);
 
-				memory.copyFromArray(d, s, n, data.init().toByteArray());
+				MemoryAccess.copyFromArray(memory, d, s, n, data.init().toByteArray());
 			}
 
 
@@ -2763,18 +2736,18 @@ class StackFrame {
 	}
 
 	private long popAddress(WasmMemory memory) {
-		return AddressTypeUtils.unboxAddress(memory.addressType(), pop());
+		return AddressTypeUtils.unboxAddress(MemoryAccess.addressType(memory), pop());
 	}
 
 	private long popAddress(WasmMemory memory1, WasmMemory memory2) {
-		return switch(memory1.addressType()) {
+		return switch(MemoryAccess.addressType(memory1)) {
 			case I32 -> popAddress(memory1);
 			case I64 -> popAddress(memory2);
 		};
 	}
 
 	private void pushAddress(WasmMemory memory, long address) {
-		push(AddressTypeUtils.boxAddress(memory.addressType(), address));
+		push(AddressTypeUtils.boxAddress(MemoryAccess.addressType(memory), address));
 	}
 
 	private long calculateMemoryAddress(long address, long offset) {

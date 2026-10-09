@@ -13,6 +13,8 @@ import dev.argon.jawawasm.format.types.*;
 import dev.argon.jawawasm.runtime.ModuleLinkException;
 import dev.argon.jawawasm.runtime.ModuleResolutionException;
 import dev.argon.jawawasm.runtime.WasmMemory;
+import dev.argon.jawawasm.runtime.WasmMemory32;
+import dev.argon.jawawasm.runtime.WasmMemory64;
 import org.jspecify.annotations.Nullable;
 
 import java.util.*;
@@ -81,9 +83,9 @@ public final class InstantiatedModule implements WasmModule {
 				switch(data.mode()) {
 					case DataMode.Active(var memoryIdx, var offsetExpr) -> {
 						var memory = getMemory(memoryIdx);
-						var addrType = memory.addressType();
+						var addrType = MemoryAccess.addressType(memory);
 						long offset = AddressTypeUtils.unboxAddress(addrType, evaluateInitializer(offsetExpr.body(), AddressTypeUtils.asNumType(addrType)));
-						memory.copyFromArray(offset, 0, data.init().size(), data.init().toByteArray());
+						MemoryAccess.copyFromArray(memory, offset, 0, data.init().size(), data.init().toByteArray());
 					}
 					case DataMode.Passive() -> {}
 				}
@@ -338,7 +340,11 @@ public final class InstantiatedModule implements WasmModule {
 
 		@Override
 		protected WasmMemory create(Mem memory) {
-			return WasmMemory.create(engine.getAllocator(), memory.type().addrType(), memory.type().limits().min(), memory.type().limits().max());
+			var limits = memory.type().limits();
+			return switch(memory.type().addrType()) {
+				case I32 -> WasmMemory32.create(engine.getOptions(), Math.toIntExact(limits.min()), limits.max() == null ? null : Math.toIntExact(limits.max()));
+				case I64 -> WasmMemory64.create(engine.getOptions(), limits.min(), limits.max());
+			};
 		}
 	}
 

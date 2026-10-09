@@ -2,6 +2,8 @@ package dev.argon.jawawasm.format.types;
 
 import dev.argon.jawawasm.runtime.AddrType;
 import dev.argon.jawawasm.runtime.WasmMemory;
+import dev.argon.jawawasm.runtime.WasmMemory32;
+import dev.argon.jawawasm.runtime.WasmMemory64;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
@@ -63,6 +65,9 @@ public class AddressTypeUtils {
 	 * @return The type of the memory.
 	 */
 	public static MemType getMemoryType(WasmMemory memory) {
-		return new MemType(memory.addressType(), new Limits(memory.pageSize(), memory.maxPageSize()));
+		return switch(memory) {
+			case WasmMemory32 mem -> new MemType(AddrType.I32, new Limits(mem.pageSize(), mem.maxPageSize() == null ? null : mem.maxPageSize().longValue()));
+			case WasmMemory64 mem -> new MemType(AddrType.I64, new Limits(mem.pageSize(), mem.maxPageSize()));
+		};
 	}
 }

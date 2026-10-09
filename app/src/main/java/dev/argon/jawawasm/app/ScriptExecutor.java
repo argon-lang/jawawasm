@@ -14,7 +14,6 @@ import org.jspecify.annotations.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.foreign.Arena;
 import java.math.BigInteger;
 import java.nio.file.Path;
 import java.util.*;
@@ -27,17 +26,13 @@ import java.util.stream.IntStream;
  */
 public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permits ScriptReflectionExecutor, ScriptInterpreter {
 	ScriptExecutor(WastLoader loader, PrintWriter output) {
-		arena = Arena.ofShared();
-		allocator = new ArenaMemoryAllocator(arena);
+		options = RuntimeOptions.builder().maxMemory(0x10000).build();
 
 		this.loader = loader;
 		this.output = output;
-
-		allocator.setMaxMemory(0x10000);
 	}
 
-	private final Arena arena;
-	final MemoryAllocator allocator;
+	final RuntimeOptions options;
 	private final ModuleResolver<Mod> resolver = new ScriptResolver();
 	private final WastLoader loader;
 	private final PrintWriter output;
@@ -600,6 +595,5 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 
 	@Override
 	public void close() {
-		arena.close();
 	}
 }

@@ -308,13 +308,14 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 					if(
 						!subtyping.isSubtypeMemoryIgnoreMin(importMemType, mem.type()) ||
-							mem.type().limits().min() < 0 || mem.type().limits().min() > Integer.MAX_VALUE
+							mem.type().limits().min() < 0
 					) {
 						throw new ModuleLinkException("incompatible import type");
 					}
 
 					localName = "mem" + mems.size();
 					mems.add(new MemInfo(localName, mem.type()));
+					var wasmMemory = mems.getLast().memoryClass();
 
 
 					clb.withField(localName, wasmMemory, ClassFile.ACC_FINAL);
@@ -324,12 +325,19 @@ class ModuleClassGenerator extends WasmClassGenerator {
 						cb.aload(0);
 						cb.getfield(className, importModuleInfo.fieldName, importModuleInfo.realization().classDesc());
 						cb.invokevirtual(importModuleInfo.realization().classDesc(), exportRealMethod.methodName(), exportRealMethod.methodType());
+						cb.checkcast(wasmMemory);
 						cb.putfield(className, localName, wasmMemory);
 
 						cb.aload(0);
 						cb.getfield(className, localName, wasmMemory);
-						cb.loadConstant((int)mem.type().limits().min());
-						cb.invokevirtual(wasmMemory, "ensureMinimumSize", MethodTypeDesc.of(CD_void, CD_int));
+						var at = addrDesc(mem.type().addrType());
+						if(mem.type().addrType() == AddrType.I32) {
+							cb.loadConstant(Math.toIntExact(mem.type().limits().min()));
+						}
+						else {
+							cb.loadConstant(mem.type().limits().min());
+						}
+						cb.invokevirtual(wasmMemory, "ensureMinimumSize", MethodTypeDesc.of(CD_void, at));
 					});
 				}
 				case ImportDesc.Tag tag -> {
@@ -426,39 +434,37 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 		for(var memory : module.mems()) {
 			var name = "mem" + mems.size();
-			mems.add(new MemInfo(name, memory.type()));
-
+			var memInfo = new MemInfo(name, memory.type());
+			mems.add(memInfo);
+			var wasmMemory = memInfo.memoryClass();
+			var at = addrDesc(memory.type().addrType());
+			var boxedAt = at.equals(CD_int) ? CD_Integer : CD_Long;
 			clb.withField(name, wasmMemory, ClassFile.ACC_FINAL);
 			constructorInits.add(cb -> {
-				var memAlloc = ClassDesc.of(RUNTIME_PACKAGE, "MemoryAllocator");
-				var addrType = ClassDesc.of(RUNTIME_PACKAGE, "AddrType");
-
+				var runtimeOptions = ClassDesc.of(RUNTIME_PACKAGE, "RuntimeOptions");
 				cb.aload(0);
-
-
 				cb.aload(1);
-				cb.invokeinterface(
-					ClassDesc.of(RUNTIME_PACKAGE, "RuntimeContext"),
-					"allocator",
-					MethodTypeDesc.of(memAlloc)
-				);
-
-				cb.getstatic(addrType, memory.type().addrType().name(), addrType);
-
-				loadLimits(cb, memory.type().limits());
-
-				cb.invokestatic(
-					wasmMemory,
-					"create",
-					MethodTypeDesc.of(
-						wasmMemory,
-						memAlloc,
-						addrType,
-						CD_long,
-						CD_Long
-					)
-				);
-
+				cb.invokeinterface(ClassDesc.of(RUNTIME_PACKAGE, "RuntimeContext"), "options", MethodTypeDesc.of(runtimeOptions));
+				var limits = memory.type().limits();
+				if(at.equals(CD_int)) {
+					cb.loadConstant(Math.toIntExact(limits.min()));
+				}
+				else {
+					cb.loadConstant(limits.min());
+				}
+				if(limits.max() == null) {
+					cb.aconst_null();
+				}
+				else {
+					if(at.equals(CD_int)) {
+						cb.loadConstant(Math.toIntExact(limits.max()));
+					}
+					else {
+						cb.loadConstant(limits.max());
+					}
+					cb.invokestatic(boxedAt, "valueOf", MethodTypeDesc.of(boxedAt, at));
+				}
+				cb.invokestatic(wasmMemory, "create", MethodTypeDesc.of(wasmMemory, runtimeOptions, at, boxedAt));
 				cb.putfield(className, name, wasmMemory);
 			});
 		}
@@ -552,6 +558,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 				if(data.mode() instanceof DataMode.Active(var memIdx, var offset)) {
 					var mem = mems.get(memIdx.index());
+					var wasmMemory = mem.memoryClass();
 					var at = addrDesc(mem.memType().addrType());
 
 					var bytecodeGen = new BytecodeGenerator(cb, new LocalInfo[]{}, new ResultType(ImmutableList.of(addrValType(mem.memType().addrType()))), 0, constructorTempVarSlot);
@@ -661,6 +668,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				}
 				case ExportDesc.Mem mem -> {
 					var memInfo = mems.get(mem.mem().index());
+					var wasmMemory = memInfo.memoryClass();
 					var methodName = escapeName(export.name());
 					var methodType = MethodTypeDesc.of(wasmMemory);
 					clb.withMethodBody(
@@ -1725,14 +1733,14 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 				case MemoryInstr.Memory_Size(var memIdx) -> {
 					var mem = mems.get(memIdx.index());
+					var wasmMemory = mem.memoryClass();
 
 					loadMem(memIdx);
 
-					cb.invokevirtual(wasmMemory, "pageSize", MethodTypeDesc.of(CD_long));
+					cb.invokevirtual(wasmMemory, "pageSize", MethodTypeDesc.of(addrDesc(mem.memType.addrType())));
 
 					switch(mem.memType.addrType()) {
 						case I32 -> {
-							cb.l2i();
 							stackTypes.add(TypeKind.INT);
 						}
 						case I64 -> stackTypes.add(TypeKind.LONG);
@@ -1740,6 +1748,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				}
 				case MemoryInstr.Memory_Grow(var memIdx) -> {
 					var mem = mems.get(memIdx.index());
+					var wasmMemory = mem.memoryClass();
 					var at = addrDesc(mem.memType.addrType());
 
 					loadMem(memIdx);
@@ -1748,6 +1757,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				}
 				case MemoryInstr.Memory_Fill(var memIdx) -> {
 					var mem = mems.get(memIdx.index());
+					var wasmMemory = mem.memoryClass();
 					var at = addrDesc(mem.memType.addrType());
 					cb.aload(moduleVarSlot);
 					cb.getfield(className, mem.fieldName, wasmMemory);
@@ -1777,19 +1787,19 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					});
 
 					cb.aload(moduleVarSlot);
-					cb.getfield(className, dstMem.fieldName, wasmMemory);
+					cb.getfield(className, dstMem.fieldName, dstMem.memoryClass());
 					cb.aload(moduleVarSlot);
-					cb.getfield(className, srcMem.fieldName, wasmMemory);
+					cb.getfield(className, srcMem.fieldName, srcMem.memoryClass());
 					cb.invokestatic(
-						wasmMemory,
+						dstMem.memoryClass(),
 						"copy",
 						MethodTypeDesc.of(
 							CD_void,
 							dat,
 							sat,
 							minAt,
-							wasmMemory,
-							wasmMemory
+							dstMem.memoryClass(),
+							srcMem.memoryClass()
 						)
 					);
 					stackTypes.removeLast();
@@ -1798,6 +1808,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				}
 				case MemoryInstr.Memory_Init(var memIdx, var dataIdx) -> {
 					var mem = mems.get(memIdx.index());
+					var wasmMemory = mem.memoryClass();
 					var at = addrDesc(mem.memType.addrType());
 
 					cb.aload(moduleVarSlot);
@@ -3989,7 +4000,8 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 		private void loadMem(MemIdx memIdx) {
 			cb.aload(moduleVarSlot);
-			cb.getfield(className, mems.get(memIdx.index()).fieldName, wasmMemory);
+			var mem = mems.get(memIdx.index());
+			cb.getfield(className, mem.fieldName, mem.memoryClass());
 		}
 
 		private void doLoad(ClassDesc t, MemoryInstr.MemArg memArg) {
@@ -4034,7 +4046,20 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			}
 
 			var mem = mems.get(memArg.memIdx().index());
+			var wasmMemory = mem.memoryClass();
 			var at = addrDesc(mem.memType.addrType());
+
+			if(memArg.offset() == 0) {
+				loadMem(memArg);
+				cb.invokestatic(
+					wasmMemory,
+					prefix + suffix,
+					isLoad
+						? MethodTypeDesc.of(t, at, wasmMemory)
+						: MethodTypeDesc.of(CD_void, at, t, wasmMemory)
+				);
+				return;
+			}
 
 			switch(mem.memType.addrType()) {
 				case I32 -> cb.loadConstant((int)memArg.offset());
@@ -4219,7 +4244,11 @@ class ModuleClassGenerator extends WasmClassGenerator {
 
 	private record GlobalInfo(String fieldName, ClassDesc containerType, ClassDesc elementType, GlobalType globalType) {}
 
-	private record MemInfo(String fieldName, MemType memType) {}
+	private record MemInfo(String fieldName, MemType memType) {
+		ClassDesc memoryClass() {
+			return ClassDesc.of(RUNTIME_PACKAGE, memType.addrType() == AddrType.I32 ? "WasmMemory32" : "WasmMemory64");
+		}
+	}
 
 	private record ElemInfo(String fieldName, ClassDesc fieldType, ClassDesc elementType, Elem elem) {}
 

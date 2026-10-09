@@ -11,11 +11,6 @@ public final class Util {
 	private Util() {}
 
 	/**
-	 * WebAssembly memory page size in bytes
-	 */
-	public static final int PAGE_SIZE = 64 * 1024;
-
-	/**
 	 * Divide two signed integers
 	 * @param a The numerator
 	 * @param b The denominator

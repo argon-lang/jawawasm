@@ -55,6 +55,8 @@ class AOTModuleLoader {
 	private static final ClassDesc CD_GlobalF32 = ClassDesc.of("dev.argon.jawawasm.runtime.GlobalF32");
 	private static final ClassDesc CD_GlobalF64 = ClassDesc.of("dev.argon.jawawasm.runtime.GlobalF64");
 	private static final ClassDesc CD_WasmMemory = ClassDesc.of("dev.argon.jawawasm.runtime.WasmMemory");
+	private static final ClassDesc CD_WasmMemory32 = ClassDesc.of("dev.argon.jawawasm.runtime.WasmMemory32");
+	private static final ClassDesc CD_WasmMemory64 = ClassDesc.of("dev.argon.jawawasm.runtime.WasmMemory64");
 	private static final ClassDesc CD_V128 = ClassDesc.of("dev.argon.jawawasm.runtime.V128");
 	private static final ClassDesc CD_Nullable = ClassDesc.of("org.jspecify.annotations.Nullable");
 	private static final ClassDesc CD_WasmFunction = ClassDesc.of("dev.argon.jawawasm.runtime.WasmFunction");
@@ -579,6 +581,10 @@ class AOTModuleLoader {
 
 		var addressTypeStr = getAnnotationValue(sizeLimitsAnn, "addressType").map(av -> ((AnnotationValue.OfEnum)av).constantName().stringValue()).orElseThrow(() -> new ModuleFormatException("Missing addressType in SizeLimits"));
 		var addressType = AddrType.valueOf(addressTypeStr);
+		if((kt.classType().equals(CD_WasmMemory32) && addressType != AddrType.I32) ||
+				(kt.classType().equals(CD_WasmMemory64) && addressType != AddrType.I64)) {
+			throw new ModuleFormatException("Memory address type does not match SizeLimits");
+		}
 		long min = getAnnotationValue(sizeLimitsAnn, "min").map(av -> ((AnnotationValue.OfLong)av).longValue()).orElseThrow(() -> new ModuleFormatException("Missing min in SizeLimits"));
 		long max = getAnnotationValue(sizeLimitsAnn, "max").map(av -> ((AnnotationValue.OfLong)av).longValue()).orElse(-1L);
 
@@ -624,7 +630,8 @@ class AOTModuleLoader {
 	}
 
 	private MemType loadExternalMemoryType(TypeInfo returnType) throws ModuleFormatException {
-		if(!(returnType instanceof KnownTypeInfo kt) || !kt.classType().equals(CD_WasmMemory)) {
+		if(!(returnType instanceof KnownTypeInfo kt) ||
+				(!kt.classType().equals(CD_WasmMemory) && !kt.classType().equals(CD_WasmMemory32) && !kt.classType().equals(CD_WasmMemory64))) {
 			throw new ModuleFormatException("A memory export must return a WasmMemory. Actual: " + returnType);
 		}
 
@@ -635,6 +642,10 @@ class AOTModuleLoader {
 
 		var addressTypeStr = getAnnotationValue(sizeLimitsAnn, "addressType").map(av -> ((AnnotationValue.OfEnum)av).constantName().stringValue()).orElseThrow(() -> new ModuleFormatException("Missing addressType in SizeLimits"));
 		var addressType = AddrType.valueOf(addressTypeStr);
+		if((kt.classType().equals(CD_WasmMemory32) && addressType != AddrType.I32) ||
+				(kt.classType().equals(CD_WasmMemory64) && addressType != AddrType.I64)) {
+			throw new ModuleFormatException("Memory address type does not match SizeLimits");
+		}
 		long min = getAnnotationValue(sizeLimitsAnn, "min").map(av -> ((AnnotationValue.OfLong)av).longValue()).orElseThrow(() -> new ModuleFormatException("Missing min in SizeLimits"));
 		long max = getAnnotationValue(sizeLimitsAnn, "max").map(av -> ((AnnotationValue.OfLong)av).longValue()).orElse(-1L);
 

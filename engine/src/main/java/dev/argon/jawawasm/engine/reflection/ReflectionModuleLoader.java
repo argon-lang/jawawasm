@@ -396,13 +396,18 @@ class ReflectionModuleLoader {
 	}
 
 	private MemType loadExternalMemoryType(AnnotatedType returnType) throws ModuleFormatException {
-		if(returnType.getType() != WasmMemory.class) {
+		if(returnType.getType() != WasmMemory.class && returnType.getType() != WasmMemory32.class && returnType.getType() != WasmMemory64.class) {
 			throw new ModuleFormatException("A memory export must return a WasmMemory. Actual: " + returnType);
 		}
 
 		var sizeLimits = returnType.getAnnotation(SizeLimits.class);
 		if(sizeLimits == null) {
 			throw new ModuleFormatException("Missing SizeLimits for memory type");
+		}
+
+		if((returnType.getType() == WasmMemory32.class && sizeLimits.addressType() != AddrType.I32) ||
+				(returnType.getType() == WasmMemory64.class && sizeLimits.addressType() != AddrType.I64)) {
+			throw new ModuleFormatException("Memory address type does not match SizeLimits");
 		}
 
 		return new MemType(sizeLimits.addressType(), new Limits(sizeLimits.min(), sizeLimits.max() == -1L ? null : sizeLimits.max()));

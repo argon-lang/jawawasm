@@ -28,8 +28,8 @@ public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionMod
 
 		RuntimeContext context = new RuntimeContext() {
 			@Override
-			public MemoryAllocator allocator() {
-				return allocator;
+			public RuntimeOptions options() {
+				return options;
 			}
 		};
 
@@ -40,7 +40,7 @@ public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionMod
 
 	@Override
 	ReflectionModule getSpecTestModule(PrintWriter output) throws ModuleFormatException, ModuleLinkException {
-		var specTest = new SpecTestModuleInstance(allocator, output);
+		var specTest = new SpecTestModuleInstance(options, output);
 		return engine.addHostModule(specTest);
 	}
 

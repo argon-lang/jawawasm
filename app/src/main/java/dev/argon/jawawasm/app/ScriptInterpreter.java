@@ -21,14 +21,14 @@ public final class ScriptInterpreter extends ScriptExecutor<WasmModule> {
 	public ScriptInterpreter(WastLoader loader, PrintWriter output) {
 		super(loader, output);
 
-		engine = new Engine(allocator);
+		engine = new Engine(options);
 	}
 
 	private final Engine engine;
 
 	@Override
 	WasmModule getSpecTestModule(PrintWriter output) {
-		return new SpecTestModuleInterpreter(allocator, output);
+		return new SpecTestModuleInterpreter(options, output);
 	}
 
 	@Override

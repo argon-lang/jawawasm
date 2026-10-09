@@ -12,16 +12,16 @@ import java.util.concurrent.ExecutionException;
 public class Engine {
 	/**
 	 * Create an engine.
-	 * @param allocator The memory allocator to use.
+	 * @param options The runtime options to use.
 	 */
-	public Engine(MemoryAllocator allocator) {
-		this.allocator = allocator;
+	public Engine(RuntimeOptions options) {
+		this.options = options;
 	}
 
-	private final MemoryAllocator allocator;
+	private final RuntimeOptions options;
 
-	MemoryAllocator getAllocator() {
-		return allocator;
+	RuntimeOptions getOptions() {
+		return options;
 	}
 
 	/**

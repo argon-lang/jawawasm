@@ -6,9 +6,9 @@ package dev.argon.jawawasm.runtime;
 public interface RuntimeContext {
 
 	/**
-	 * Gets the memory allocator for this context.
-	 * @return The memory allocator.
+	 * Gets the runtime options for this context.
+	 * @return The runtime options.
 	 */
-	MemoryAllocator allocator();
+	RuntimeOptions options();
 
 }

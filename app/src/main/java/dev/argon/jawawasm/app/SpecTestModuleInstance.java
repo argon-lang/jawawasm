@@ -7,13 +7,13 @@ import java.io.PrintWriter;
 
 
 public final class SpecTestModuleInstance extends WasmModule {
-	SpecTestModuleInstance(MemoryAllocator allocator, PrintWriter output) {
+	SpecTestModuleInstance(RuntimeOptions options, PrintWriter output) {
 		this.output = output;
 
-		memory = WasmMemory.create(allocator, AddrType.I32, 1, 2L);
+		memory = WasmMemory32.create(options, 1, 2);
 	}
 
-	private final WasmMemory memory;
+	private final WasmMemory32 memory;
 	private final WasmTable<@Nullable WasmFunction> table = WasmTable.<@Nullable WasmFunction>create(10, 20L, null);
 	private final WasmTable<@Nullable WasmFunction> table64 = WasmTable.<@Nullable WasmFunction>create(10, 20L, null);
 	private final PrintWriter output;
@@ -40,7 +40,7 @@ public final class SpecTestModuleInstance extends WasmModule {
 
 	@WasmExport(type = WasmExport.ExportType.MEMORY)
 	@SizeLimits(addressType = AddrType.I32, min = 1, max = 2)
-	public WasmMemory memory() {
+	public WasmMemory32 memory() {
 		return memory;
 	}
 
