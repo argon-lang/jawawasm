@@ -2,8 +2,8 @@
  * JVM WebAssembly engine
  */
 module dev.argon.jawawasm.engine {
-	requires transitive dev.argon.jawawasm.format;
-	requires transitive org.jspecify;
+	requires transitive dev.argon.jawawasm.format.core;
+	requires static org.jspecify;
 	requires com.google.protobuf;
 	requires org.apache.commons.compress;
 	requires jdk.compiler;

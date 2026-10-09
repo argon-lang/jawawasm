@@ -1,6 +1,6 @@
 package dev.argon.jawawasm.app;
 
-import dev.argon.jawawasm.app.wast.*;
+import dev.argon.jawawasm.format.wast.*;
 import dev.argon.jawawasm.engine.ModuleResolver;
 import dev.argon.jawawasm.engine.interpreter.*;
 import dev.argon.jawawasm.engine.validator.ModuleValidator;
@@ -13,6 +13,8 @@ import org.jspecify.annotations.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.io.PrintWriter;
 import java.math.BigInteger;
 import java.nio.file.Path;
@@ -25,16 +27,14 @@ import java.util.stream.IntStream;
  */
 public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable
 	permits ScriptReflectionExecutor, ScriptInterpreter {
-	ScriptExecutor(WastLoader loader, PrintWriter output) {
+	ScriptExecutor(PrintWriter output) {
 		options = RuntimeOptions.builder().maxMemory(0x10000).build();
 
-		this.loader = loader;
 		this.output = output;
 	}
 
 	final RuntimeOptions options;
 	private final ModuleResolver<Mod> resolver = new ScriptResolver();
-	private final WastLoader loader;
 	private final PrintWriter output;
 
 	private @Nullable Module currentModuleDefinition = null;
@@ -517,16 +517,18 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable
 
 	private Module getModuleAsBinary(WastScriptLoaded scriptLoaded, WastFile file)
 		throws ModuleFormatException, IOException, InterruptedException {
-		byte[] data;
-		if(file.binaryFilename() != null) {
-			data = loader.loadModule(scriptLoaded.getDir().resolve(file.binaryFilename()), ModuleType.BINARY);
+		var binaryFilename = file.binaryFilename();
+		var filename = binaryFilename != null ? binaryFilename : file.filename();
+		var data = scriptLoaded.getFiles().get(filename);
+		if(data == null) {
+			throw new ModuleFormatException("Missing script file: " + filename);
 		}
-		else {
-			data = loader.loadModule(scriptLoaded.getDir().resolve(file.filename()), file.moduleType());
+		var input = new ByteArrayInputStream(data);
+		if(binaryFilename == null && file.moduleType() == ModuleType.TEXT) {
+			return new dev.argon.jawawasm.format.text.ModuleReader(new InputStreamReader(input, StandardCharsets.UTF_8))
+				.readModule();
 		}
-
-		var is = new ByteArrayInputStream(data);
-		return new ModuleReader(is).readModule();
+		return new ModuleReader(input).readModule();
 	}
 
 	private final class ScriptResolver implements ModuleResolver<Mod> {

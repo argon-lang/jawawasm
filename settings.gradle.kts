@@ -1,3 +1,3 @@
 
 rootProject.name = "jawawasm"
-include("app", "format", "runtime", "engine", "reflection-tests")
+include("app", "format", "format-core", "runtime", "engine", "reflection-tests")

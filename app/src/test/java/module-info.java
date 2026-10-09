@@ -4,6 +4,7 @@
 module dev.argon.jawawasm.app.tests {
 	requires static org.jspecify;
 	requires dev.argon.jawawasm.app;
+	requires dev.argon.jawawasm.format;
 	requires org.junit.jupiter.api;
 	requires com.google.errorprone.annotations;
 

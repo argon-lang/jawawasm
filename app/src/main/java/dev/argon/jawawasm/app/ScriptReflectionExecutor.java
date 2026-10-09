@@ -1,6 +1,5 @@
 package dev.argon.jawawasm.app;
 
-import dev.argon.jawawasm.app.wast.WastLoader;
 import dev.argon.jawawasm.engine.ModuleResolver;
 import dev.argon.jawawasm.engine.reflection.ReflectionEngine;
 import dev.argon.jawawasm.engine.reflection.ReflectionExport;
@@ -22,8 +21,8 @@ import java.util.concurrent.ExecutionException;
  * An executor for WAST scripts that uses a class loader.
  */
 public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionModule> {
-	public ScriptReflectionExecutor(String packageName, WastLoader loader, PrintWriter output) {
-		super(loader, output);
+	public ScriptReflectionExecutor(String packageName, PrintWriter output) {
+		super(output);
 
 		RuntimeContext context = new RuntimeContext() {
 			@Override

@@ -3,14 +3,14 @@
  */
 package dev.argon.jawawasm.app;
 
-import dev.argon.jawawasm.app.wast.WastLoader;
+import dev.argon.jawawasm.format.wast.WastScriptParser;
 
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.nio.file.Files;
 
 /**
- * App for executing wast scripts. Requires the wasm spec interpreter to convert
- * text format to binary.
+ * App for executing WAST scripts.
  */
 public class App {
 	App() {}
@@ -27,22 +27,15 @@ public class App {
 	public static void main(String[] args) throws Throwable {
 		String scriptFile = args[0];
 
-		String wasmToolsExecutableStr = System.getenv("JAWAWASM_WASM_TOOLS_PATH");
-		if(wasmToolsExecutableStr == null) {
-			throw new IllegalStateException("JAWAWASM_WASM_TOOLS_PATH must be set");
-		}
-		Path wasmToolsExecutable = Path.of(wasmToolsExecutableStr);
-
 		System.out.println("Reading script");
-		var loader = new WastLoader(wasmToolsExecutable);
-
-		try(var scriptLoaded = loader.loadScript(Path.of(scriptFile))) {
+		try(var reader = Files.newBufferedReader(Path.of(scriptFile))) {
+			var scriptLoaded = new WastScriptParser(reader, scriptFile).parseScript();
 			System.out.println("Executing script");
 
 			@SuppressWarnings("DefaultCharset")
 			var output = new PrintWriter(System.out);
 
-			try(var interpreter = new ScriptInterpreter(loader, output)) {
+			try(var interpreter = new ScriptInterpreter(output)) {
 				interpreter.initialize();
 				interpreter.executeScript(scriptLoaded);
 			}

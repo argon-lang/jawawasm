@@ -4,7 +4,6 @@
 package dev.argon.jawawasm.app.tests;
 
 import dev.argon.jawawasm.app.ScriptExecutor;
-import dev.argon.jawawasm.app.wast.WastLoader;
 
 import dev.argon.jawawasm.app.ScriptReflectionExecutor;
 
@@ -16,12 +15,8 @@ public class ScriptTestsClassLoader extends ScriptTestsBase {
 	private final AtomicInteger testNum = new AtomicInteger(0);
 
 	@Override
-	protected ScriptExecutor<?> createScriptExecutor(WastLoader loader) {
+	protected ScriptExecutor<?> createScriptExecutor() {
 		int n = testNum.getAndIncrement();
-		return new ScriptReflectionExecutor(
-			"dev.argon.jawawasm.test.testscript" + n,
-			loader,
-			new PrintWriter(System.out)
-		);
+		return new ScriptReflectionExecutor("dev.argon.jawawasm.test.testscript" + n, new PrintWriter(System.out));
 	}
 }

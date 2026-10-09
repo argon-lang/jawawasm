@@ -4,7 +4,6 @@
 package dev.argon.jawawasm.app.tests;
 
 import dev.argon.jawawasm.app.ScriptExecutor;
-import dev.argon.jawawasm.app.wast.WastLoader;
 import dev.argon.jawawasm.app.ScriptInterpreter;
 
 import java.io.PrintWriter;
@@ -12,7 +11,7 @@ import java.io.PrintWriter;
 public class ScriptTestsInterpreter extends ScriptTestsBase {
 
 	@Override
-	protected ScriptExecutor<?> createScriptExecutor(WastLoader loader) {
-		return new ScriptInterpreter(loader, new PrintWriter(System.out));
+	protected ScriptExecutor<?> createScriptExecutor() {
+		return new ScriptInterpreter(new PrintWriter(System.out));
 	}
 }

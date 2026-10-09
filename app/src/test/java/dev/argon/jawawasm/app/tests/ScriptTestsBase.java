@@ -2,7 +2,7 @@ package dev.argon.jawawasm.app.tests;
 
 import com.google.errorprone.annotations.MustBeClosed;
 import dev.argon.jawawasm.app.ScriptExecutor;
-import dev.argon.jawawasm.app.wast.WastLoader;
+import dev.argon.jawawasm.format.wast.WastScriptParser;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.parallel.Execution;
@@ -49,17 +49,15 @@ public abstract class ScriptTestsBase {
 			.dynamicTest(Objects.requireNonNull(testFile.getFileName()).toString(), () -> runWastScript(testFile));
 	}
 
-	protected abstract ScriptExecutor<?> createScriptExecutor(WastLoader loader);
+	protected abstract ScriptExecutor<?> createScriptExecutor();
 
 	private void runWastScript(Path path) throws Throwable {
-		var loader = new WastLoader(Path.of("../cargo-tools/bin/wasm-tools").toAbsolutePath());
-
-		try(var scriptLoaded = loader.loadScript(path)) {
-			try(var interpreter = createScriptExecutor(loader)) {
+		try(var reader = Files.newBufferedReader(path)) {
+			var scriptLoaded = new WastScriptParser(reader, path.toString()).parseScript();
+			try(var interpreter = createScriptExecutor()) {
 				interpreter.initialize();
 				interpreter.executeScript(scriptLoaded);
 			}
 		}
-
 	}
 }
