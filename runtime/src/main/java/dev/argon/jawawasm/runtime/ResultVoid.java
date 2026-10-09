@@ -7,6 +7,7 @@ public sealed interface ResultVoid extends WasmResult {
 
 	/**
 	 * Creates a void result.
+	 * 
 	 * @return The void result.
 	 */
 	static ResultVoid of() {
@@ -15,7 +16,9 @@ public sealed interface ResultVoid extends WasmResult {
 
 	/**
 	 * Gets the end result values, running the trampolines if needed.
-	 * @param res The void result.
+	 * 
+	 * @param res
+	 *            The void result.
 	 * @return The end result values.
 	 */
 	static ResultVoid.EndResult get(ResultVoid res) {
@@ -35,6 +38,7 @@ public sealed interface ResultVoid extends WasmResult {
 	non-sealed interface Step extends ResultVoid {
 		/**
 		 * Runs the execution step.
+		 * 
 		 * @return The next void result.
 		 */
 		ResultVoid step();

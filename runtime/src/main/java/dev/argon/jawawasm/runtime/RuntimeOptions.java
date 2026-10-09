@@ -19,6 +19,7 @@ public final class RuntimeOptions {
 
 	/**
 	 * Gets the maximum size of each memory in pages.
+	 * 
 	 * @return The maximum page count, or zero for no runtime limit.
 	 */
 	public long maxMemory() {
@@ -27,6 +28,7 @@ public final class RuntimeOptions {
 
 	/**
 	 * Creates a builder with default options.
+	 * 
 	 * @return The builder.
 	 */
 	public static Builder builder() {
@@ -46,9 +48,12 @@ public final class RuntimeOptions {
 
 		/**
 		 * Sets the maximum size of each memory in pages.
-		 * @param maxMemory The maximum page count, or zero for no runtime limit.
+		 * 
+		 * @param maxMemory
+		 *            The maximum page count, or zero for no runtime limit.
 		 * @return This builder.
-		 * @throws IllegalArgumentException If the limit is negative.
+		 * @throws IllegalArgumentException
+		 *             If the limit is negative.
 		 */
 		public Builder maxMemory(long maxMemory) {
 			if(maxMemory < 0) {
@@ -60,6 +65,7 @@ public final class RuntimeOptions {
 
 		/**
 		 * Creates immutable options from the current builder settings.
+		 * 
 		 * @return The options.
 		 */
 		public RuntimeOptions build() {

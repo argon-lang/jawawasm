@@ -18,6 +18,10 @@ public class ScriptTestsClassLoader extends ScriptTestsBase {
 	@Override
 	protected ScriptExecutor<?> createScriptExecutor(WastLoader loader) {
 		int n = testNum.getAndIncrement();
-		return new ScriptReflectionExecutor("dev.argon.jawawasm.test.testscript" + n, loader, new PrintWriter(System.out));
+		return new ScriptReflectionExecutor(
+			"dev.argon.jawawasm.test.testscript" + n,
+			loader,
+			new PrintWriter(System.out)
+		);
 	}
 }

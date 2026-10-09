@@ -6,7 +6,8 @@ import java.util.List;
 
 /**
  * A recursive type.
- * @param subtypes The subtypes.
+ * 
+ * @param subtypes
+ *            The subtypes.
  */
-public record RecursiveType(ImmutableList<SubType> subtypes) {
-}
+public record RecursiveType(ImmutableList<SubType> subtypes) {}

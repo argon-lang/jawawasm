@@ -17,15 +17,16 @@ public final class ReflectionClassLoaderDriver {
 		try(var wasm = requireNonNull(ReflectionClassLoaderDriver.class.getResourceAsStream("reflection.wasm"))) {
 			var options = RuntimeOptions.builder().build();
 			var engine = new ReflectionEngine("test.generated", () -> options);
-			var module = engine.instantiateModule(new ModuleReader(wasm).readModule(),
-				name -> { throw new AssertionError("Unexpected import: " + name); });
-			var answer = (ReflectionExport.FunctionExport) requireNonNull(module.exports().get("answer"));
-			if(ResultI32.get((ResultI32) requireNonNull(answer.method().invoke(module.module()))).item0 != 42) {
+			var module = engine.instantiateModule(new ModuleReader(wasm).readModule(), name -> {
+				throw new AssertionError("Unexpected import: " + name);
+			});
+			var answer = (ReflectionExport.FunctionExport)requireNonNull(module.exports().get("answer"));
+			if(ResultI32.get((ResultI32)requireNonNull(answer.method().invoke(module.module()))).item0 != 42) {
 				return false;
 			}
-			var trap = (ReflectionExport.FunctionExport) requireNonNull(module.exports().get("trap"));
+			var trap = (ReflectionExport.FunctionExport)requireNonNull(module.exports().get("trap"));
 			try {
-				ResultI32.get((ResultI32) requireNonNull(trap.method().invoke(module.module())));
+				ResultI32.get((ResultI32)requireNonNull(trap.method().invoke(module.module())));
 			}
 			catch(InvocationTargetException e) {
 				if((e.getCause() instanceof UnreachableTrap)) {

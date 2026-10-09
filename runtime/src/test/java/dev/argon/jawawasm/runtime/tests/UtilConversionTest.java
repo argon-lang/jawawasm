@@ -21,7 +21,7 @@ public class UtilConversionTest {
 		assertEquals(0x7ffffffffffffc00L, Util.truncF64ToS64(Math.nextDown(0x1p63)));
 		assertThrows(ArithmeticException.class, () -> Util.truncF64ToS64(Math.nextDown(-0x1p63)));
 		assertThrows(ArithmeticException.class, () -> Util.truncF64ToS64(0x1p63));
-		for(double value : new double[] {Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY}) {
+		for(double value : new double[]{Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY}) {
 			assertThrows(ArithmeticException.class, () -> Util.truncF64ToS32(value));
 			assertThrows(ArithmeticException.class, () -> Util.truncF64ToS64(value));
 		}
@@ -29,7 +29,7 @@ public class UtilConversionTest {
 
 	@Test
 	public void unsignedTruncationPreservesUpperHalfBitsAndAcceptsNegativeFractions() {
-		for(double value : new double[] {-0.0, 0.0, -Double.MIN_VALUE, Math.nextUp(-1.0)}) {
+		for(double value : new double[]{-0.0, 0.0, -Double.MIN_VALUE, Math.nextUp(-1.0)}) {
 			assertEquals(0, Util.truncF64ToU32(value));
 			assertEquals(0L, Util.truncF64ToU64(value));
 		}
@@ -41,7 +41,7 @@ public class UtilConversionTest {
 		assertEquals(-2048L, Util.truncF64ToU64(Math.nextDown(0x1p64)));
 		assertThrows(ArithmeticException.class, () -> Util.truncF64ToU32(0x1p32));
 		assertThrows(ArithmeticException.class, () -> Util.truncF64ToU64(0x1p64));
-		for(double value : new double[] {-1.0, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY}) {
+		for(double value : new double[]{-1.0, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY}) {
 			assertThrows(ArithmeticException.class, () -> Util.truncF64ToU32(value));
 			assertThrows(ArithmeticException.class, () -> Util.truncF64ToU64(value));
 		}
@@ -49,7 +49,7 @@ public class UtilConversionTest {
 
 	@Test
 	public void unsignedSaturationHandlesExceptionalValuesAndBothHalves() {
-		for(double value : new double[] {Double.NaN, Double.NEGATIVE_INFINITY, -1.0, -0.0, 0.0}) {
+		for(double value : new double[]{Double.NaN, Double.NEGATIVE_INFINITY, -1.0, -0.0, 0.0}) {
 			assertEquals(0L, Util.truncSatF64U64(value));
 			assertEquals(0L, Util.truncSatF32U64((float)value));
 		}
@@ -57,7 +57,7 @@ public class UtilConversionTest {
 		assertEquals(Long.MIN_VALUE, Util.truncSatF32U64(0x1p63f));
 		assertEquals(-2048L, Util.truncSatF64U64(Math.nextDown(0x1p64)));
 		assertEquals(-0x10000000000L, Util.truncSatF32U64(Math.nextDown(0x1p64f)));
-		for(double value : new double[] {0x1p64, Double.MAX_VALUE, Double.POSITIVE_INFINITY}) {
+		for(double value : new double[]{0x1p64, Double.MAX_VALUE, Double.POSITIVE_INFINITY}) {
 			assertEquals(-1L, Util.truncSatF64U64(value));
 			assertEquals(-1L, Util.truncSatF32U64((float)value));
 		}
@@ -81,8 +81,13 @@ public class UtilConversionTest {
 		}
 	}
 
-	private static void checkTruncation(double input, BigInteger min, BigInteger max, int width,
-			DoubleToLongFunction conversion) {
+	private static void checkTruncation(
+		double input,
+		BigInteger min,
+		BigInteger max,
+		int width,
+		DoubleToLongFunction conversion
+	) {
 		if(!Double.isFinite(input)) {
 			assertThrows(ArithmeticException.class, () -> conversion.applyAsLong(input));
 			return;
@@ -97,33 +102,44 @@ public class UtilConversionTest {
 	}
 
 	private static long saturatedUnsigned(double input, BigInteger max) {
-		if(Double.isNaN(input) || input <= 0) return 0L;
-		if(input == Double.POSITIVE_INFINITY) return -1L;
+		if(Double.isNaN(input) || input <= 0)
+			return 0L;
+		if(input == Double.POSITIVE_INFINITY)
+			return -1L;
 		return new BigDecimal(input).toBigInteger().min(max).longValue();
 	}
 
 	@Test
 	public void unsignedIntegerConversionRoundsTiesToEvenWithoutDoubleRounding() {
 		// Odd half-way values expose a lost sticky bit in the upper unsigned range.
-		for(long value : new long[] {0L, 1L, -1L, Long.MIN_VALUE, Long.MAX_VALUE,
-				Long.MIN_VALUE + (1L << 39) - 1, Long.MIN_VALUE + (1L << 39), Long.MIN_VALUE + (1L << 39) + 1,
-				Long.MIN_VALUE + 1023, Long.MIN_VALUE + 1024, Long.MIN_VALUE + 1025}) {
+		for(long value : new long[]{0L, 1L, -1L, Long.MIN_VALUE, Long.MAX_VALUE, Long.MIN_VALUE + (1L << 39) - 1,
+				Long.MIN_VALUE + (1L << 39), Long.MIN_VALUE + (1L << 39) + 1, Long.MIN_VALUE + 1023,
+				Long.MIN_VALUE + 1024, Long.MIN_VALUE + 1025}) {
 			checkUnsignedRounding(value);
 		}
 		for(int shift = 0; shift < 64; ++shift) {
-			for(long delta = -2; delta <= 2; ++delta) checkUnsignedRounding((1L << shift) + delta);
+			for(long delta = -2; delta <= 2; ++delta)
+				checkUnsignedRounding((1L << shift) + delta);
 		}
 		Random random = new Random(64);
-		for(int i = 0; i < 100000; ++i) checkUnsignedRounding(random.nextLong());
-		assertEquals(Float.floatToRawIntBits(Math.nextUp(0x1p63f)),
-				Float.floatToRawIntBits(Util.u64ToF32(Long.MIN_VALUE + (1L << 39) + 1)));
-		assertEquals(Double.doubleToRawLongBits(Math.nextUp(0x1p63)),
-				Double.doubleToRawLongBits(Util.u64ToF64(Long.MIN_VALUE + 1025)));
+		for(int i = 0; i < 100000; ++i)
+			checkUnsignedRounding(random.nextLong());
+		assertEquals(
+			Float.floatToRawIntBits(Math.nextUp(0x1p63f)),
+			Float.floatToRawIntBits(Util.u64ToF32(Long.MIN_VALUE + (1L << 39) + 1))
+		);
+		assertEquals(
+			Double.doubleToRawLongBits(Math.nextUp(0x1p63)),
+			Double.doubleToRawLongBits(Util.u64ToF64(Long.MIN_VALUE + 1025))
+		);
 	}
 
 	private static void checkUnsignedRounding(long input) {
 		BigInteger unsigned = BigInteger.valueOf(input).and(BigInteger.ONE.shiftLeft(64).subtract(BigInteger.ONE));
 		assertEquals(Float.floatToRawIntBits(unsigned.floatValue()), Float.floatToRawIntBits(Util.u64ToF32(input)));
-		assertEquals(Double.doubleToRawLongBits(unsigned.doubleValue()), Double.doubleToRawLongBits(Util.u64ToF64(input)));
+		assertEquals(
+			Double.doubleToRawLongBits(unsigned.doubleValue()),
+			Double.doubleToRawLongBits(Util.u64ToF64(input))
+		);
 	}
 }

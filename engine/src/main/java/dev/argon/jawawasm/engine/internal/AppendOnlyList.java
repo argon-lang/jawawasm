@@ -9,14 +9,19 @@ import java.util.Objects;
 import java.util.RandomAccess;
 
 /**
- * An append-only list with constant-time clones sharing their backing array.
- * A clone detaches on its first append; the original can continue appending
- * to its array without affecting the clone. Elements are shallowly shared.
- * This class is not thread-safe.
- * @param <E> the element type
+ * An append-only list with constant-time clones sharing their backing array. A
+ * clone detaches on its first append; the original can continue appending to
+ * its array without affecting the clone. Elements are shallowly shared. This
+ * class is not thread-safe.
+ * 
+ * @param <E>
+ *            the element type
  * @hidden
  */
-public final class AppendOnlyList<E extends @Nullable Object> extends AbstractList<E> implements RandomAccess, Cloneable {
+public final class AppendOnlyList<E extends @Nullable Object> extends AbstractList<E>
+	implements
+		RandomAccess,
+		Cloneable {
 	private @Nullable Object[] elements;
 	private int size;
 	private boolean shared;
@@ -41,7 +46,7 @@ public final class AppendOnlyList<E extends @Nullable Object> extends AbstractLi
 	@SuppressWarnings({"unchecked", "NullAway"})
 	public E get(int index) {
 		Objects.checkIndex(index, size);
-		return (E) elements[index];
+		return (E)elements[index];
 	}
 
 	@Override
@@ -95,8 +100,8 @@ public final class AppendOnlyList<E extends @Nullable Object> extends AbstractLi
 		if(shared || required > elements.length) {
 			int capacity = elements.length;
 			if(required > capacity) {
-				long grownCapacity = (long) capacity + capacity / 2;
-				capacity = (int) Math.max(required, Math.min(grownCapacity, Integer.MAX_VALUE));
+				long grownCapacity = (long)capacity + capacity / 2;
+				capacity = (int)Math.max(required, Math.min(grownCapacity, Integer.MAX_VALUE));
 			}
 			elements = Arrays.copyOf(elements, capacity);
 			shared = false;

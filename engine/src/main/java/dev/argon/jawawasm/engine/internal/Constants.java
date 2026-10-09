@@ -4,6 +4,7 @@ import java.lang.constant.ClassDesc;
 
 /**
  * Internal use only.
+ * 
  * @hidden
  */
 public class Constants {

@@ -10,19 +10,22 @@ import java.util.function.UnaryOperator;
 
 /**
  * Internal use only.
+ * 
  * @hidden
  */
-// Identity comparisons detect unchanged immutable children without structural traversal.
+// Identity comparisons detect unchanged immutable children without structural
+// traversal.
 @SuppressWarnings("ReferenceEquality")
 public sealed abstract class TypeResolver permits TypeClosure, TypeRoll, TypeUnroll {
 	TypeResolver() {}
 
 	public abstract HeapType resolveTypeIdx(TypeIdx idx);
+
 	public abstract HeapType resolveRecTypeIdx(RecTypeIdx idx);
 
 	public ValType resolveValType(ValType t) {
 		return switch(t) {
-			case BotType(), NumType _, VecType _ -> t;
+			case BotType(),NumType _,VecType _ -> t;
 
 			case RefType refType -> resolveRefType(refType);
 		};
@@ -35,7 +38,7 @@ public sealed abstract class TypeResolver permits TypeClosure, TypeRoll, TypeUnr
 
 	public HeapType resolveHeapType(HeapType t) {
 		return switch(t) {
-			case HeapType.AbstractHeapType _, BotType() -> t;
+			case HeapType.AbstractHeapType _,BotType() -> t;
 			case TypeIdx idx -> resolveTypeIdx(idx);
 			case RecTypeIdx idx -> resolveRecTypeIdx(idx);
 			case DefType defType -> resolveDefType(defType);
@@ -75,7 +78,6 @@ public sealed abstract class TypeResolver permits TypeClosure, TypeRoll, TypeUnr
 		};
 	}
 
-
 	public DefType resolveDefType(DefType t) {
 		var recursiveType = resolveRecursiveType(t.recursiveType());
 		return recursiveType == t.recursiveType() ? t : new DefType(recursiveType, t.index());
@@ -90,7 +92,8 @@ public sealed abstract class TypeResolver permits TypeClosure, TypeRoll, TypeUnr
 		var superTypes = resolveList(subType.superTypes(), this::resolveHeapType);
 		var compositeType = resolveCompositeType(subType.compositeType());
 		return superTypes == subType.superTypes() && compositeType == subType.compositeType()
-			? subType : new SubType(subType.isFinal(), superTypes, compositeType);
+			? subType
+			: new SubType(subType.isFinal(), superTypes, compositeType);
 	}
 
 	public FieldType resolveFieldType(FieldType t) {
@@ -111,11 +114,13 @@ public sealed abstract class TypeResolver permits TypeClosure, TypeRoll, TypeUnr
 			T resolved = resolve.apply(original);
 			if(builder == null && resolved != original) {
 				builder = ImmutableList.builderWithExpectedSize(items.size());
-				for(int j = 0; j < i; ++j) builder.add(items.get(j));
+				for(int j = 0; j < i; ++j)
+					builder.add(items.get(j));
 			}
-			if(builder != null) builder.add(resolved);
+			if(builder != null)
+				builder.add(resolved);
 		}
-		return builder == null ? (ImmutableList<T>) items : builder.build();
+		return builder == null ? (ImmutableList<T>)items : builder.build();
 	}
 
 	public TableType resolveTableType(TableType t) {

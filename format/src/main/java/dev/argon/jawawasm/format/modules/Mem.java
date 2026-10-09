@@ -4,7 +4,8 @@ import dev.argon.jawawasm.format.types.MemType;
 
 /**
  * A memory section.
- * @param type The type of the memory.
+ * 
+ * @param type
+ *            The type of the memory.
  */
-public record Mem(MemType type) {
-}
+public record Mem(MemType type) {}

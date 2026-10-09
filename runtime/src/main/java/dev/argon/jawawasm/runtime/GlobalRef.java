@@ -4,12 +4,16 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * A mutable global for objects.
- * @param <T> The type of the global.
+ * 
+ * @param <T>
+ *            The type of the global.
  */
 public class GlobalRef<T extends @Nullable Object> {
 	/**
 	 * Creates a global
-	 * @param value The initial value.
+	 * 
+	 * @param value
+	 *            The initial value.
 	 */
 	public GlobalRef(T value) {
 		this.value = value;
@@ -19,6 +23,7 @@ public class GlobalRef<T extends @Nullable Object> {
 
 	/**
 	 * Gets the global value.
+	 * 
 	 * @return The value;
 	 */
 	public T get() {
@@ -27,7 +32,9 @@ public class GlobalRef<T extends @Nullable Object> {
 
 	/**
 	 * Sets the global value.
-	 * @param value The new value
+	 * 
+	 * @param value
+	 *            The new value
 	 */
 	public void set(T value) {
 		this.value = value;

@@ -20,42 +20,34 @@ import java.util.stream.Stream;
 @Execution(ExecutionMode.CONCURRENT)
 public abstract class ScriptTestsBase {
 
-	private static final String[] testDirs = {
-		"../webassembly-testsuite",
-		"../webassembly-testsuite/proposals/compact-import-section",
-		"../webassembly-testsuite/proposals/wide-arithmetic",
-		"../additional-tests"
-	};
+	private static final String[] testDirs = {"../webassembly-testsuite",
+			"../webassembly-testsuite/proposals/compact-import-section",
+			"../webassembly-testsuite/proposals/wide-arithmetic", "../additional-tests"};
 
-    @TestFactory
+	@TestFactory
 	@MustBeClosed
 	@SuppressWarnings("StreamResourceLeak")
 	public Stream<DynamicTest> wastScriptTests() throws IOException {
 		var seenFiles = new HashSet<String>();
 
-		return Arrays.stream(testDirs)
-			.flatMap(testDir -> {
-				try {
-					return Files.list(Path.of(testDir));
-				} catch (IOException e) {
-					throw new UncheckedIOException(e);
-				}
-			})
-			.filter(testFile -> {
-				var fileName = Objects.requireNonNull(testFile.getFileName()).toString();
+		return Arrays.stream(testDirs).flatMap(testDir -> {
+			try {
+				return Files.list(Path.of(testDir));
+			}
+			catch(IOException e) {
+				throw new UncheckedIOException(e);
+			}
+		}).filter(testFile -> {
+			var fileName = Objects.requireNonNull(testFile.getFileName()).toString();
 
-				return Files.isRegularFile(testFile) &&
-					fileName.endsWith(".wast") &&
-					seenFiles.add(fileName);
-			})
-			.map(this::createTest);
+			return Files.isRegularFile(testFile) && fileName.endsWith(".wast") && seenFiles.add(fileName);
+		}).map(this::createTest);
 	}
-
 
 	private DynamicTest createTest(Path testFile) {
-		return DynamicTest.dynamicTest(Objects.requireNonNull(testFile.getFileName()).toString(), () -> runWastScript(testFile));
+		return DynamicTest
+			.dynamicTest(Objects.requireNonNull(testFile.getFileName()).toString(), () -> runWastScript(testFile));
 	}
-
 
 	protected abstract ScriptExecutor<?> createScriptExecutor(WastLoader loader);
 

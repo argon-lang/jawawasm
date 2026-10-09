@@ -13,21 +13,27 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 
 	/**
 	 * Get the length of the array.
+	 * 
 	 * @return The length of the array.
 	 */
 	public abstract int length();
 
 	/**
 	 * Gets the element at index.
-	 * @param index The index.
+	 * 
+	 * @param index
+	 *            The index.
 	 * @return The element at the index.
 	 */
 	public abstract @Nullable Object get(int index);
 
 	/**
 	 * Sets the element at index.
-	 * @param index The index.
-	 * @param value The new value.
+	 * 
+	 * @param index
+	 *            The index.
+	 * @param value
+	 *            The new value.
 	 */
 	public abstract void set(int index, @Nullable Object value);
 
@@ -116,7 +122,9 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 
 		/**
 		 * Gets a byte.
-		 * @param index The index.
+		 * 
+		 * @param index
+		 *            The index.
 		 * @return The byte at the index.
 		 */
 		public byte getByte(int index) {
@@ -125,8 +133,11 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 
 		/**
 		 * Sets a byte.
-		 * @param index The index.
-		 * @param value The new byte value.
+		 * 
+		 * @param index
+		 *            The index.
+		 * @param value
+		 *            The new byte value.
 		 */
 		public void setByte(int index, byte value) {
 			values[index] = value;
@@ -168,7 +179,9 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 
 		/**
 		 * Gets a short.
-		 * @param index The index.
+		 * 
+		 * @param index
+		 *            The index.
 		 * @return The short at the index.
 		 */
 		public short getShort(int index) {
@@ -177,8 +190,11 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 
 		/**
 		 * Sets a short.
-		 * @param index The index.
-		 * @param value The new short value.
+		 * 
+		 * @param index
+		 *            The index.
+		 * @param value
+		 *            The new short value.
 		 */
 		public void setShort(int index, short value) {
 			values[index] = value;
@@ -220,7 +236,9 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 
 		/**
 		 * Gets an int.
-		 * @param index The index.
+		 * 
+		 * @param index
+		 *            The index.
 		 * @return The int at the index.
 		 */
 		public int getInt(int index) {
@@ -229,8 +247,11 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 
 		/**
 		 * Sets an int.
-		 * @param index The index.
-		 * @param value The new int value.
+		 * 
+		 * @param index
+		 *            The index.
+		 * @param value
+		 *            The new int value.
 		 */
 		public void setInt(int index, int value) {
 			values[index] = value;
@@ -272,7 +293,9 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 
 		/**
 		 * Gets a long.
-		 * @param index The index.
+		 * 
+		 * @param index
+		 *            The index.
 		 * @return The long at the index.
 		 */
 		public long getLong(int index) {
@@ -281,8 +304,11 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 
 		/**
 		 * Sets a long.
-		 * @param index The index.
-		 * @param value The new long value.
+		 * 
+		 * @param index
+		 *            The index.
+		 * @param value
+		 *            The new long value.
 		 */
 		public void setLong(int index, long value) {
 			values[index] = value;
@@ -324,7 +350,9 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 
 		/**
 		 * Gets a float.
-		 * @param index The index.
+		 * 
+		 * @param index
+		 *            The index.
 		 * @return The float at the index.
 		 */
 		public float getFloat(int index) {
@@ -333,8 +361,11 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 
 		/**
 		 * Sets a float.
-		 * @param index The index.
-		 * @param value The new float value.
+		 * 
+		 * @param index
+		 *            The index.
+		 * @param value
+		 *            The new float value.
 		 */
 		public void setFloat(int index, float value) {
 			values[index] = value;
@@ -376,7 +407,9 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 
 		/**
 		 * Gets a double.
-		 * @param index The index.
+		 * 
+		 * @param index
+		 *            The index.
 		 * @return The double at the index.
 		 */
 		public double getDouble(int index) {
@@ -385,8 +418,11 @@ public sealed abstract class DynamicWasmArray implements DynamicWasmEq {
 
 		/**
 		 * Sets a double.
-		 * @param index The index.
-		 * @param value The new double value.
+		 * 
+		 * @param index
+		 *            The index.
+		 * @param value
+		 *            The new double value.
 		 */
 		public void setDouble(int index, double value) {
 			values[index] = value;

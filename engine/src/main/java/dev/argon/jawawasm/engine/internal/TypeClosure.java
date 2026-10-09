@@ -5,10 +5,10 @@ import dev.argon.jawawasm.format.types.RecTypeIdx;
 
 /**
  * Internal use only.
+ * 
  * @hidden
  */
 public non-sealed abstract class TypeClosure extends TypeResolver {
-
 
 	@Override
 	public HeapType resolveRecTypeIdx(RecTypeIdx idx) {

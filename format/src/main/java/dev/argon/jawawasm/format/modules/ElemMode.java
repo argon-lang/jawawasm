@@ -14,8 +14,11 @@ public sealed interface ElemMode {
 
 	/**
 	 * An active elem.
-	 * @param table The table.
-	 * @param offset The offset into the table.
+	 * 
+	 * @param table
+	 *            The table.
+	 * @param offset
+	 *            The offset into the table.
 	 */
 	public static record Active(TableIdx table, Expr offset) implements ElemMode {}
 

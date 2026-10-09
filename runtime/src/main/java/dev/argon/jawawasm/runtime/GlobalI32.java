@@ -6,7 +6,9 @@ package dev.argon.jawawasm.runtime;
 public class GlobalI32 {
 	/**
 	 * Creates a global i32
-	 * @param value The initial value.
+	 * 
+	 * @param value
+	 *            The initial value.
 	 */
 	public GlobalI32(int value) {
 		this.value = value;
@@ -16,6 +18,7 @@ public class GlobalI32 {
 
 	/**
 	 * Gets the global value.
+	 * 
 	 * @return The value;
 	 */
 	public int get() {
@@ -24,7 +27,9 @@ public class GlobalI32 {
 
 	/**
 	 * Sets the global value.
-	 * @param value The new value
+	 * 
+	 * @param value
+	 *            The new value
 	 */
 	public void set(int value) {
 		this.value = value;

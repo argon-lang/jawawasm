@@ -8,13 +8,12 @@ import java.util.List;
 
 /**
  * A function.
- * @param type The function type index.
- * @param locals The local variables.
- * @param body The function body.
+ * 
+ * @param type
+ *            The function type index.
+ * @param locals
+ *            The local variables.
+ * @param body
+ *            The function body.
  */
-public record Func(
-	TypeIdx type,
-	ImmutableList<ValType> locals,
-	Expr body
-) {
-}
+public record Func(TypeIdx type, ImmutableList<ValType> locals, Expr body) {}

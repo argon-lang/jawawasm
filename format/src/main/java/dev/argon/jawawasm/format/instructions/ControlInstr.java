@@ -21,13 +21,17 @@ public sealed interface ControlInstr extends Instr {
 
 		/**
 		 * A block that returns a value of a type represented by a type index.
-		 * @param type The type index.
+		 * 
+		 * @param type
+		 *            The type index.
 		 */
 		public static record OfIndex(TypeIdx type) implements BlockType {}
 
 		/**
 		 * A block that returns a value represented by a value type.
-		 * @param type The value type.
+		 * 
+		 * @param type
+		 *            The value type.
 		 */
 		public static record OfValType(ValType type) implements BlockType {}
 	}
@@ -44,29 +48,43 @@ public sealed interface ControlInstr extends Instr {
 
 	/**
 	 * WebAssembly `block` instruction.
-	 * @param type The type of the block.
-	 * @param body The body of the block.
+	 * 
+	 * @param type
+	 *            The type of the block.
+	 * @param body
+	 *            The body of the block.
 	 */
 	public static record Block(BlockType type, ImmutableList<Instr> body) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `loop` instruction.
-	 * @param type The type of the block.
-	 * @param body The body of the block.
+	 * 
+	 * @param type
+	 *            The type of the block.
+	 * @param body
+	 *            The body of the block.
 	 */
 	public static record Loop(BlockType type, ImmutableList<Instr> body) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `if` instruction.
-	 * @param type The type of the block.
-	 * @param thenBody The body of the block executed when true.
-	 * @param elseBody The body of the block executed when false.
+	 * 
+	 * @param type
+	 *            The type of the block.
+	 * @param thenBody
+	 *            The body of the block executed when true.
+	 * @param elseBody
+	 *            The body of the block executed when false.
 	 */
-	public static record If(BlockType type, ImmutableList<Instr> thenBody, ImmutableList<Instr> elseBody) implements ControlInstr {}
+	public static record If(BlockType type, ImmutableList<Instr> thenBody, ImmutableList<Instr> elseBody)
+		implements
+			ControlInstr {}
 
 	/**
 	 * WebAssembly `throw` instruction.
-	 * @param tag The exception tag index.
+	 * 
+	 * @param tag
+	 *            The exception tag index.
 	 */
 	public static record Throw(TagIdx tag) implements ControlInstr {}
 
@@ -77,48 +95,67 @@ public sealed interface ControlInstr extends Instr {
 
 	/**
 	 * WebAssembly `br` instruction.
-	 * @param label The branch target.
+	 * 
+	 * @param label
+	 *            The branch target.
 	 */
 	public static record Br(LabelIdx label) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `br_if` instruction.
-	 * @param label The branch target.
+	 * 
+	 * @param label
+	 *            The branch target.
 	 */
 	public static record Br_If(LabelIdx label) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `br_table` instruction.
-	 * @param labels The branch targets.
-	 * @param fallback The fallback branch target.
+	 * 
+	 * @param labels
+	 *            The branch targets.
+	 * @param fallback
+	 *            The fallback branch target.
 	 */
 	public static record Br_Table(ImmutableList<LabelIdx> labels, LabelIdx fallback) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `br_on_null` instruction.
-	 * @param label The branch target if the reference is null.
+	 * 
+	 * @param label
+	 *            The branch target if the reference is null.
 	 */
 	public static record Br_OnNull(LabelIdx label) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `br_on_non_null` instruction.
-	 * @param label The branch target if the reference is not null.
+	 * 
+	 * @param label
+	 *            The branch target if the reference is not null.
 	 */
 	public static record Br_OnNonNull(LabelIdx label) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `br_on_cast` instruction.
-	 * @param label The branch target if the cast succeeds.
-	 * @param t1 The source reference type.
-	 * @param t2 The destination reference type.
+	 * 
+	 * @param label
+	 *            The branch target if the cast succeeds.
+	 * @param t1
+	 *            The source reference type.
+	 * @param t2
+	 *            The destination reference type.
 	 */
 	public static record Br_OnCast(LabelIdx label, RefType t1, RefType t2) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `br_on_cast_fail` instruction.
-	 * @param label The branch target if the cast fails.
-	 * @param t1 The source reference type.
-	 * @param t2 The destination reference type.
+	 * 
+	 * @param label
+	 *            The branch target if the cast fails.
+	 * @param t1
+	 *            The source reference type.
+	 * @param t2
+	 *            The destination reference type.
 	 */
 	public static record Br_OnCastFail(LabelIdx label, RefType t1, RefType t2) implements ControlInstr {}
 
@@ -129,49 +166,71 @@ public sealed interface ControlInstr extends Instr {
 
 	/**
 	 * WebAssembly `call` instruction.
-	 * @param func The function to call.
+	 * 
+	 * @param func
+	 *            The function to call.
 	 */
 	public static record Call(FuncIdx func) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `call_ref` instruction.
-	 * @param funcType The function type.
+	 * 
+	 * @param funcType
+	 *            The function type.
 	 */
 	public static record Call_Ref(TypeIdx funcType) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `call_indirect` instruction.
-	 * @param table The table containing the function index.
-	 * @param funcType The function type.
+	 * 
+	 * @param table
+	 *            The table containing the function index.
+	 * @param funcType
+	 *            The function type.
 	 */
 	public static record Call_Indirect(TableIdx table, TypeIdx funcType) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `return_call` instruction.
-	 * @param func The function to call.
+	 * 
+	 * @param func
+	 *            The function to call.
 	 */
 	public static record Return_Call(FuncIdx func) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `return_call_ref` instruction.
-	 * @param funcType The function type.
+	 * 
+	 * @param funcType
+	 *            The function type.
 	 */
 	public static record Return_Call_Ref(TypeIdx funcType) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `return_call_indirect` instruction.
-	 * @param table The table containing the function index.
-	 * @param funcType The function type.
+	 * 
+	 * @param table
+	 *            The table containing the function index.
+	 * @param funcType
+	 *            The function type.
 	 */
 	public static record Return_Call_Indirect(TableIdx table, TypeIdx funcType) implements ControlInstr {}
 
 	/**
 	 * WebAssembly `try_table` instruction.
-	 * @param blockType The type of the block.
-	 * @param catchClauses The list of catch clauses.
-	 * @param body The body of the try block.
+	 * 
+	 * @param blockType
+	 *            The type of the block.
+	 * @param catchClauses
+	 *            The list of catch clauses.
+	 * @param body
+	 *            The body of the try block.
 	 */
-	public static record Try_Table(BlockType blockType, ImmutableList<CatchClause> catchClauses, ImmutableList<Instr> body) implements ControlInstr {}
+	public static record Try_Table(
+		BlockType blockType,
+		ImmutableList<CatchClause> catchClauses,
+		ImmutableList<Instr> body
+	) implements ControlInstr {}
 
 	/**
 	 * Represents a catch clause in a `try_table` instruction.
@@ -180,27 +239,37 @@ public sealed interface ControlInstr extends Instr {
 
 	/**
 	 * Represents a catch clause for a specific exception tag.
-	 * @param tagIdx The tag index.
-	 * @param labelIdx The branch target for the catch block.
+	 * 
+	 * @param tagIdx
+	 *            The tag index.
+	 * @param labelIdx
+	 *            The branch target for the catch block.
 	 */
 	public static record CatchTag(TagIdx tagIdx, LabelIdx labelIdx) implements CatchClause {}
 
 	/**
 	 * Represents a catch clause for a specific exception tag using a reference.
-	 * @param tagIdx The tag index.
-	 * @param labelIdx The branch target for the catch block.
+	 * 
+	 * @param tagIdx
+	 *            The tag index.
+	 * @param labelIdx
+	 *            The branch target for the catch block.
 	 */
 	public static record CatchTagRef(TagIdx tagIdx, LabelIdx labelIdx) implements CatchClause {}
 
 	/**
 	 * Represents a catch clause that catches all exceptions.
-	 * @param labelIdx The branch target for the catch block.
+	 * 
+	 * @param labelIdx
+	 *            The branch target for the catch block.
 	 */
 	public static record CatchAll(LabelIdx labelIdx) implements CatchClause {}
 
 	/**
 	 * Represents a catch clause that catches all exceptions using a reference.
-	 * @param labelIdx The branch target for the catch block.
+	 * 
+	 * @param labelIdx
+	 *            The branch target for the catch block.
 	 */
 	public static record CatchAllRef(LabelIdx labelIdx) implements CatchClause {}
 }

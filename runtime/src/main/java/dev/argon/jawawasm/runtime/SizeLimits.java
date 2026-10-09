@@ -13,18 +13,21 @@ import java.lang.annotation.Target;
 public @interface SizeLimits {
 	/**
 	 * The type of the address.
+	 * 
 	 * @return The address type.
 	 */
 	AddrType addressType();
 
 	/**
 	 * The minimum size allowed.
+	 * 
 	 * @return The minimum size.
 	 */
 	long min();
 
 	/**
 	 * The maximum size allowed or -1 if unlimited.
+	 * 
 	 * @return The maximum size.
 	 */
 	long max() default -1;

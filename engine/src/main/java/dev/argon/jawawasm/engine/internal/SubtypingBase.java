@@ -7,13 +7,13 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Internal use only.
+ * 
  * @hidden
  */
 public abstract class SubtypingBase {
 
 	public abstract HeapType resolveTypeIdx(TypeIdx idx);
-	
-	
+
 	public boolean isSubtypeNum(NumType a, NumType b) {
 		return a.equals(b);
 	}
@@ -31,13 +31,8 @@ public abstract class SubtypingBase {
 			return true;
 		}
 
-		if(
-			(
-				a == HeapType.AbstractHeapType.I31 ||
-					a == HeapType.AbstractHeapType.STRUCT ||
-					a == HeapType.AbstractHeapType.ARRAY
-			) && isSubtypeHeap(HeapType.AbstractHeapType.EQ, b)
-		) {
+		if((a == HeapType.AbstractHeapType.I31 || a == HeapType.AbstractHeapType.STRUCT
+			|| a == HeapType.AbstractHeapType.ARRAY) && isSubtypeHeap(HeapType.AbstractHeapType.EQ, b)) {
 			return true;
 		}
 
@@ -79,10 +74,10 @@ public abstract class SubtypingBase {
 	private boolean isSubtypeDefTypeWith(DefType a, HeapType b) {
 		var aSubType = TypeUnroll.unroll(a);
 		var aExpand = aSubType.compositeType();
-		return (aExpand instanceof StructType && isSubtypeHeap(HeapType.AbstractHeapType.STRUCT, b)) ||
-			(aExpand instanceof ArrayType && isSubtypeHeap(HeapType.AbstractHeapType.ARRAY, b)) ||
-			(aExpand instanceof FuncType && isSubtypeHeap(HeapType.AbstractHeapType.FUNC, b)) ||
-			(b instanceof DefType bd && isSubtypeDefType(a, aSubType, bd));
+		return (aExpand instanceof StructType && isSubtypeHeap(HeapType.AbstractHeapType.STRUCT, b))
+			|| (aExpand instanceof ArrayType && isSubtypeHeap(HeapType.AbstractHeapType.ARRAY, b))
+			|| (aExpand instanceof FuncType && isSubtypeHeap(HeapType.AbstractHeapType.FUNC, b))
+			|| (b instanceof DefType bd && isSubtypeDefType(a, aSubType, bd));
 	}
 
 	public boolean isSubtypeDefType(DefType a, DefType b) {
@@ -112,10 +107,9 @@ public abstract class SubtypingBase {
 	}
 
 	public boolean isSubtypeVal(ValType a, ValType b) {
-		return (a instanceof NumType an && b instanceof NumType bn && isSubtypeNum(an, bn)) ||
-			(a instanceof VecType av && b instanceof VecType bv && isSubtypeVec(av, bv)) ||
-			(a instanceof RefType ar && b instanceof RefType br && isSubtypeRef(ar, br)) ||
-			a instanceof BotType;
+		return (a instanceof NumType an && b instanceof NumType bn && isSubtypeNum(an, bn))
+			|| (a instanceof VecType av && b instanceof VecType bv && isSubtypeVec(av, bv))
+			|| (a instanceof RefType ar && b instanceof RefType br && isSubtypeRef(ar, br)) || a instanceof BotType;
 	}
 
 	public boolean isSubtypeStorage(StorageType a, StorageType b) {
@@ -193,10 +187,7 @@ public abstract class SubtypingBase {
 	}
 
 	public boolean isSubtypeLimits(Limits a, Limits b) {
-		return a.min() >= b.min() && (
-			b.max() == null ||
-				(a.max() != null && a.max() <= b.max())
-		);
+		return a.min() >= b.min() && (b.max() == null || (a.max() != null && a.max() <= b.max()));
 	}
 
 	public boolean isSubtypeLimitsIgnoreMin(Limits a, Limits b) {
@@ -204,15 +195,13 @@ public abstract class SubtypingBase {
 	}
 
 	public boolean isSubtypeTable(TableType a, TableType b) {
-		return a.addrType() == b.addrType() && isSubtypeLimits(a.limits(), b.limits()) &&
-			isSubtypeRef(a.elementType(), b.elementType()) &&
-			isSubtypeRef(b.elementType(), a.elementType());
+		return a.addrType() == b.addrType() && isSubtypeLimits(a.limits(), b.limits())
+			&& isSubtypeRef(a.elementType(), b.elementType()) && isSubtypeRef(b.elementType(), a.elementType());
 	}
 
 	public boolean isSubtypeTableIgnoreMin(TableType a, TableType b) {
-		return a.addrType() == b.addrType() && isSubtypeLimitsIgnoreMin(a.limits(), b.limits()) &&
-			isSubtypeRef(a.elementType(), b.elementType()) &&
-			isSubtypeRef(b.elementType(), a.elementType());
+		return a.addrType() == b.addrType() && isSubtypeLimitsIgnoreMin(a.limits(), b.limits())
+			&& isSubtypeRef(a.elementType(), b.elementType()) && isSubtypeRef(b.elementType(), a.elementType());
 	}
 
 	public boolean isSubtypeMemory(MemType a, MemType b) {
@@ -226,7 +215,8 @@ public abstract class SubtypingBase {
 	public boolean isSubtypeGlobal(GlobalType a, GlobalType b) {
 		return switch(a.mutability()) {
 			case Const -> b.mutability() == Mut.Const && isSubtypeVal(a.type(), b.type());
-			case Var -> b.mutability() == Mut.Var && isSubtypeVal(a.type(), b.type()) && isSubtypeVal(b.type(), a.type());
+			case Var ->
+				b.mutability() == Mut.Var && isSubtypeVal(a.type(), b.type()) && isSubtypeVal(b.type(), a.type());
 		};
 	}
 

@@ -6,8 +6,10 @@ import java.util.Map;
 
 /**
  * A WebAssembly module accessed by reflection.
- * @param module The module.
- * @param exports The exports for the module.
+ * 
+ * @param module
+ *            The module.
+ * @param exports
+ *            The exports for the module.
  */
-public record ReflectionModule(WasmModule module, Map<String, ReflectionExport> exports) {
-}
+public record ReflectionModule(WasmModule module, Map<String, ReflectionExport> exports) {}

@@ -27,14 +27,17 @@ class ReferenceWalker {
 			case ElemMode.Active active -> {
 				walkExpr(active.offset());
 			}
-			case ElemMode.Declarative declarative -> {}
-			case ElemMode.Passive passive -> {}
+			case ElemMode.Declarative declarative -> {
+			}
+			case ElemMode.Passive passive -> {
+			}
 		}
 	}
 
 	public void walkData(Data data) {
 		switch(data.mode()) {
-			case DataMode.Passive() -> {}
+			case DataMode.Passive() -> {
+			}
 			case DataMode.Active active -> walkExpr(active.offset());
 		}
 	}
@@ -62,7 +65,8 @@ class ReferenceWalker {
 			case ControlInstr.Call(var funcIdx) -> context.addRef(funcIdx);
 			case ControlInstr.Return_Call(var funcIdx) -> context.addRef(funcIdx);
 			case ReferenceInstr.Ref_Func(var funcIdx) -> context.addRef(funcIdx);
-			default -> {}
+			default -> {
+			}
 		}
 	}
 

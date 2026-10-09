@@ -8,12 +8,14 @@ public non-sealed abstract class WasmResourceGenerator implements WasmOutputGene
 
 	/**
 	 * Gets the name of the resource.
+	 * 
 	 * @return The name of the resource.
 	 */
 	public abstract String resourceName();
 
 	/**
 	 * Generate the resource.
+	 * 
 	 * @return The resource data.
 	 */
 	public abstract byte[] generate();

@@ -18,8 +18,11 @@ import java.util.zip.ZipFile;
 final class AOTClasspathLookup {
 	private AOTClasspathLookup() {}
 
-
-	public static @Nullable ClassModel loadClassModel(ClassFile classFile, ImmutableList<Path> classPath, ClassDesc classDesc) throws IOException {
+	public static @Nullable ClassModel loadClassModel(
+		ClassFile classFile,
+		ImmutableList<Path> classPath,
+		ClassDesc classDesc
+	) throws IOException {
 		for(var path : classPath) {
 			if(Files.isDirectory(path)) {
 				var parts = Splitter.on('.').split(classDesc.packageName());
@@ -40,7 +43,8 @@ final class AOTClasspathLookup {
 						entryName = classDesc.displayName() + ".class";
 					}
 					else {
-						entryName = classDesc.packageName().replace('.', '/') + "/" + classDesc.displayName() + ".class";
+						entryName = classDesc.packageName().replace('.', '/') + "/" + classDesc.displayName()
+							+ ".class";
 					}
 
 					var classFileEntry = zipFile.getEntry(entryName);

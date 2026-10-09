@@ -6,7 +6,9 @@ package dev.argon.jawawasm.runtime;
 public class GlobalF64 {
 	/**
 	 * Creates a global f64
-	 * @param value The initial value.
+	 * 
+	 * @param value
+	 *            The initial value.
 	 */
 	public GlobalF64(double value) {
 		this.value = value;
@@ -16,6 +18,7 @@ public class GlobalF64 {
 
 	/**
 	 * Gets the global value.
+	 * 
 	 * @return The value;
 	 */
 	public double get() {
@@ -24,7 +27,9 @@ public class GlobalF64 {
 
 	/**
 	 * Sets the global value.
-	 * @param value The new value
+	 * 
+	 * @param value
+	 *            The new value
 	 */
 	public void set(double value) {
 		this.value = value;

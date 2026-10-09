@@ -7,6 +7,7 @@ public interface RuntimeContext {
 
 	/**
 	 * Gets the runtime options for this context.
+	 * 
 	 * @return The runtime options.
 	 */
 	RuntimeOptions options();

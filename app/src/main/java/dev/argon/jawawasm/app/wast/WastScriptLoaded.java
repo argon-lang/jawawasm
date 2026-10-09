@@ -12,7 +12,6 @@ public class WastScriptLoaded implements Closeable {
 		this.script = script;
 	}
 
-
 	private final Path dir;
 	private final WastScript script;
 

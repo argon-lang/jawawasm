@@ -35,7 +35,9 @@ import static java.lang.constant.ConstantDescs.*;
 class AOTModuleLoader {
 	/**
 	 * Creates a module loader.
-	 * @param compiler The compiler to be notified of loaded types.
+	 * 
+	 * @param compiler
+	 *            The compiler to be notified of loaded types.
 	 */
 	public AOTModuleLoader(ModuleCompiler compiler, ImmutableList<Path> classPath) {
 		this.compiler = compiler;
@@ -44,7 +46,6 @@ class AOTModuleLoader {
 
 	private final ModuleCompiler compiler;
 	private final ImmutableList<Path> classPath;
-
 
 	private static final ClassDesc CD_WasmExport = ClassDesc.of("dev.argon.jawawasm.runtime.WasmExport");
 	private static final ClassDesc CD_WasmTable = ClassDesc.of("dev.argon.jawawasm.runtime.WasmTable");
@@ -61,7 +62,8 @@ class AOTModuleLoader {
 	private static final ClassDesc CD_Nullable = ClassDesc.of("org.jspecify.annotations.Nullable");
 	private static final ClassDesc CD_WasmFunction = ClassDesc.of("dev.argon.jawawasm.runtime.WasmFunction");
 	private static final ClassDesc CD_NoneType = ClassDesc.of("dev.argon.jawawasm.runtime.NoneType");
-	private static final ClassDesc CD_WebAssemblyException = ClassDesc.of("dev.argon.jawawasm.runtime.WebAssemblyException");
+	private static final ClassDesc CD_WebAssemblyException = ClassDesc
+		.of("dev.argon.jawawasm.runtime.WebAssemblyException");
 	private static final ClassDesc CD_ExternRef = ClassDesc.of("dev.argon.jawawasm.runtime.ExternRef");
 	private static final ClassDesc CD_WasmEq = ClassDesc.of("dev.argon.jawawasm.runtime.WasmEq");
 	private static final ClassDesc CD_I31 = ClassDesc.of("dev.argon.jawawasm.runtime.I31");
@@ -70,17 +72,13 @@ class AOTModuleLoader {
 
 	private static Optional<Annotation> getAnnotation(List<Annotation> annotations, ClassDesc annotationType) {
 		return annotations.stream()
-			.filter(a -> ClassDesc.ofDescriptor(a.className().stringValue()).equals(annotationType))
-			.findFirst();
+			.filter(a -> ClassDesc.ofDescriptor(a.className().stringValue()).equals(annotationType)).findFirst();
 	}
 
 	private static Optional<AnnotationValue> getAnnotationValue(Annotation annotation, String name) {
-		return annotation.elements().stream()
-			.filter(e -> e.name().stringValue().equals(name))
-			.map(AnnotationElement::value)
-			.findFirst();
+		return annotation.elements().stream().filter(e -> e.name().stringValue().equals(name))
+			.map(AnnotationElement::value).findFirst();
 	}
-
 
 	private ClassModel loadClassModel(ClassDesc classDesc) throws ModuleFormatException {
 		ClassModel model;
@@ -98,56 +96,42 @@ class AOTModuleLoader {
 		return model;
 	}
 
-
 	private static Iterable<ClassDesc> nestedClasses(ClassModel model) {
 		var attribute = model.findAttribute(Attributes.innerClasses());
 		if(attribute.isEmpty()) {
 			return List.of();
 		}
-		return attribute.get().classes().stream()
-			.filter(ic ->
-				ic.outerClass()
-					.map(o -> o.asInternalName()
-						.equals(model.thisClass().asInternalName()))
-					.orElse(false))
-			.map(ic -> ic.innerClass().asSymbol())
-			.toList();
+		return attribute.get().classes().stream().filter(
+			ic -> ic.outerClass().map(o -> o.asInternalName().equals(model.thisClass().asInternalName())).orElse(false)
+		).map(ic -> ic.innerClass().asSymbol()).toList();
 	}
 
 	private static ClassDesc getEnclosingClass(ClassModel model) throws ModuleFormatException {
-		return model.findAttribute(Attributes.innerClasses())
-			.stream()
-			.flatMap(attr -> attr.classes().stream())
+		return model.findAttribute(Attributes.innerClasses()).stream().flatMap(attr -> attr.classes().stream())
 			.filter(ic -> ic.innerClass().asInternalName().equals(model.thisClass().asInternalName()))
-			.flatMap(ic -> ic.outerClass().stream())
-			.map(ClassEntry::asSymbol)
-			.findFirst()
+			.flatMap(ic -> ic.outerClass().stream()).map(ClassEntry::asSymbol).findFirst()
 			.orElseThrow(() -> new ModuleFormatException("Class has no enclosing class"));
 	}
 
 	private static sealed interface TypeInfo {
 		List<Annotation> annotations();
 	}
-	private static record KnownTypeInfo(
-		ClassDesc classType,
-		List<TypeInfo> typeArgs,
-		List<Annotation> annotations
-	) implements TypeInfo {}
+	private static record KnownTypeInfo(ClassDesc classType, List<TypeInfo> typeArgs, List<Annotation> annotations)
+		implements
+			TypeInfo {}
 
 	private static record TypeVarInfo(String name, List<Annotation> annotations) implements TypeInfo {}
 
 	private static record ArrayTypeInfo(TypeInfo elementType, List<Annotation> annotations) implements TypeInfo {}
 
-	private static record MethodTypeInfo(
-		List<TypeInfo> paramTypes,
-		List<String> typeParams,
-		TypeInfo returnType
-	) {}
+	private static record MethodTypeInfo(List<TypeInfo> paramTypes, List<String> typeParams, TypeInfo returnType) {}
 
-	private static TypeInfo getTypeInfo(Signature sig, List<TypeAnnotation.TypePathComponent> path, List<TypeAnnotation> annotations) throws ModuleFormatException {
-		var anns = annotations.stream()
-			.filter(a -> a.targetPath().equals(path))
-			.map(TypeAnnotation::annotation)
+	private static TypeInfo getTypeInfo(
+		Signature sig,
+		List<TypeAnnotation.TypePathComponent> path,
+		List<TypeAnnotation> annotations
+	) throws ModuleFormatException {
+		var anns = annotations.stream().filter(a -> a.targetPath().equals(path)).map(TypeAnnotation::annotation)
 			.toList();
 
 		if(sig instanceof Signature.BaseTypeSig base) {
@@ -161,7 +145,8 @@ class AOTModuleLoader {
 				Signature.TypeArg typeArg = args.get(i);
 
 				var nestedPath = new ArrayList<>(path);
-				nestedPath.add(TypeAnnotation.TypePathComponent.of(TypeAnnotation.TypePathComponent.Kind.INNER_TYPE, i));
+				nestedPath
+					.add(TypeAnnotation.TypePathComponent.of(TypeAnnotation.TypePathComponent.Kind.INNER_TYPE, i));
 
 				if(typeArg instanceof Signature.TypeArg.Bounded bounded) {
 					typeArgs.add(getTypeInfo(bounded.boundType(), nestedPath, annotations));
@@ -171,11 +156,7 @@ class AOTModuleLoader {
 				}
 			}
 
-			return new KnownTypeInfo(
-				ct.classDesc(),
-				typeArgs,
-				anns
-			);
+			return new KnownTypeInfo(ct.classDesc(), typeArgs, anns);
 		}
 		else if(sig instanceof Signature.TypeVarSig tv) {
 			return new TypeVarInfo(tv.identifier(), anns);
@@ -202,7 +183,7 @@ class AOTModuleLoader {
 		List<String> typeParams;
 		Signature returnSig;
 
-		if (signatureAttr != null) {
+		if(signatureAttr != null) {
 			var sig = signatureAttr.asMethodSignature();
 			paramSigs = sig.arguments();
 			typeParams = sig.typeParameters().stream().map(Signature.TypeParam::identifier).toList();
@@ -218,20 +199,17 @@ class AOTModuleLoader {
 		var paramTypeInfos = ImmutableList.<TypeInfo>builder();
 		for(int i = 0; i < paramSigs.size(); i++) {
 			final int index = i;
-			var annotations = typeAnns.stream()
-				.filter(ta -> {
-					if (ta.targetInfo() instanceof TypeAnnotation.FormalParameterTarget fpt) {
-						return fpt.formalParameterIndex() == index;
-					}
-					return false;
-				})
-				.toList();
+			var annotations = typeAnns.stream().filter(ta -> {
+				if(ta.targetInfo() instanceof TypeAnnotation.FormalParameterTarget fpt) {
+					return fpt.formalParameterIndex() == index;
+				}
+				return false;
+			}).toList();
 
 			paramTypeInfos.add(getTypeInfo(paramSigs.get(i), List.of(), annotations));
 		}
 
-		var returnAnnotations = typeAnns.stream()
-			.filter(ta -> ta.targetInfo() instanceof TypeAnnotation.EmptyTarget)
+		var returnAnnotations = typeAnns.stream().filter(ta -> ta.targetInfo() instanceof TypeAnnotation.EmptyTarget)
 			.toList();
 
 		return new MethodTypeInfo(
@@ -241,13 +219,14 @@ class AOTModuleLoader {
 		);
 	}
 
-
-
 	/**
 	 * Load a module from a class.
-	 * @param moduleClassName The name of the class that defines the WebAssembly module.
+	 * 
+	 * @param moduleClassName
+	 *            The name of the class that defines the WebAssembly module.
 	 * @return The realized module.
-	 * @throws ModuleFormatException If the class defines an invalid module.
+	 * @throws ModuleFormatException
+	 *             If the class defines an invalid module.
 	 */
 	public WasmModuleRealization loadModule(ClassDesc moduleClassName) throws ModuleFormatException {
 		var moduleClass = loadClassModel(moduleClassName);
@@ -266,10 +245,7 @@ class AOTModuleLoader {
 			}
 		}
 
-		return new WasmModuleRealization(
-			moduleClass.thisClass().asSymbol(),
-			exports.build()
-		);
+		return new WasmModuleRealization(moduleClass.thisClass().asSymbol(), exports.build());
 	}
 
 	private ResultType loadResultType(TypeInfo t) throws ModuleFormatException {
@@ -318,54 +294,56 @@ class AOTModuleLoader {
 
 	/**
 	 * Loads a class as a result type.
-	 * @param tDesc The result class descriptor.
+	 * 
+	 * @param tDesc
+	 *            The result class descriptor.
 	 * @return The erased result type.
-	 * @throws ModuleFormatException if the class is not a valid result type.
+	 * @throws ModuleFormatException
+	 *             if the class is not a valid result type.
 	 */
 	public ErasedResultType loadResultClass(ClassDesc tDesc) throws ModuleFormatException {
 		if(!tDesc.packageName().equals("dev.argon.jawawasm.runtime")) {
-			throw new ModuleFormatException("Result types must be defined in dev.argon.jawawasm.runtime, Found: " + tDesc.descriptorString());
+			throw new ModuleFormatException(
+				"Result types must be defined in dev.argon.jawawasm.runtime, Found: " + tDesc.descriptorString()
+			);
 		}
 
 		var tModel = loadClassModel(tDesc);
 
-		var endResultClass = tModel.findAttribute(Attributes.innerClasses())
-			.stream()
+		var endResultClass = tModel.findAttribute(Attributes.innerClasses()).stream()
 			.flatMap(attr -> attr.classes().stream())
-			.filter(ic ->
-				ic.outerClass().map(oc -> oc.asInternalName().equals(tModel.thisClass().asInternalName())).orElse(false) &&
-					ic.innerClass().asSymbol().equals(tDesc.nested("EndResult"))
-			)
-			.findAny()
-			.orElse(null);
+			.filter(
+				ic -> ic.outerClass().map(oc -> oc.asInternalName().equals(tModel.thisClass().asInternalName()))
+					.orElse(false) && ic.innerClass().asSymbol().equals(tDesc.nested("EndResult"))
+			).findAny().orElse(null);
 
 		if(endResultClass == null) {
 			throw new ModuleFormatException("Invalid result type. Nested class EndResult is missing");
 		}
 
-
-
 		var ofMethods = tModel.methods().stream()
-			.filter(m ->
-				m.methodName().stringValue().equals("of") &&
-					m.flags().has(AccessFlag.PUBLIC) &&
-					m.flags().has(AccessFlag.STATIC)
-			)
-			.toList();
+			.filter(
+				m -> m.methodName().stringValue().equals("of") && m.flags().has(AccessFlag.PUBLIC)
+					&& m.flags().has(AccessFlag.STATIC)
+			).toList();
 		if(ofMethods.size() != 1) {
-			throw new ModuleFormatException("Invalid result type. It must have exactly one static public method named of.");
+			throw new ModuleFormatException(
+				"Invalid result type. It must have exactly one static public method named of."
+			);
 		}
 
 		var ofMethod = ofMethods.getFirst();
 
 		if(!ofMethod.methodTypeSymbol().returnType().equals(tDesc)) {
-			throw new ModuleFormatException("Invalid result type. \"of\" method must return the result type. Result type: " + tDesc + ", Return type: " + ofMethod.methodTypeSymbol().returnType());
+			throw new ModuleFormatException(
+				"Invalid result type. \"of\" method must return the result type. Result type: " + tDesc
+					+ ", Return type: " + ofMethod.methodTypeSymbol().returnType()
+			);
 		}
 
 		var methodType = getMethodTypeInfo(ofMethod);
 		var paramTypes = methodType.paramTypes();
 		var typeParams = methodType.typeParams();
-
 
 		int typeParamIndex = 0;
 
@@ -380,24 +358,30 @@ class AOTModuleLoader {
 						case 'J' -> TypeKind.LONG;
 						case 'F' -> TypeKind.FLOAT;
 						case 'D' -> TypeKind.DOUBLE;
-						default ->
-							throw new ModuleFormatException("Unexpected base type in result type: " + kt.classType().descriptorString());
+						default -> throw new ModuleFormatException(
+							"Unexpected base type in result type: " + kt.classType().descriptorString()
+						);
 					};
 				}
 				case TypeVarInfo tv -> {
 					if(typeParamIndex >= typeParams.size()) {
-						throw new ModuleFormatException("Not enough type parameters on result type: " + tDesc.displayName());
+						throw new ModuleFormatException(
+							"Not enough type parameters on result type: " + tDesc.displayName()
+						);
 					}
 
 					if(!tv.name().equals(typeParams.get(typeParamIndex))) {
-						throw new ModuleFormatException("Type parameters must match one to one with usages in 'of' method.");
+						throw new ModuleFormatException(
+							"Type parameters must match one to one with usages in 'of' method."
+						);
 					}
 
 					typeKind = TypeKind.REFERENCE;
 					++typeParamIndex;
 				}
-				default ->
-					throw new ModuleFormatException("Unexpected type in result type signature. Expected base type or type variable");
+				default -> throw new ModuleFormatException(
+					"Unexpected type in result type signature. Expected base type or type variable"
+				);
 			}
 
 			resTypes.add(typeKind);
@@ -431,8 +415,10 @@ class AOTModuleLoader {
 			return null;
 		}
 
-		String rename = getAnnotationValue(exportAnn, "rename").map(av -> ((AnnotationValue.OfString)av).stringValue()).orElse("");
-		boolean allowEmptyName = getAnnotationValue(exportAnn, "allowEmptyName").map(av -> ((AnnotationValue.OfBoolean)av).booleanValue()).orElse(false);
+		String rename = getAnnotationValue(exportAnn, "rename").map(av -> ((AnnotationValue.OfString)av).stringValue())
+			.orElse("");
+		boolean allowEmptyName = getAnnotationValue(exportAnn, "allowEmptyName")
+			.map(av -> ((AnnotationValue.OfBoolean)av).booleanValue()).orElse(false);
 
 		String name;
 		if(allowEmptyName || !rename.isEmpty()) {
@@ -444,7 +430,8 @@ class AOTModuleLoader {
 
 		var type = method.methodTypeSymbol();
 
-		var exportTypeStr = getAnnotationValue(exportAnn, "type").map(av -> ((AnnotationValue.OfEnum)av).constantName().stringValue()).orElse("FUNC");
+		var exportTypeStr = getAnnotationValue(exportAnn, "type")
+			.map(av -> ((AnnotationValue.OfEnum)av).constantName().stringValue()).orElse("FUNC");
 		var exportType = WasmExport.ExportType.valueOf(exportTypeStr);
 
 		var externalType = loadExternalType(exportType, method);
@@ -468,15 +455,15 @@ class AOTModuleLoader {
 		}
 
 		var constructors = innerClassModel.methods().stream()
-			.filter(m -> m.methodName().stringValue().equals("<init>") && m.flags().has(AccessFlag.PUBLIC))
-			.toList();
+			.filter(m -> m.methodName().stringValue().equals("<init>") && m.flags().has(AccessFlag.PUBLIC)).toList();
 
 		if(constructors.size() != 1) {
-			throw new ModuleFormatException("A WebAssembly exception type is expected to have exactly one public constructor");
+			throw new ModuleFormatException(
+				"A WebAssembly exception type is expected to have exactly one public constructor"
+			);
 		}
 
 		var constructor = constructors.getFirst();
-
 
 		String name;
 
@@ -485,8 +472,10 @@ class AOTModuleLoader {
 
 		var exportAnn = getAnnotation(annotations, CD_WasmExport).orElse(null);
 		if(exportAnn != null) {
-			String rename = getAnnotationValue(exportAnn, "rename").map(av -> ((AnnotationValue.OfString)av).stringValue()).orElse("");
-			boolean allowEmptyName = getAnnotationValue(exportAnn, "allowEmptyName").map(av -> ((AnnotationValue.OfBoolean)av).booleanValue()).orElse(false);
+			String rename = getAnnotationValue(exportAnn, "rename")
+				.map(av -> ((AnnotationValue.OfString)av).stringValue()).orElse("");
+			boolean allowEmptyName = getAnnotationValue(exportAnn, "allowEmptyName")
+				.map(av -> ((AnnotationValue.OfBoolean)av).booleanValue()).orElse(false);
 
 			if(allowEmptyName || !rename.isEmpty()) {
 				name = rename;
@@ -498,7 +487,6 @@ class AOTModuleLoader {
 		else {
 			name = innerClassDesc.displayName();
 		}
-
 
 		var methodType = getMethodTypeInfo(constructor);
 		var paramTypes = ImmutableList.<ValType>builder();
@@ -523,16 +511,12 @@ class AOTModuleLoader {
 			),
 			MethodTypeDesc.of(CD_void, realizedParamTypes),
 			funcType,
-			new DefType(
-				new RecursiveType(ImmutableList.of(
-					new SubType(true, ImmutableList.of(), funcType)
-				)),
-				0
-			)
+			new DefType(new RecursiveType(ImmutableList.of(new SubType(true, ImmutableList.of(), funcType))), 0)
 		);
 	}
 
-	private ExternalType loadExternalType(WasmExport.ExportType exportType, MethodModel method) throws ModuleFormatException {
+	private ExternalType loadExternalType(WasmExport.ExportType exportType, MethodModel method)
+		throws ModuleFormatException {
 		var methodType = getMethodTypeInfo(method);
 		var returnType = methodType.returnType();
 
@@ -555,12 +539,7 @@ class AOTModuleLoader {
 
 		var funcType = new FuncType(new ResultType(paramTypes.build()), resultType);
 
-		return new DefType(
-			new RecursiveType(ImmutableList.of(
-				new SubType(true, ImmutableList.of(), funcType)
-			)),
-			0
-		);
+		return new DefType(new RecursiveType(ImmutableList.of(new SubType(true, ImmutableList.of(), funcType))), 0);
 	}
 
 	private TableType loadExternalTableType(TypeInfo returnType) throws ModuleFormatException {
@@ -579,15 +558,18 @@ class AOTModuleLoader {
 			throw new ModuleFormatException("Missing SizeLimits for table type");
 		}
 
-		var addressTypeStr = getAnnotationValue(sizeLimitsAnn, "addressType").map(av -> ((AnnotationValue.OfEnum)av).constantName().stringValue()).orElseThrow(() -> new ModuleFormatException("Missing addressType in SizeLimits"));
+		var addressTypeStr = getAnnotationValue(sizeLimitsAnn, "addressType")
+			.map(av -> ((AnnotationValue.OfEnum)av).constantName().stringValue())
+			.orElseThrow(() -> new ModuleFormatException("Missing addressType in SizeLimits"));
 		var addressType = AddrType.valueOf(addressTypeStr);
-		if((kt.classType().equals(CD_WasmMemory32) && addressType != AddrType.I32) ||
-				(kt.classType().equals(CD_WasmMemory64) && addressType != AddrType.I64)) {
+		if((kt.classType().equals(CD_WasmMemory32) && addressType != AddrType.I32)
+			|| (kt.classType().equals(CD_WasmMemory64) && addressType != AddrType.I64)) {
 			throw new ModuleFormatException("Memory address type does not match SizeLimits");
 		}
-		long min = getAnnotationValue(sizeLimitsAnn, "min").map(av -> ((AnnotationValue.OfLong)av).longValue()).orElseThrow(() -> new ModuleFormatException("Missing min in SizeLimits"));
-		long max = getAnnotationValue(sizeLimitsAnn, "max").map(av -> ((AnnotationValue.OfLong)av).longValue()).orElse(-1L);
-
+		long min = getAnnotationValue(sizeLimitsAnn, "min").map(av -> ((AnnotationValue.OfLong)av).longValue())
+			.orElseThrow(() -> new ModuleFormatException("Missing min in SizeLimits"));
+		long max = getAnnotationValue(sizeLimitsAnn, "max").map(av -> ((AnnotationValue.OfLong)av).longValue())
+			.orElse(-1L);
 
 		var typeArg = typeArgs.getFirst();
 		var elementType = loadRefType(typeArg);
@@ -630,8 +612,8 @@ class AOTModuleLoader {
 	}
 
 	private MemType loadExternalMemoryType(TypeInfo returnType) throws ModuleFormatException {
-		if(!(returnType instanceof KnownTypeInfo kt) ||
-				(!kt.classType().equals(CD_WasmMemory) && !kt.classType().equals(CD_WasmMemory32) && !kt.classType().equals(CD_WasmMemory64))) {
+		if(!(returnType instanceof KnownTypeInfo kt) || (!kt.classType().equals(CD_WasmMemory)
+			&& !kt.classType().equals(CD_WasmMemory32) && !kt.classType().equals(CD_WasmMemory64))) {
 			throw new ModuleFormatException("A memory export must return a WasmMemory. Actual: " + returnType);
 		}
 
@@ -640,19 +622,21 @@ class AOTModuleLoader {
 			throw new ModuleFormatException("Missing SizeLimits for memory type");
 		}
 
-		var addressTypeStr = getAnnotationValue(sizeLimitsAnn, "addressType").map(av -> ((AnnotationValue.OfEnum)av).constantName().stringValue()).orElseThrow(() -> new ModuleFormatException("Missing addressType in SizeLimits"));
+		var addressTypeStr = getAnnotationValue(sizeLimitsAnn, "addressType")
+			.map(av -> ((AnnotationValue.OfEnum)av).constantName().stringValue())
+			.orElseThrow(() -> new ModuleFormatException("Missing addressType in SizeLimits"));
 		var addressType = AddrType.valueOf(addressTypeStr);
-		if((kt.classType().equals(CD_WasmMemory32) && addressType != AddrType.I32) ||
-				(kt.classType().equals(CD_WasmMemory64) && addressType != AddrType.I64)) {
+		if((kt.classType().equals(CD_WasmMemory32) && addressType != AddrType.I32)
+			|| (kt.classType().equals(CD_WasmMemory64) && addressType != AddrType.I64)) {
 			throw new ModuleFormatException("Memory address type does not match SizeLimits");
 		}
-		long min = getAnnotationValue(sizeLimitsAnn, "min").map(av -> ((AnnotationValue.OfLong)av).longValue()).orElseThrow(() -> new ModuleFormatException("Missing min in SizeLimits"));
-		long max = getAnnotationValue(sizeLimitsAnn, "max").map(av -> ((AnnotationValue.OfLong)av).longValue()).orElse(-1L);
+		long min = getAnnotationValue(sizeLimitsAnn, "min").map(av -> ((AnnotationValue.OfLong)av).longValue())
+			.orElseThrow(() -> new ModuleFormatException("Missing min in SizeLimits"));
+		long max = getAnnotationValue(sizeLimitsAnn, "max").map(av -> ((AnnotationValue.OfLong)av).longValue())
+			.orElse(-1L);
 
 		return new MemType(addressType, new Limits(min, max == -1L ? null : max));
 	}
-
-
 
 	private ValType loadValType(TypeInfo t) throws ModuleFormatException {
 		if(t instanceof KnownTypeInfo kt) {
@@ -662,7 +646,9 @@ class AOTModuleLoader {
 					case "J" -> NumType.I64;
 					case "F" -> NumType.F32;
 					case "D" -> NumType.F64;
-					default -> throw new ModuleFormatException("Unexpected primitive type: " + kt.classType().descriptorString());
+					default -> throw new ModuleFormatException(
+						"Unexpected primitive type: " + kt.classType().descriptorString()
+					);
 				};
 			}
 			else if(kt.classType().equals(CD_V128)) {

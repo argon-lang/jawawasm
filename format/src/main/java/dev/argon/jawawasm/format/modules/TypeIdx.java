@@ -4,7 +4,8 @@ import dev.argon.jawawasm.format.types.HeapType;
 
 /**
  * A type index.
- * @param index The index.
+ * 
+ * @param index
+ *            The index.
  */
-public record TypeIdx(int index) implements HeapType {
-}
+public record TypeIdx(int index) implements HeapType {}

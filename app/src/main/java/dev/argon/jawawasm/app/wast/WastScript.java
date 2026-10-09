@@ -7,10 +7,7 @@ import com.google.common.collect.ImmutableList;
 
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record WastScript(
-	@JsonProperty(required = true)
-	String sourceFilename,
+	@JsonProperty(required = true) String sourceFilename,
 
-	@JsonProperty(required = true)
-	ImmutableList<WastCommand> commands
-) {
-}
+	@JsonProperty(required = true) ImmutableList<WastCommand> commands
+) {}

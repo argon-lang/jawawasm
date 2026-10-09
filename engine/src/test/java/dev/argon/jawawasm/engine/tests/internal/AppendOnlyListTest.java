@@ -21,7 +21,8 @@ public class AppendOnlyListTest {
 			assertEquals(i, parent.size());
 			assertEquals(i + 1, list.size());
 		}
-		for(int i = 0; i <= 100; ++i) assertEquals(i, list.get(i));
+		for(int i = 0; i <= 100; ++i)
+			assertEquals(i, list.get(i));
 	}
 
 	@Test
@@ -63,11 +64,13 @@ public class AppendOnlyListTest {
 	public void emptyCloneAndGrowthRemainIndependent() {
 		var list = new AppendOnlyList<Integer>();
 		var empty = list.clone();
-		for(int i = 0; i < 100; ++i) list.add(i);
+		for(int i = 0; i < 100; ++i)
+			list.add(i);
 		empty.add(-1);
 		assertEquals(List.of(-1), empty);
 		assertEquals(100, list.size());
-		for(int i = 0; i < 100; ++i) assertEquals(i, list.get(i));
+		for(int i = 0; i < 100; ++i)
+			assertEquals(i, list.get(i));
 	}
 
 	@Test

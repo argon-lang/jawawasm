@@ -12,7 +12,6 @@ import static dev.argon.jawawasm.engine.internal.Constants.*;
 import static java.lang.constant.ConstantDescs.CD_long;
 import static java.lang.constant.ConstantDescs.CD_void;
 
-
 final class WasmClassGeneratorUtils {
 	private WasmClassGeneratorUtils() {}
 
@@ -27,10 +26,7 @@ final class WasmClassGeneratorUtils {
 	public static final ClassDesc wasmStruct = ClassDesc.of(RUNTIME_PACKAGE, "WasmStruct");
 	public static final ClassDesc i31Type = ClassDesc.of(RUNTIME_PACKAGE, "I31");
 
-	public static final Annotation nullableAnn = Annotation.of(
-		ClassDesc.of("org.jspecify.annotations.Nullable")
-	);
-
+	public static final Annotation nullableAnn = Annotation.of(ClassDesc.of("org.jspecify.annotations.Nullable"));
 
 	public static TypeKind typeKind(ClassDesc t) {
 		return TypeKind.fromDescriptor(t.descriptorString());

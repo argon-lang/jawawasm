@@ -6,7 +6,9 @@ package dev.argon.jawawasm.runtime;
 public class GlobalI64 {
 	/**
 	 * Creates a global i64
-	 * @param value The initial value.
+	 * 
+	 * @param value
+	 *            The initial value.
 	 */
 	public GlobalI64(long value) {
 		this.value = value;
@@ -19,6 +21,7 @@ public class GlobalI64 {
 
 	/**
 	 * Gets the global value.
+	 * 
 	 * @return The value;
 	 */
 	public long get() {
@@ -27,7 +30,9 @@ public class GlobalI64 {
 
 	/**
 	 * Sets the global value.
-	 * @param value The new value
+	 * 
+	 * @param value
+	 *            The new value
 	 */
 	public void set(long value) {
 		this.value = value;

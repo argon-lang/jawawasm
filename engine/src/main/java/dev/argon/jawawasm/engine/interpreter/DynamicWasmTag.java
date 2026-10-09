@@ -9,8 +9,11 @@ import dev.argon.jawawasm.format.types.FuncType;
 public final class DynamicWasmTag implements WasmExport {
 	/**
 	 * Create a tag.
-	 * @param type The defined type of the tag.
-	 * @param funcType The function type of the tag.
+	 * 
+	 * @param type
+	 *            The defined type of the tag.
+	 * @param funcType
+	 *            The function type of the tag.
 	 */
 	public DynamicWasmTag(DefType type, FuncType funcType) {
 		this.type = type;
@@ -22,6 +25,7 @@ public final class DynamicWasmTag implements WasmExport {
 
 	/**
 	 * Gets the defined type for the signature of the tag.
+	 * 
 	 * @return The defined type.
 	 */
 	public DefType type() {
@@ -30,6 +34,7 @@ public final class DynamicWasmTag implements WasmExport {
 
 	/**
 	 * Gets the function type for the signature of the tag.
+	 * 
 	 * @return The function type.
 	 */
 	public FuncType funcType() {

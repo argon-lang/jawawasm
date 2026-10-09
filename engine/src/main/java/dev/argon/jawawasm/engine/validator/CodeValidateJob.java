@@ -5,7 +5,9 @@ import dev.argon.jawawasm.format.instructions.Instr;
 import dev.argon.jawawasm.format.types.ResultType;
 
 class CodeValidateJob {
-	public CodeValidateJob(Context context, ResultType argTypes, ResultType resultType, ImmutableList<Instr> body, boolean requireConstant) {
+	public CodeValidateJob(
+		Context context, ResultType argTypes, ResultType resultType, ImmutableList<Instr> body, boolean requireConstant
+	) {
 		this.context = context;
 		this.argTypes = argTypes;
 		this.resultType = resultType;

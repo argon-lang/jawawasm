@@ -26,7 +26,9 @@ import static java.lang.constant.ConstantDescs.CD_void;
 class ReflectionModuleLoader {
 	/**
 	 * Creates a module loader.
-	 * @param compiler The compiler to be notified of loaded types.
+	 * 
+	 * @param compiler
+	 *            The compiler to be notified of loaded types.
 	 */
 	public ReflectionModuleLoader(ModuleCompiler compiler) {
 		this.compiler = compiler;
@@ -36,9 +38,12 @@ class ReflectionModuleLoader {
 
 	/**
 	 * Load a module from a class.
-	 * @param moduleClass The class that defines the WebAssembly module.
+	 * 
+	 * @param moduleClass
+	 *            The class that defines the WebAssembly module.
 	 * @return The realized module.
-	 * @throws ModuleFormatException If the class defines an invalid module.
+	 * @throws ModuleFormatException
+	 *             If the class defines an invalid module.
 	 */
 	public WasmModuleRealization loadModule(Class<?> moduleClass) throws ModuleFormatException {
 
@@ -56,10 +61,7 @@ class ReflectionModuleLoader {
 			}
 		}
 
-		return new WasmModuleRealization(
-			ClassDesc.ofDescriptor(moduleClass.descriptorString()),
-			exports.build()
-		);
+		return new WasmModuleRealization(ClassDesc.ofDescriptor(moduleClass.descriptorString()), exports.build());
 	}
 
 	ResultType loadResultType(AnnotatedType t) throws ModuleFormatException {
@@ -74,7 +76,7 @@ class ReflectionModuleLoader {
 
 			case Class<?> ct -> {
 				tClass = ct;
-				typeArgs = new AnnotatedType[] {};
+				typeArgs = new AnnotatedType[]{};
 			}
 
 			default -> {
@@ -116,9 +118,12 @@ class ReflectionModuleLoader {
 
 	/**
 	 * Loads a class as a result type.
-	 * @param t The result class.
+	 * 
+	 * @param t
+	 *            The result class.
 	 * @return The erased result type.
-	 * @throws ModuleFormatException if the class is not a valid result type.
+	 * @throws ModuleFormatException
+	 *             if the class is not a valid result type.
 	 */
 	public ErasedResultType loadResultClass(Class<?> t) throws ModuleFormatException {
 		if(!t.getPackageName().equals("dev.argon.jawawasm.runtime")) {
@@ -126,29 +131,28 @@ class ReflectionModuleLoader {
 		}
 
 		var endResultClass = Arrays.stream(t.getDeclaredClasses())
-			.filter(nested -> nested.getSimpleName().equals("EndResult"))
-			.findAny()
-			.orElse(null);
+			.filter(nested -> nested.getSimpleName().equals("EndResult")).findAny().orElse(null);
 
 		if(endResultClass == null) {
 			throw new ModuleFormatException("Invalid result type. Nested class EndResult is missing");
 		}
 
-		var ofMethods = Arrays.stream(t.getMethods())
-			.filter(m ->
-				m.getName().equals("of") &&
-					Modifier.isPublic(m.getModifiers()) &&
-					Modifier.isStatic(m.getModifiers())
-			)
-			.toList();
+		var ofMethods = Arrays.stream(t.getMethods()).filter(
+			m -> m.getName().equals("of") && Modifier.isPublic(m.getModifiers()) && Modifier.isStatic(m.getModifiers())
+		).toList();
 		if(ofMethods.size() != 1) {
-			throw new ModuleFormatException("Invalid result type. It must have exactly one static public method named of.");
+			throw new ModuleFormatException(
+				"Invalid result type. It must have exactly one static public method named of."
+			);
 		}
 
 		var ofMethod = ofMethods.getFirst();
 
 		if(ofMethod.getReturnType() != t) {
-			throw new ModuleFormatException("Invalid result type. \"of\" method must return the result type. Result type: " + t + ", Return type: " + ofMethod.getReturnType());
+			throw new ModuleFormatException(
+				"Invalid result type. \"of\" method must return the result type. Result type: " + t + ", Return type: "
+					+ ofMethod.getReturnType()
+			);
 		}
 
 		var typeParams = t.getTypeParameters();
@@ -175,14 +179,19 @@ class ReflectionModuleLoader {
 				}
 
 				if(!tv.getName().equals(typeParams[typeParamIndex].getName())) {
-					throw new ModuleFormatException("Type parameters must match one to one with usages in 'of' method.");
+					throw new ModuleFormatException(
+						"Type parameters must match one to one with usages in 'of' method."
+					);
 				}
 
 				typeKind = TypeKind.REFERENCE;
 				++typeParamIndex;
 			}
 			else {
-				throw new ModuleFormatException("Unexpected type in result type \"" + ctorParamType + "\". Expected int, long, float, double, or type variable");
+				throw new ModuleFormatException(
+					"Unexpected type in result type \"" + ctorParamType
+						+ "\". Expected int, long, float, double, or type variable"
+				);
 			}
 
 			resTypes.add(typeKind);
@@ -243,16 +252,16 @@ class ReflectionModuleLoader {
 			return null;
 		}
 
-		var constructors = Arrays.stream(innerClass.getConstructors())
-			.filter(c -> Modifier.isPublic(c.getModifiers()))
+		var constructors = Arrays.stream(innerClass.getConstructors()).filter(c -> Modifier.isPublic(c.getModifiers()))
 			.toList();
 
 		if(constructors.size() != 1) {
-			throw new ModuleFormatException("A WebAssembly exception type is expected to have exactly one public constructor");
+			throw new ModuleFormatException(
+				"A WebAssembly exception type is expected to have exactly one public constructor"
+			);
 		}
 
 		var constructor = constructors.getFirst();
-
 
 		String name;
 
@@ -264,12 +273,10 @@ class ReflectionModuleLoader {
 			name = innerClass.getSimpleName();
 		}
 
-
 		var paramTypes = ImmutableList.<ValType>builder();
 		for(var param : constructor.getAnnotatedParameterTypes()) {
 			paramTypes.add(loadValType(param));
 		}
-
 
 		List<ClassDesc> realizedParamTypes = new ArrayList<>();
 		for(var param : constructor.getParameterTypes()) {
@@ -294,25 +301,19 @@ class ReflectionModuleLoader {
 			),
 			MethodTypeDesc.of(CD_void, realizedParamTypes),
 			funcType,
-			new DefType(
-				new RecursiveType(ImmutableList.of(
-					new SubType(true, ImmutableList.of(), funcType)
-				)),
-				0
-			)
+			new DefType(new RecursiveType(ImmutableList.of(new SubType(true, ImmutableList.of(), funcType))), 0)
 		);
 	}
 
 	private MethodTypeDesc getMethodDescriptor(Method method) {
 		return MethodTypeDesc.of(
 			ClassDesc.ofDescriptor(method.getReturnType().descriptorString()),
-			Arrays.stream(method.getParameterTypes())
-				.map(t -> ClassDesc.ofDescriptor(t.descriptorString()))
-				.toList()
+			Arrays.stream(method.getParameterTypes()).map(t -> ClassDesc.ofDescriptor(t.descriptorString())).toList()
 		);
 	}
 
-	private ExternalType loadExternalType(WasmExport.ExportType exportType, Method method) throws ModuleFormatException {
+	private ExternalType loadExternalType(WasmExport.ExportType exportType, Method method)
+		throws ModuleFormatException {
 		return switch(exportType) {
 			case FUNC -> loadExternalFunctionType(method);
 			case TABLE -> loadExternalTableType(method.getAnnotatedReturnType());
@@ -331,16 +332,12 @@ class ReflectionModuleLoader {
 
 		var funcType = new FuncType(new ResultType(paramTypes.build()), resultType);
 
-		return new DefType(
-			new RecursiveType(ImmutableList.of(
-				new SubType(true, ImmutableList.of(), funcType)
-			)),
-			0
-		);
+		return new DefType(new RecursiveType(ImmutableList.of(new SubType(true, ImmutableList.of(), funcType))), 0);
 	}
 
 	private TableType loadExternalTableType(AnnotatedType returnType) throws ModuleFormatException {
-		if(!(returnType.getType() instanceof ParameterizedType tableType) || tableType.getRawType() != WasmTable.class) {
+		if(!(returnType.getType() instanceof ParameterizedType tableType)
+			|| tableType.getRawType() != WasmTable.class) {
 			throw new ModuleFormatException("A table export must return a WasmTable. Actual: " + returnType);
 		}
 
@@ -360,7 +357,11 @@ class ReflectionModuleLoader {
 		}
 
 		var elementType = loadRefType(typeArgs[0]);
-		return new TableType(sizeLimits.addressType(), new Limits(sizeLimits.min(), sizeLimits.max() == -1L ? null : sizeLimits.max()), elementType);
+		return new TableType(
+			sizeLimits.addressType(),
+			new Limits(sizeLimits.min(), sizeLimits.max() == -1L ? null : sizeLimits.max()),
+			elementType
+		);
 	}
 
 	private GlobalType loadExternalGlobalType(AnnotatedType returnType) throws ModuleFormatException {
@@ -396,7 +397,8 @@ class ReflectionModuleLoader {
 	}
 
 	private MemType loadExternalMemoryType(AnnotatedType returnType) throws ModuleFormatException {
-		if(returnType.getType() != WasmMemory.class && returnType.getType() != WasmMemory32.class && returnType.getType() != WasmMemory64.class) {
+		if(returnType.getType() != WasmMemory.class && returnType.getType() != WasmMemory32.class
+			&& returnType.getType() != WasmMemory64.class) {
 			throw new ModuleFormatException("A memory export must return a WasmMemory. Actual: " + returnType);
 		}
 
@@ -405,15 +407,16 @@ class ReflectionModuleLoader {
 			throw new ModuleFormatException("Missing SizeLimits for memory type");
 		}
 
-		if((returnType.getType() == WasmMemory32.class && sizeLimits.addressType() != AddrType.I32) ||
-				(returnType.getType() == WasmMemory64.class && sizeLimits.addressType() != AddrType.I64)) {
+		if((returnType.getType() == WasmMemory32.class && sizeLimits.addressType() != AddrType.I32)
+			|| (returnType.getType() == WasmMemory64.class && sizeLimits.addressType() != AddrType.I64)) {
 			throw new ModuleFormatException("Memory address type does not match SizeLimits");
 		}
 
-		return new MemType(sizeLimits.addressType(), new Limits(sizeLimits.min(), sizeLimits.max() == -1L ? null : sizeLimits.max()));
+		return new MemType(
+			sizeLimits.addressType(),
+			new Limits(sizeLimits.min(), sizeLimits.max() == -1L ? null : sizeLimits.max())
+		);
 	}
-
-
 
 	private ValType loadValType(AnnotatedType t) throws ModuleFormatException {
 		var underlying = t.getType();

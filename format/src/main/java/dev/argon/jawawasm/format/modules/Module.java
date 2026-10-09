@@ -6,21 +6,34 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * A WebAssembly module.
- * @param types The type section.
- * @param funcs The func section.
- * @param tables The table section.
- * @param mems The memory section.
- * @param tags The tags section.
- * @param globals The global section.
- * @param elems The elems section.
- * @param datas The data section.
- * @param start The start section.
- * @param imports The imports section.
- * @param exports The exports section.
- * @param name The name custom section.
+ * 
+ * @param types
+ *            The type section.
+ * @param funcs
+ *            The func section.
+ * @param tables
+ *            The table section.
+ * @param mems
+ *            The memory section.
+ * @param tags
+ *            The tags section.
+ * @param globals
+ *            The global section.
+ * @param elems
+ *            The elems section.
+ * @param datas
+ *            The data section.
+ * @param start
+ *            The start section.
+ * @param imports
+ *            The imports section.
+ * @param exports
+ *            The exports section.
+ * @param name
+ *            The name custom section.
  */
 public record Module(
-    ImmutableList<RecursiveType> types,
+	ImmutableList<RecursiveType> types,
 	ImmutableList<Func> funcs,
 	ImmutableList<Table> tables,
 	ImmutableList<Mem> mems,
@@ -31,6 +44,5 @@ public record Module(
 	@Nullable Start start,
 	ImmutableList<Import> imports,
 	ImmutableList<Export> exports,
-    @Nullable Names name
-) {
-}
+	@Nullable Names name
+) {}

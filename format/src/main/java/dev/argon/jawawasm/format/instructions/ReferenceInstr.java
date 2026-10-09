@@ -21,7 +21,9 @@ public sealed interface ReferenceInstr extends Instr {
 
 	/**
 	 * WebAssembly `ref.null` instruction.
-	 * @param type The type of the reference.
+	 * 
+	 * @param type
+	 *            The type of the reference.
 	 */
 	public static record Ref_Null(HeapType type) implements ReferenceInstr {}
 
@@ -32,7 +34,9 @@ public sealed interface ReferenceInstr extends Instr {
 
 	/**
 	 * WebAssembly `ref.func` instruction.
-	 * @param func The function index.
+	 * 
+	 * @param func
+	 *            The function index.
 	 */
 	public static record Ref_Func(FuncIdx func) implements ReferenceInstr {}
 
@@ -48,13 +52,17 @@ public sealed interface ReferenceInstr extends Instr {
 
 	/**
 	 * WebAssembly `ref.test` instruction.
-	 * @param t The reference type being tested.
+	 * 
+	 * @param t
+	 *            The reference type being tested.
 	 */
 	public record Ref_Test(RefType t) implements ReferenceInstr {}
 
 	/**
 	 * WebAssembly `ref.cast` instruction.
-	 * @param t The reference type being cast.
+	 * 
+	 * @param t
+	 *            The reference type being cast.
 	 */
 	public record Ref_Cast(RefType t) implements ReferenceInstr {}
 
@@ -63,101 +71,137 @@ public sealed interface ReferenceInstr extends Instr {
 	 */
 	public record Ref_I31() implements ReferenceInstr {}
 
-
 	/**
 	 * WebAssembly `struct.new` instruction.
-	 * @param typeIdx The index of the struct type.
+	 * 
+	 * @param typeIdx
+	 *            The index of the struct type.
 	 */
 	public record Struct_New(TypeIdx typeIdx) implements StructInstr {}
 
 	/**
 	 * WebAssembly `struct.new_default` instruction.
-	 * @param typeIdx The index of the struct type.
+	 * 
+	 * @param typeIdx
+	 *            The index of the struct type.
 	 */
 	public record Struct_New_Default(TypeIdx typeIdx) implements StructInstr {}
 
 	/**
 	 * WebAssembly `struct.get` instruction.
-	 * @param typeIdx The struct type index.
-	 * @param fieldIdx The field index.
+	 * 
+	 * @param typeIdx
+	 *            The struct type index.
+	 * @param fieldIdx
+	 *            The field index.
 	 */
 	public record Struct_Get(TypeIdx typeIdx, FieldIdx fieldIdx) implements StructInstr {}
 
 	/**
 	 * WebAssembly `struct.get_s` instruction (signed).
-	 * @param typeIdx The struct type index.
-	 * @param fieldIdx The field index.
+	 * 
+	 * @param typeIdx
+	 *            The struct type index.
+	 * @param fieldIdx
+	 *            The field index.
 	 */
 	public record Struct_Get_S(TypeIdx typeIdx, FieldIdx fieldIdx) implements StructInstr {}
 
 	/**
 	 * WebAssembly `struct.get_u` instruction (unsigned).
-	 * @param typeIdx The struct type index.
-	 * @param fieldIdx The field index.
+	 * 
+	 * @param typeIdx
+	 *            The struct type index.
+	 * @param fieldIdx
+	 *            The field index.
 	 */
 	public record Struct_Get_U(TypeIdx typeIdx, FieldIdx fieldIdx) implements StructInstr {}
 
 	/**
 	 * WebAssembly `struct.set` instruction.
-	 * @param typeIdx The struct type index.
-	 * @param fieldIdx The field index.
+	 * 
+	 * @param typeIdx
+	 *            The struct type index.
+	 * @param fieldIdx
+	 *            The field index.
 	 */
 	public record Struct_Set(TypeIdx typeIdx, FieldIdx fieldIdx) implements StructInstr {}
 
 	/**
 	 * WebAssembly `array.new` instruction.
-	 * @param typeIdx The array type index.
+	 * 
+	 * @param typeIdx
+	 *            The array type index.
 	 */
 	public record Array_New(TypeIdx typeIdx) implements ArrayInstr {}
 
 	/**
 	 * WebAssembly `array.new_fixed` instruction.
-	 * @param typeIdx The array type index.
-	 * @param size The fixed size of the array.
+	 * 
+	 * @param typeIdx
+	 *            The array type index.
+	 * @param size
+	 *            The fixed size of the array.
 	 */
 	public record Array_New_Fixed(TypeIdx typeIdx, int size) implements ArrayInstr {}
 
 	/**
 	 * WebAssembly `array.new_default` instruction.
-	 * @param typeIdx The array type index.
+	 * 
+	 * @param typeIdx
+	 *            The array type index.
 	 */
 	public record Array_New_Default(TypeIdx typeIdx) implements ArrayInstr {}
 
 	/**
 	 * WebAssembly `array.new_data` instruction.
-	 * @param typeIdx The array type index.
-	 * @param dataIdx The data index.
+	 * 
+	 * @param typeIdx
+	 *            The array type index.
+	 * @param dataIdx
+	 *            The data index.
 	 */
 	public record Array_New_Data(TypeIdx typeIdx, DataIdx dataIdx) implements ArrayInstr {}
 
 	/**
 	 * WebAssembly `array.new_elem` instruction.
-	 * @param typeIdx The array type index.
-	 * @param elemIdx The element index.
+	 * 
+	 * @param typeIdx
+	 *            The array type index.
+	 * @param elemIdx
+	 *            The element index.
 	 */
 	public record Array_New_Elem(TypeIdx typeIdx, ElemIdx elemIdx) implements ArrayInstr {}
 
 	/**
 	 * WebAssembly `array.get` instruction.
-	 * @param typeIdx The array type index.
+	 * 
+	 * @param typeIdx
+	 *            The array type index.
 	 */
 	public record Array_Get(TypeIdx typeIdx) implements ArrayInstr {}
 
 	/**
 	 * WebAssembly `array.get_s` instruction (signed).
-	 * @param typeIdx The array type index.
+	 * 
+	 * @param typeIdx
+	 *            The array type index.
 	 */
 	public record Array_Get_S(TypeIdx typeIdx) implements ArrayInstr {}
 
 	/**
 	 * WebAssembly `array.get_u` instruction (unsigned).
-	 * @param typeIdx The array type index.
+	 * 
+	 * @param typeIdx
+	 *            The array type index.
 	 */
 	public record Array_Get_U(TypeIdx typeIdx) implements ArrayInstr {}
 
 	/**
 	 * WebAssembly `array.set` instruction.
-	 * @param typeIdx The array type index.
+	 * 
+	 * @param typeIdx
+	 *            The array type index.
 	 */
 	public record Array_Set(TypeIdx typeIdx) implements ArrayInstr {}
 
@@ -168,28 +212,39 @@ public sealed interface ReferenceInstr extends Instr {
 
 	/**
 	 * WebAssembly `array.fill` instruction.
-	 * @param typeIdx The array type index.
+	 * 
+	 * @param typeIdx
+	 *            The array type index.
 	 */
 	public record Array_Fill(TypeIdx typeIdx) implements ArrayInstr {}
 
 	/**
 	 * WebAssembly `array.copy` instruction.
-	 * @param dest The destination array type index.
-	 * @param src The source array type index.
+	 * 
+	 * @param dest
+	 *            The destination array type index.
+	 * @param src
+	 *            The source array type index.
 	 */
 	public record Array_Copy(TypeIdx dest, TypeIdx src) implements ArrayInstr {}
 
 	/**
 	 * WebAssembly `array.init_data` instruction.
-	 * @param typeIdx The array type index.
-	 * @param dataIdx The data index.
+	 * 
+	 * @param typeIdx
+	 *            The array type index.
+	 * @param dataIdx
+	 *            The data index.
 	 */
 	public record Array_Init_Data(TypeIdx typeIdx, DataIdx dataIdx) implements ArrayInstr {}
 
 	/**
 	 * WebAssembly `array.init_elem` instruction.
-	 * @param typeIdx The array type index.
-	 * @param elemIdx The element index.
+	 * 
+	 * @param typeIdx
+	 *            The array type index.
+	 * @param elemIdx
+	 *            The element index.
 	 */
 	public record Array_Init_Elem(TypeIdx typeIdx, ElemIdx elemIdx) implements ArrayInstr {}
 

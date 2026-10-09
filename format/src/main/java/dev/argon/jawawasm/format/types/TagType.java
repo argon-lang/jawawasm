@@ -4,7 +4,8 @@ import dev.argon.jawawasm.format.modules.TypeIdx;
 
 /**
  * The type of the tag.
- * @param funcType The index of the function type describing this tag.
+ * 
+ * @param funcType
+ *            The index of the function type describing this tag.
  */
-public record TagType(TypeIdx funcType) implements ExternalType {
-}
+public record TagType(TypeIdx funcType) implements ExternalType {}

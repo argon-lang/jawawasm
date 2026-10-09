@@ -8,6 +8,7 @@ import dev.argon.jawawasm.format.types.HeapType;
 public sealed interface DynamicWasmObject permits DynamicWasmEq, DynamicWasmFunction, DynamicWebAssemblyException {
 	/**
 	 * Gets the heap type.
+	 * 
 	 * @return The heap type of this object.
 	 */
 	HeapType heapType();

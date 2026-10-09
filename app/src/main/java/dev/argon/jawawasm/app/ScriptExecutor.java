@@ -20,11 +20,11 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.IntStream;
 
-
 /**
  * An executor for WAST scripts.
  */
-public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permits ScriptReflectionExecutor, ScriptInterpreter {
+public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable
+	permits ScriptReflectionExecutor, ScriptInterpreter {
 	ScriptExecutor(WastLoader loader, PrintWriter output) {
 		options = RuntimeOptions.builder().maxMemory(0x10000).build();
 
@@ -45,10 +45,13 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 	private Map<Integer, Object> externRefs = new HashMap<>();
 
 	abstract Mod getSpecTestModule(PrintWriter output) throws ModuleFormatException, ModuleLinkException;
-	abstract Mod instantiateModule(Module module, ModuleResolver<Mod> resolver) throws ExecutionException;
-	abstract @Nullable Object[] invokeModuleExport(Mod mod, String name, @Nullable Object[] args) throws ExecutionException;
-	abstract @Nullable Object getGlobalExport(Mod mod, String name);
 
+	abstract Mod instantiateModule(Module module, ModuleResolver<Mod> resolver) throws ExecutionException;
+
+	abstract @Nullable Object[] invokeModuleExport(Mod mod, String name, @Nullable Object[] args)
+		throws ExecutionException;
+
+	abstract @Nullable Object getGlobalExport(Mod mod, String name);
 
 	private Mod getModuleByName(@Nullable String name) throws ScriptExecutionException {
 		Mod module;
@@ -72,12 +75,13 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 		return externRefs.computeIfAbsent(index, KnownExternRef::new);
 	}
 
-
 	public void initialize() throws ModuleFormatException, ModuleLinkException {
 		registeredModules.put("spectest", getSpecTestModule(output));
 	}
 
-	public void executeCommand(WastScriptLoaded scriptLoaded, WastCommand command) throws ExecutionException, ScriptExecutionException, ModuleFormatException, ValidationException, ModuleLinkException, IOException, InterruptedException {
+	public void executeCommand(WastScriptLoaded scriptLoaded, WastCommand command)
+		throws ExecutionException, ScriptExecutionException, ModuleFormatException, ValidationException,
+		ModuleLinkException, IOException, InterruptedException {
 		switch(command) {
 			case WastCommand.Module moduleCommand -> {
 				var convertedModule = getModuleAsBinary(scriptLoaded, moduleCommand.file());
@@ -137,15 +141,20 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 			}
 
 			case WastCommand.AssertReturn assertReturn -> {
-				@Nullable Object[] actual = runAction(assertReturn.action());
+				@Nullable
+				Object[] actual = runAction(assertReturn.action());
 				if(!valuesEqual(assertReturn.expected(), actual)) {
-					throw new ScriptAssertionException("Assertion failed\nAssertion: " + command + "\nExpected: " + assertReturn.expected() + "\nActual: " + Arrays.toString(actual));
+					throw new ScriptAssertionException(
+						"Assertion failed\nAssertion: " + command + "\nExpected: " + assertReturn.expected()
+							+ "\nActual: " + Arrays.toString(actual)
+					);
 				}
 
 			}
 
 			case WastCommand.AssertException assertException -> {
-				@Nullable Object[] actual;
+				@Nullable
+				Object[] actual;
 
 				try {
 					actual = runAction(assertException.action());
@@ -158,7 +167,10 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 					throw ex;
 				}
 
-				throw new ScriptAssertionException("Assertion failed\nAssertion: " + command + "\nExpected an exception\nActual: " + Arrays.toString(actual));
+				throw new ScriptAssertionException(
+					"Assertion failed\nAssertion: " + command + "\nExpected an exception\nActual: "
+						+ Arrays.toString(actual)
+				);
 			}
 
 			case WastCommand.AssertTrap assertTrap ->
@@ -182,16 +194,20 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 						}
 					}
 
-					default -> {}
+					default -> {
+					}
 				}
 
 				if(!foundError) {
-					throw new ScriptAssertionException("Expected action to exhaust resources, but completed successfully.");
+					throw new ScriptAssertionException(
+						"Expected action to exhaust resources, but completed successfully."
+					);
 				}
 			}
 
 			case WastCommand.AssertMalformed assertMalformed -> {
-				if(assertMalformed.file().moduleType() == ModuleType.TEXT && assertMalformed.file().binaryFilename() == null) {
+				if(assertMalformed.file().moduleType() == ModuleType.TEXT
+					&& assertMalformed.file().binaryFilename() == null) {
 					return;
 				}
 
@@ -205,11 +221,8 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 				}
 				catch(ModuleFormatException ex) {
 					boolean skipExpected = switch(message) {
-						case "length out of bounds",
-								"unexpected end of section or function",
-								"unexpected end",
-								"section size mismatch" ->
-							true;
+						case "length out of bounds", "unexpected end of section or function", "unexpected end",
+							"section size mismatch" -> true;
 
 						default -> false;
 					};
@@ -218,12 +231,18 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 						foundError = true;
 					}
 					else {
-						throw new ScriptAssertionException("Found malformed module, but got unexpected message.\nExpected: " + message + "\nActual: " + ex.getMessage(), ex);
+						throw new ScriptAssertionException(
+							"Found malformed module, but got unexpected message.\nExpected: " + message + "\nActual: "
+								+ ex.getMessage(),
+							ex
+						);
 					}
 				}
 
 				if(!foundError) {
-					throw new ScriptAssertionException("Expected malformed module, but parsing succeeded. Expected error: " + message);
+					throw new ScriptAssertionException(
+						"Expected malformed module, but parsing succeeded. Expected error: " + message
+					);
 				}
 			}
 
@@ -245,7 +264,11 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 						foundError = true;
 					}
 					else {
-						throw new ScriptAssertionException("Found invalid module, but got unexpected message.\nExpected: " + message + "\nActual: " + ex.getMessage(), ex);
+						throw new ScriptAssertionException(
+							"Found invalid module, but got unexpected message.\nExpected: " + message + "\nActual: "
+								+ ex.getMessage(),
+							ex
+						);
 					}
 				}
 
@@ -279,7 +302,11 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 						foundError = true;
 					}
 					else {
-						throw new ScriptAssertionException("Found unlinkable module, but got unexpected message.\nExpected: " + message + "\nActual: " + ex.getMessage(), ex);
+						throw new ScriptAssertionException(
+							"Found unlinkable module, but got unexpected message.\nExpected: " + message + "\nActual: "
+								+ ex.getMessage(),
+							ex
+						);
 					}
 				}
 
@@ -314,21 +341,25 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 		return switch(expected) {
 			case WastValue.I32(var i1) -> actual instanceof Integer i2 && i1.intValue() == i2;
 			case WastValue.I64(var l1) -> actual instanceof Long l2 && l1.longValue() == l2;
-			case WastValue.F32(var f1) when f1.equals("nan:canonical") -> actual instanceof Float f2 && (Float.floatToRawIntBits(f2) & 0x7FFFFFFF) == 0x7FC00000;
-			case WastValue.F32(var f1) when f1.equals("nan:arithmetic") -> actual instanceof Float f2 && (Float.floatToRawIntBits(f2) & 0x7FC00000) == 0x7FC00000;
-			case WastValue.F32(var f1) -> actual instanceof Float f2 && new BigInteger(f1).intValue() == Float.floatToRawIntBits(f2);
-			case WastValue.F64(var f1) when f1.equals("nan:canonical") -> actual instanceof Double f2 && (Double.doubleToRawLongBits(f2) & 0x7FFFFFFFFFFFFFFFL) == 0x7FF8000000000000L;
-			case WastValue.F64(var f1) when f1.equals("nan:arithmetic") -> actual instanceof Double f2 && (Double.doubleToRawLongBits(f2) & 0x7FF8000000000000L) == 0x7FF8000000000000L;
-			case WastValue.F64(var f1) -> actual instanceof Double f2 && new BigInteger(f1).longValue() == Double.doubleToRawLongBits(f2);
+			case WastValue.F32(var f1) when f1.equals("nan:canonical") ->
+				actual instanceof Float f2 && (Float.floatToRawIntBits(f2) & 0x7FFFFFFF) == 0x7FC00000;
+			case WastValue.F32(var f1) when f1.equals("nan:arithmetic") ->
+				actual instanceof Float f2 && (Float.floatToRawIntBits(f2) & 0x7FC00000) == 0x7FC00000;
+			case WastValue.F32(var f1) ->
+				actual instanceof Float f2 && new BigInteger(f1).intValue() == Float.floatToRawIntBits(f2);
+			case WastValue.F64(var f1) when f1.equals("nan:canonical") -> actual instanceof Double f2
+				&& (Double.doubleToRawLongBits(f2) & 0x7FFFFFFFFFFFFFFFL) == 0x7FF8000000000000L;
+			case WastValue.F64(var f1) when f1.equals("nan:arithmetic") -> actual instanceof Double f2
+				&& (Double.doubleToRawLongBits(f2) & 0x7FF8000000000000L) == 0x7FF8000000000000L;
+			case WastValue.F64(var f1) ->
+				actual instanceof Double f2 && new BigInteger(f1).longValue() == Double.doubleToRawLongBits(f2);
 			case WastValue.V128 v1 -> actual instanceof V128 v2 && switch(v1.laneType()) {
 				case I8, I16, I32, I64 -> getV128Value(v1).equals(v2);
 
-				case F32 ->
-					IntStream.range(0, 4)
-						.allMatch(i -> valueEqual(new WastValue.F32(v1.value().get(i)), v2.extractLaneF32(i)));
-				case F64 ->
-					IntStream.range(0, 2)
-						.allMatch(i -> valueEqual(new WastValue.F64(v1.value().get(i)), v2.extractLaneF64(i)));
+				case F32 -> IntStream.range(0, 4)
+					.allMatch(i -> valueEqual(new WastValue.F32(v1.value().get(i)), v2.extractLaneF32(i)));
+				case F64 -> IntStream.range(0, 2)
+					.allMatch(i -> valueEqual(new WastValue.F64(v1.value().get(i)), v2.extractLaneF64(i)));
 			};
 			case WastValue.ExternRef(var id) when id == null -> true;
 			case WastValue.ExternRef(var id) when id.equals("null") -> actual == null;
@@ -337,7 +368,8 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 				boolean cmp = actual == getExternRef(new BigInteger(id).intValue());
 				yield cmp;
 			}
-			case WastValue.FuncRef(var id) when id == null -> actual instanceof DynamicWasmFunction || actual instanceof WasmFunction;
+			case WastValue.FuncRef(var id) when id == null ->
+				actual instanceof DynamicWasmFunction || actual instanceof WasmFunction;
 			case WastValue.FuncRef(var id) when id.equals("null") -> actual == null;
 			case WastValue.FuncRef(var id) -> throw new RuntimeException("TODO: func ref " + id);
 			case WastValue.AnyRef(var id) when id == null -> true;
@@ -354,11 +386,7 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 			case WastValue.EqRef() -> actual instanceof DynamicWasmEq || actual instanceof WasmEq;
 			case WastValue.ArrayRef() -> actual instanceof DynamicWasmArray || actual instanceof WasmArray;
 			case WastValue.StructRef() -> actual instanceof DynamicWasmStruct || actual instanceof WasmStruct;
-			case WastValue.NullRef(),
-				 WastValue.NullFuncRef(),
-				 WastValue.NullExternRef(),
-				 WastValue.NullExnRef(),
-				 WastValue.RefNull() ->
+			case WastValue.NullRef(),WastValue.NullFuncRef(),WastValue.NullExternRef(),WastValue.NullExnRef(),WastValue.RefNull() ->
 				actual == null;
 
 			case WastValue.Either(var values) -> {
@@ -377,7 +405,8 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 		void run() throws ExecutionException, ModuleFormatException, ScriptExecutionException, ModuleLinkException;
 	}
 
-	private void assertTrapIn(TrapCheck check, String message) throws ScriptExecutionException, ModuleFormatException, ModuleLinkException {
+	private void assertTrapIn(TrapCheck check, String message)
+		throws ScriptExecutionException, ModuleFormatException, ModuleLinkException {
 		boolean gotExpectedError = false;
 
 		Throwable error = null;
@@ -395,7 +424,8 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 				}
 			}
 
-			case "out of bounds memory access", "out of bounds table access", "undefined element", "out of bounds array access", "out of bounds" -> {
+			case "out of bounds memory access", "out of bounds table access", "undefined element",
+				"out of bounds array access", "out of bounds" -> {
 				if(error instanceof IndexOutOfBoundsException || error instanceof NegativeArraySizeException) {
 					gotExpectedError = true;
 				}
@@ -413,14 +443,9 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 				}
 			}
 
-			case String m when
-				m.startsWith("uninitialized element") ||
-				m.equals("null function reference") ||
-				m.equals("null structure reference") ||
-				m.equals("null array reference") ||
-				m.equals("null reference") ||
-				m.equals("null i31 reference") ->
-			{
+			case String m when m.startsWith("uninitialized element") || m.equals("null function reference")
+				|| m.equals("null structure reference") || m.equals("null array reference")
+				|| m.equals("null reference") || m.equals("null i31 reference") -> {
 				if(error instanceof NullPointerException) {
 					gotExpectedError = true;
 				}
@@ -440,7 +465,10 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 				throw new ScriptAssertionException("Action completed, expected failure: " + message);
 			}
 			else {
-				throw new ScriptAssertionException("Action completed, but failed with unexpected error. Expected failure: " + message, error);
+				throw new ScriptAssertionException(
+					"Action completed, but failed with unexpected error. Expected failure: " + message,
+					error
+				);
 			}
 		}
 	}
@@ -454,7 +482,11 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 				executeCommand(scriptLoaded, command);
 			}
 			catch(Exception e) {
-				throw new Exception("Script " + Path.of(script.sourceFilename()).getFileName() + " failed at #" + i + " on line " + command.line(), e);
+				throw new Exception(
+					"Script " + Path.of(script.sourceFilename()).getFileName() + " failed at #" + i + " on line "
+						+ command.line(),
+					e
+				);
 			}
 			++i;
 		}
@@ -464,7 +496,8 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 		return switch(action) {
 			case WastAction.Invoke invoke -> {
 				var module = getModuleByName(invoke.module());
-				@Nullable Object[] args;
+				@Nullable
+				Object[] args;
 				try {
 					args = getConstantValues(invoke.args());
 				}
@@ -477,12 +510,13 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 
 			case WastAction.Get get -> {
 				var module = getModuleByName(get.module());
-				yield new @Nullable Object[] { getGlobalExport(module, get.field()) };
+				yield new @Nullable Object[]{getGlobalExport(module, get.field())};
 			}
 		};
 	}
 
-	private Module getModuleAsBinary(WastScriptLoaded scriptLoaded, WastFile file) throws ModuleFormatException, IOException, InterruptedException {
+	private Module getModuleAsBinary(WastScriptLoaded scriptLoaded, WastFile file)
+		throws ModuleFormatException, IOException, InterruptedException {
 		byte[] data;
 		if(file.binaryFilename() != null) {
 			data = loader.loadModule(scriptLoaded.getDir().resolve(file.binaryFilename()), ModuleType.BINARY);
@@ -494,7 +528,6 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 		var is = new ByteArrayInputStream(data);
 		return new ModuleReader(is).readModule();
 	}
-
 
 	private final class ScriptResolver implements ModuleResolver<Mod> {
 		@Override
@@ -514,7 +547,8 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 			case WastValue.F32(var bits) -> Float.intBitsToFloat(new BigInteger(bits).intValue());
 			case WastValue.F64(var bits) -> Double.longBitsToDouble(new BigInteger(bits).longValue());
 			case WastValue.V128 v -> getV128Value(v);
-			case WastValue.ExternRef(var id) when id == null -> throw new ModuleFormatException("Unspecified extern ref");
+			case WastValue.ExternRef(var id) when id == null ->
+				throw new ModuleFormatException("Unspecified extern ref");
 			case WastValue.ExternRef(var id) when id.equals("null") -> null;
 			case WastValue.ExternRef(var id) -> getExternRef(new BigInteger(id).intValue());
 			case WastValue.FuncRef(var id) when id == null -> throw new ModuleFormatException("Unspecified func ref");
@@ -530,11 +564,7 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 			case WastValue.EqRef() -> throw new ModuleFormatException("Unspecified eq ref");
 			case WastValue.ArrayRef() -> throw new ModuleFormatException("Unspecified array ref");
 			case WastValue.StructRef() -> throw new ModuleFormatException("Unspecified struct ref");
-			case WastValue.NullRef(),
-				 WastValue.NullFuncRef(),
-				 WastValue.NullExternRef(),
-				 WastValue.NullExnRef(),
-				 WastValue.RefNull() ->
+			case WastValue.NullRef(),WastValue.NullFuncRef(),WastValue.NullExternRef(),WastValue.NullExnRef(),WastValue.RefNull() ->
 				null;
 
 			case WastValue.Either _ -> throw new ModuleFormatException("Unspecified either");
@@ -553,40 +583,43 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 		for(int i = 0; i < 128 / width; ++i) {
 			long bits = new BigInteger(v.value().get(i)).longValue() & mask;
 			int shift = (i * width) & 63;
-			if(i * width < 64) low |= bits << shift;
-			else high |= bits << shift;
+			if(i * width < 64)
+				low |= bits << shift;
+			else
+				high |= bits << shift;
 		}
 		return new V128(low, high);
 	}
 
-//	private Object getFloat32LiteralValue(SExpr expr) {
-//		var num = (SExpr.NumberValue)expr;
-//		if(num.rawNum().equals("nan:canonical")) {
-//			return new F32NanCanonical();
-//		}
-//		else if(num.rawNum().equals("nan:arithmetic")) {
-//			return new F32NanArithmetic();
-//		}
-//		else {
-//			return num.floatValue();
-//		}
-//	}
-//
-//	private Object getFloat64LiteralValue(SExpr expr) {
-//		var num = (SExpr.NumberValue)expr;
-//		if(num.rawNum().equals("nan:canonical")) {
-//			return new F64NanCanonical();
-//		}
-//		else if(num.rawNum().equals("nan:arithmetic")) {
-//			return new F64NanArithmetic();
-//		}
-//		else {
-//			return num.doubleValue();
-//		}
-//	}
+	// private Object getFloat32LiteralValue(SExpr expr) {
+	// var num = (SExpr.NumberValue)expr;
+	// if(num.rawNum().equals("nan:canonical")) {
+	// return new F32NanCanonical();
+	// }
+	// else if(num.rawNum().equals("nan:arithmetic")) {
+	// return new F32NanArithmetic();
+	// }
+	// else {
+	// return num.floatValue();
+	// }
+	// }
+	//
+	// private Object getFloat64LiteralValue(SExpr expr) {
+	// var num = (SExpr.NumberValue)expr;
+	// if(num.rawNum().equals("nan:canonical")) {
+	// return new F64NanCanonical();
+	// }
+	// else if(num.rawNum().equals("nan:arithmetic")) {
+	// return new F64NanArithmetic();
+	// }
+	// else {
+	// return num.doubleValue();
+	// }
+	// }
 
 	private @Nullable Object[] getConstantValues(List<? extends WastValue> exprs) throws ModuleFormatException {
-		@Nullable Object[] values = new Object[exprs.size()];
+		@Nullable
+		Object[] values = new Object[exprs.size()];
 		for(int i = 0; i < exprs.size(); ++i) {
 			values[i] = getConstantValue(exprs.get(i));
 		}
@@ -594,6 +627,5 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable permit
 	}
 
 	@Override
-	public void close() {
-	}
+	public void close() {}
 }

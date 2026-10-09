@@ -10,8 +10,11 @@ import org.jspecify.annotations.Nullable;
 public final class DynamicWebAssemblyException extends WebAssemblyException implements DynamicWasmObject {
 	/**
 	 * Create an exception.
-	 * @param tag The tag type of the exception.
-	 * @param values The exception payload.
+	 * 
+	 * @param tag
+	 *            The tag type of the exception.
+	 * @param values
+	 *            The exception payload.
 	 */
 	public DynamicWebAssemblyException(DynamicWasmTag tag, @Nullable Object[] values) {
 		this.tag = tag;
@@ -30,6 +33,7 @@ public final class DynamicWebAssemblyException extends WebAssemblyException impl
 
 	/**
 	 * Gets the tag of this exception.
+	 * 
 	 * @return The exception type.
 	 */
 	public DynamicWasmTag getTag() {
@@ -38,6 +42,7 @@ public final class DynamicWebAssemblyException extends WebAssemblyException impl
 
 	/**
 	 * Gets the payload.
+	 * 
 	 * @return The payload.
 	 */
 	public @Nullable Object[] getValues() {

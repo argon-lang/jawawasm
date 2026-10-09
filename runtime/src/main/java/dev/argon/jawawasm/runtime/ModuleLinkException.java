@@ -11,7 +11,9 @@ public class ModuleLinkException extends RuntimeException {
 
 	/**
 	 * Creates a ModuleLinkException.
-	 * @param message The error message.
+	 * 
+	 * @param message
+	 *            The error message.
 	 */
 	public ModuleLinkException(String message) {
 		super(message);
@@ -19,7 +21,9 @@ public class ModuleLinkException extends RuntimeException {
 
 	/**
 	 * Creates a ModuleLinkException.
-	 * @param cause The underlying error.
+	 * 
+	 * @param cause
+	 *            The underlying error.
 	 */
 	public ModuleLinkException(Throwable cause) {
 		super(cause);
@@ -27,8 +31,11 @@ public class ModuleLinkException extends RuntimeException {
 
 	/**
 	 * Creates a ModuleLinkException.
-	 * @param message The error message.
-	 * @param cause The underlying error.
+	 * 
+	 * @param message
+	 *            The error message.
+	 * @param cause
+	 *            The underlying error.
 	 */
 	public ModuleLinkException(String message, Throwable cause) {
 		super(message, cause);

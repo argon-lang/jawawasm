@@ -29,20 +29,25 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class AOTEngine {
 	/**
 	 * Create an engine.
-	 * @param packageName The name of the Java package used for generated classes.
-	 * @param classPath The classpath to use for loading classes.
-	 * @param outputDir The directory to write generated classes to.
+	 * 
+	 * @param packageName
+	 *            The name of the Java package used for generated classes.
+	 * @param classPath
+	 *            The classpath to use for loading classes.
+	 * @param outputDir
+	 *            The directory to write generated classes to.
 	 */
 	public AOTEngine(String packageName, ImmutableList<Path> classPath, Path outputDir) {
 		this.classPath = classPath;
 		this.outputDir = outputDir;
 
-		compiler = new ModuleCompiler(new CompilerOptions(
-			new GeneratedClassResolver()
-				.orElse(new ClassPathResolver())
-				.orElse(ClassHierarchyResolver.defaultResolver()),
-			packageName
-		));
+		compiler = new ModuleCompiler(
+			new CompilerOptions(
+				new GeneratedClassResolver().orElse(new ClassPathResolver())
+					.orElse(ClassHierarchyResolver.defaultResolver()),
+				packageName
+			)
+		);
 
 		try {
 			moduleLoader = new AOTModuleLoader(compiler, classPath);
@@ -68,16 +73,21 @@ public class AOTEngine {
 
 	/**
 	 * Instantiates a WebAssembly module.
-	 * @param module The module to instantiate.
-	 * @param className The name of the class to generate, or {@code null} to use the sanitized module name from the name section.
-	 * @throws IOException when an error occurs while writing output.
-	 * @throws IllegalArgumentException if no class name or nonempty module name is provided.
+	 * 
+	 * @param module
+	 *            The module to instantiate.
+	 * @param className
+	 *            The name of the class to generate, or {@code null} to use the
+	 *            sanitized module name from the name section.
+	 * @throws IOException
+	 *             when an error occurs while writing output.
+	 * @throws IllegalArgumentException
+	 *             if no class name or nonempty module name is provided.
 	 */
 	public void emitModule(Module module, @Nullable String className) throws IOException {
 		WasmModuleRealization realization = compiler.enqueueModule(module, className, new MappedResolver());
 
-		genLoop:
-		for(;;) {
+		genLoop : for(;;) {
 			var gen = compiler.dequeueGenerator();
 
 			String name;
@@ -109,15 +119,18 @@ public class AOTEngine {
 
 	/**
 	 * Adds a host module to this engine.
-	 * @param moduleClass The module class to add.
-	 * @param name The name of the module.
-	 * @throws ModuleFormatException if the module is invalid
+	 * 
+	 * @param moduleClass
+	 *            The module class to add.
+	 * @param name
+	 *            The name of the module.
+	 * @throws ModuleFormatException
+	 *             if the module is invalid
 	 */
 	public void addHostModule(ClassDesc moduleClass, String name) throws ModuleFormatException {
 		var realization = moduleLoader.loadModule(moduleClass);
 		nameToRealization.put(name, realization);
 	}
-
 
 	private static String getInternalName(ClassDesc classDesc) {
 		var desc = classDesc.descriptorString();

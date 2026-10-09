@@ -12,7 +12,9 @@ import java.util.concurrent.ExecutionException;
 public class Engine {
 	/**
 	 * Create an engine.
-	 * @param options The runtime options to use.
+	 * 
+	 * @param options
+	 *            The runtime options to use.
 	 */
 	public Engine(RuntimeOptions options) {
 		this.options = options;
@@ -26,13 +28,19 @@ public class Engine {
 
 	/**
 	 * Instantiates a WebAssembly module.
-	 * @param module The module to instantiate.
-	 * @param resolver The resolver to use.
+	 * 
+	 * @param module
+	 *            The module to instantiate.
+	 * @param resolver
+	 *            The resolver to use.
 	 * @return The instantiated module.
-	 * @throws ExecutionException when an error occurs executing WebAssembly code.
-	 * @throws ModuleLinkException when an error occurs while linking.
+	 * @throws ExecutionException
+	 *             when an error occurs executing WebAssembly code.
+	 * @throws ModuleLinkException
+	 *             when an error occurs while linking.
 	 */
-	public InstantiatedModule instantiateModule(Module module, ModuleResolver<WasmModule> resolver) throws ExecutionException, ModuleLinkException {
+	public InstantiatedModule instantiateModule(Module module, ModuleResolver<WasmModule> resolver)
+		throws ExecutionException, ModuleLinkException {
 		return new InstantiatedModule(this, module, resolver);
 	}
 

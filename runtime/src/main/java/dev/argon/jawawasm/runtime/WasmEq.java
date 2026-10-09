@@ -6,8 +6,11 @@ package dev.argon.jawawasm.runtime;
 public sealed interface WasmEq extends WasmObject permits I31, WasmArray, WasmStruct {
 	/**
 	 * Checks if two WebAssembly reference values are equal.
-	 * @param a The first value.
-	 * @param b The second value.
+	 * 
+	 * @param a
+	 *            The first value.
+	 * @param b
+	 *            The second value.
 	 * @return true iff the values are equal.
 	 */
 	@SuppressWarnings("ReferenceEquality")

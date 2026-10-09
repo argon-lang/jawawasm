@@ -17,15 +17,18 @@ final class TypeValidator extends ValidatorBase {
 
 		if(limits.max() != null) {
 			require(Long.compareUnsigned(limits.max(), maxSize) <= 0, message);
-			require(Long.compareUnsigned(limits.min(), limits.max()) <= 0, "size minimum must not be greater than maximum");
+			require(
+				Long.compareUnsigned(limits.min(), limits.max()) <= 0,
+				"size minimum must not be greater than maximum"
+			);
 		}
 	}
 
 	public void validateBlockType(ControlInstr.BlockType blockType) throws ValidationException {
 		switch(blockType) {
-			case ControlInstr.BlockType.Empty() -> {}
-			case ControlInstr.BlockType.OfIndex(var typeIdx) ->
-				context.requireFuncType(typeIdx);
+			case ControlInstr.BlockType.Empty() -> {
+			}
+			case ControlInstr.BlockType.OfIndex(var typeIdx) -> context.requireFuncType(typeIdx);
 			case ControlInstr.BlockType.OfValType(var t) -> {
 				validateValType(t);
 			}
@@ -64,7 +67,8 @@ final class TypeValidator extends ValidatorBase {
 
 	public void validateValType(ValType valType) throws ValidationException {
 		switch(valType) {
-			case NumType _, VecType _, BotType _ -> {}
+			case NumType _,VecType _,BotType _ -> {
+			}
 			case RefType refType -> validateReferenceType(refType);
 		}
 	}
@@ -75,7 +79,8 @@ final class TypeValidator extends ValidatorBase {
 
 	public void validateHeapType(HeapType heapType) throws ValidationException {
 		switch(heapType) {
-			case HeapType.AbstractHeapType _, BotType(), RecTypeIdx _, DefType _ -> {}
+			case HeapType.AbstractHeapType _,BotType(),RecTypeIdx _,DefType _ -> {
+			}
 			case TypeIdx index -> context.requireType(index);
 		}
 	}
@@ -94,7 +99,8 @@ final class TypeValidator extends ValidatorBase {
 
 	private void validateStorageType(StorageType storageType) throws ValidationException {
 		switch(storageType) {
-			case PackedType _ -> {}
+			case PackedType _ -> {
+			}
 			case ValType valType -> validateValType(valType);
 		}
 	}
@@ -134,7 +140,11 @@ final class TypeValidator extends ValidatorBase {
 
 			require(!superType.isFinal(), "sub type has final super type");
 
-			require(new Subtyping(context).isSubtypeComposite(subType.compositeType(), superType.compositeType()), "sub type " + typeIndex + " does not match super type: this subtype: " + subType.compositeType() + ", super type: " + superType.compositeType());
+			require(
+				new Subtyping(context).isSubtypeComposite(subType.compositeType(), superType.compositeType()),
+				"sub type " + typeIndex + " does not match super type: this subtype: " + subType.compositeType()
+					+ ", super type: " + superType.compositeType()
+			);
 		}
 	}
 }

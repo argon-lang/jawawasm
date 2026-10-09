@@ -10,20 +10,23 @@ import org.jspecify.annotations.Nullable;
 public final class WasmGlobal implements WasmExport {
 	/**
 	 * Create a global.
-	 * @param type The global type.
-	 * @param value The value.
+	 * 
+	 * @param type
+	 *            The global type.
+	 * @param value
+	 *            The value.
 	 */
 	public WasmGlobal(GlobalType type, @Nullable Object value) {
 		this.type = type;
 		this.value = value;
 	}
 
-
 	private final GlobalType type;
 	private volatile @Nullable Object value;
 
 	/**
 	 * Gets the global type.
+	 * 
 	 * @return The global type.
 	 */
 	public GlobalType type() {
@@ -32,6 +35,7 @@ public final class WasmGlobal implements WasmExport {
 
 	/**
 	 * Gets the global value.
+	 * 
 	 * @return The global value.
 	 */
 	public @Nullable Object get() {
@@ -40,7 +44,9 @@ public final class WasmGlobal implements WasmExport {
 
 	/**
 	 * Sets the global value.
-	 * @param value The global value.
+	 * 
+	 * @param value
+	 *            The global value.
 	 */
 	public void set(@Nullable Object value) {
 		if(type.mutability() == Mut.Const) {

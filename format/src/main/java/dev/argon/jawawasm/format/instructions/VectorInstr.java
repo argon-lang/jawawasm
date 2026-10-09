@@ -12,7 +12,6 @@ public sealed interface VectorInstr extends Instr {
 	 */
 	public static sealed interface AnyOp {}
 
-
 	/**
 	 * Base type for i8x16 operations.
 	 */
@@ -33,7 +32,6 @@ public sealed interface VectorInstr extends Instr {
 	 * Base type for vector integer operations.
 	 */
 	public static sealed interface VIOp extends I8x16_Op, I16x8_Op, I32x4_Op, I64x2_Op {}
-
 
 	/**
 	 * Base type for f32x4 operations.
@@ -63,7 +61,9 @@ public sealed interface VectorInstr extends Instr {
 
 	/**
 	 * WebAssembly `v128.const` instruction
-	 * @param n The constant value.
+	 * 
+	 * @param n
+	 *            The constant value.
 	 */
 	public static record V128_Const(V128 n) implements VectorInstr {}
 
@@ -120,56 +120,73 @@ public sealed interface VectorInstr extends Instr {
 	}
 	/**
 	 * WebAssembly `v128.i8x16_op` instruction
-	 * @param op The operation.
+	 * 
+	 * @param op
+	 *            The operation.
 	 */
 	public static record I8x16_Op_Instr(I8x16_Op op) implements VectorInstr {}
 
 	/**
 	 * WebAssembly `v128.i16x8_op` instruction
-	 * @param op The operation.
+	 * 
+	 * @param op
+	 *            The operation.
 	 */
 	public static record I16x8_Op_Instr(I16x8_Op op) implements VectorInstr {}
 
 	/**
 	 * WebAssembly `v128.i32x4_op` instruction
-	 * @param op The operation.
+	 * 
+	 * @param op
+	 *            The operation.
 	 */
 	public static record I32x4_Op_Instr(I32x4_Op op) implements VectorInstr {}
 
 	/**
 	 * WebAssembly `v128.i64x2_op` instruction
-	 * @param op The operation.
+	 * 
+	 * @param op
+	 *            The operation.
 	 */
 	public static record I64x2_Op_Instr(I64x2_Op op) implements VectorInstr {}
 
 	/**
 	 * WebAssembly `v128.f32x4_op` instruction
-	 * @param op The operation.
+	 * 
+	 * @param op
+	 *            The operation.
 	 */
 	public static record F32x4_Op_Instr(F32x4_Op op) implements VectorInstr {}
 
 	/**
 	 * WebAssembly `v128.f32x4_op` ternary instruction
-	 * @param op The operation.
+	 * 
+	 * @param op
+	 *            The operation.
 	 */
 	public static record F32x4_Ternary_Op_Instr(F32x4_Ternary_Op op) implements VectorInstr {}
 
 	/**
 	 * WebAssembly `v128.f64x2_op` instruction
-	 * @param op The operation.
+	 * 
+	 * @param op
+	 *            The operation.
 	 */
 	public static record F64x2_Op_Instr(F64x2_Op op) implements VectorInstr {}
 
 	/**
 	 * WebAssembly `v128.f64x2_op` ternary instruction
-	 * @param op The operation.
+	 * 
+	 * @param op
+	 *            The operation.
 	 */
 	public static record F64x2_Ternary_Op_Instr(F64x2_Ternary_Op op) implements VectorInstr {}
 
-
 	/**
 	 * WebAssembly `v128.i8x16_shuffle` instruction
-	 * @param laneIndexes The lane indexes.
+	 * 
+	 * @param laneIndexes
+	 *            The lane indexes.
 	 */
 	public static record Shuffle(V128 laneIndexes) implements I8x16_Op {}
 
@@ -185,22 +202,30 @@ public sealed interface VectorInstr extends Instr {
 
 	/**
 	 * WebAssembly `extract_lane_u` instruction
-	 * @param laneIndex The lane index.
+	 * 
+	 * @param laneIndex
+	 *            The lane index.
 	 */
 	public static record ExtractLane_U(byte laneIndex) implements I8x16_Op, I16x8_Op {}
 	/**
 	 * WebAssembly `extract_lane_s` instruction
-	 * @param laneIndex The lane index.
+	 * 
+	 * @param laneIndex
+	 *            The lane index.
 	 */
 	public static record ExtractLane_S(byte laneIndex) implements I8x16_Op, I16x8_Op {}
 	/**
 	 * WebAssembly `extract_lane` instruction
-	 * @param laneIndex The lane index.
+	 * 
+	 * @param laneIndex
+	 *            The lane index.
 	 */
 	public static record ExtractLane(byte laneIndex) implements I32x4_Op, I64x2_Op, VFOp {}
 	/**
 	 * WebAssembly `replace_lane` instruction
-	 * @param laneIndex The lane index.
+	 * 
+	 * @param laneIndex
+	 *            The lane index.
 	 */
 	public static record ReplaceLane(byte laneIndex) implements VNOp {}
 	/**
@@ -293,7 +318,6 @@ public sealed interface VectorInstr extends Instr {
 		 */
 		GE,
 	}
-
 
 	/**
 	 * Vector unary number operations.
@@ -621,7 +645,7 @@ public sealed interface VectorInstr extends Instr {
 	 * WebAssembly `v128.i32x4_extadd_pairwise_i16x8_s` instruction
 	 */
 	public static record I32x4_ExtAdd_Pairwise_I16x8_S() implements I32x4_Op, ExtAdd {}
-	
+
 	/**
 	 * Floating-point binary operations
 	 */
@@ -659,7 +683,6 @@ public sealed interface VectorInstr extends Instr {
 		 */
 		PMAX,
 	}
-
 
 	/**
 	 * WebAssembly `v128.i32x4_trunc_sat_f32x4_u` instruction
@@ -702,7 +725,6 @@ public sealed interface VectorInstr extends Instr {
 	 * WebAssembly `v128.f64x2_promote_low_f32x4` instruction
 	 */
 	public static record F64x2_Promote_Low_F32x4() implements F64x2_Op, VCVTop_HalfQ_Shape_ZQ {}
-
 
 	/**
 	 * WebAssembly `v128.relaxed f32x4.madd` instruction

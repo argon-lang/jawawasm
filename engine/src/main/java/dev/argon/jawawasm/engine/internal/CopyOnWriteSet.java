@@ -11,7 +11,9 @@ import java.util.Iterator;
  * A HashSet-backed set whose constant-time clones share storage until mutation.
  * Elements are shallowly shared. Iterator removal also detaches shared storage.
  * This class is not thread-safe.
- * @param <E> the element type
+ * 
+ * @param <E>
+ *            the element type
  * @hidden
  */
 public final class CopyOnWriteSet<E extends @Nullable Object> extends AbstractSet<E> implements Cloneable {
@@ -41,7 +43,8 @@ public final class CopyOnWriteSet<E extends @Nullable Object> extends AbstractSe
 
 	@Override
 	public boolean add(E value) {
-		if(backing.contains(value)) return false;
+		if(backing.contains(value))
+			return false;
 		ensureWritable();
 		backing.add(value);
 		++version;
@@ -50,7 +53,8 @@ public final class CopyOnWriteSet<E extends @Nullable Object> extends AbstractSe
 
 	@Override
 	public boolean remove(@Nullable Object value) {
-		if(!backing.contains(value)) return false;
+		if(!backing.contains(value))
+			return false;
 		ensureWritable();
 		backing.remove(value);
 		++version;
@@ -59,7 +63,8 @@ public final class CopyOnWriteSet<E extends @Nullable Object> extends AbstractSe
 
 	@Override
 	public void clear() {
-		if(backing.isEmpty()) return;
+		if(backing.isEmpty())
+			return;
 		backing = new HashSet<>();
 		shared = false;
 		++version;
@@ -87,7 +92,8 @@ public final class CopyOnWriteSet<E extends @Nullable Object> extends AbstractSe
 			private boolean removable;
 
 			private void checkVersion() {
-				if(version != expectedVersion) throw new ConcurrentModificationException();
+				if(version != expectedVersion)
+					throw new ConcurrentModificationException();
 			}
 
 			@Override
@@ -109,10 +115,13 @@ public final class CopyOnWriteSet<E extends @Nullable Object> extends AbstractSe
 			@SuppressWarnings("ReferenceEquality") // Iterator removal requires the identical backing set.
 			public void remove() {
 				checkVersion();
-				if(!removable) throw new IllegalStateException();
+				if(!removable)
+					throw new IllegalStateException();
 				ensureWritable();
-				if(backing == iterated) values.remove();
-				else backing.remove(current);
+				if(backing == iterated)
+					values.remove();
+				else
+					backing.remove(current);
 				++version;
 				expectedVersion = version;
 				removable = false;

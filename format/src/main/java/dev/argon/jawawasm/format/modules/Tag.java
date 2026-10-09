@@ -4,7 +4,8 @@ import dev.argon.jawawasm.format.types.TagType;
 
 /**
  * A tag.
- * @param type The type of the tag.
+ * 
+ * @param type
+ *            The type of the tag.
  */
-public record Tag(TagType type) {
-}
+public record Tag(TagType type) {}

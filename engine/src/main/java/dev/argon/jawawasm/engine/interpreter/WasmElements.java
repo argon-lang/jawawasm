@@ -8,7 +8,9 @@ import org.jspecify.annotations.Nullable;
 public class WasmElements {
 	/**
 	 * Create elements.
-	 * @param values The element vaules.
+	 * 
+	 * @param values
+	 *            The element vaules.
 	 */
 	public WasmElements(@Nullable Object[] values) {
 		this.values = values;
@@ -18,6 +20,7 @@ public class WasmElements {
 
 	/**
 	 * Gets the number of values.
+	 * 
 	 * @return The number of values.
 	 */
 	public int size() {
@@ -26,7 +29,9 @@ public class WasmElements {
 
 	/**
 	 * Gets an element.
-	 * @param i The index.
+	 * 
+	 * @param i
+	 *            The index.
 	 * @return The element.
 	 */
 	public @Nullable Object get(int i) {

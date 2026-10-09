@@ -6,7 +6,9 @@ package dev.argon.jawawasm.engine.validator;
 public class ValidationException extends Exception {
 	/**
 	 * Create a validation exception.
-	 * @param message The error message.
+	 * 
+	 * @param message
+	 *            The error message.
 	 */
 	public ValidationException(String message) {
 		super(message);

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 
 /**
  * Internal use only.
+ * 
  * @hidden
  */
 public final class TypeRoll extends TypeResolver {
@@ -38,6 +39,5 @@ public final class TypeRoll extends TypeResolver {
 		var roll = new TypeRoll(recTypeStart);
 		return roll.resolveRecursiveType(t);
 	}
-
 
 }

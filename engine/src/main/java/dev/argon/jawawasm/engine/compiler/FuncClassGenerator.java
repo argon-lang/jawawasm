@@ -37,18 +37,13 @@ class FuncClassGenerator extends DefTypeClassGenerator {
 
 	@Override
 	public FuncTypeRealization realization() {
-		return new FuncTypeRealization(
-			className,
-			"invoke",
-			() -> compiler.getMethodType(funcType),
-			() -> {
-				if(subtype.superTypes().isEmpty()) {
-					return null;
-				}
-
-				return (FuncTypeRealization)compiler.getDefType((DefType)subtype.superTypes().getFirst());
+		return new FuncTypeRealization(className, "invoke", () -> compiler.getMethodType(funcType), () -> {
+			if(subtype.superTypes().isEmpty()) {
+				return null;
 			}
-		);
+
+			return (FuncTypeRealization)compiler.getDefType((DefType)subtype.superTypes().getFirst());
+		});
 	}
 
 	@Override
@@ -60,63 +55,53 @@ class FuncClassGenerator extends DefTypeClassGenerator {
 	protected byte[] generateImpl() {
 		var methodType = compiler.getMethodType(funcType);
 
+		return compiler.classFile().build(className, clb -> {
+			clb.withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_INTERFACE | ClassFile.ACC_ABSTRACT);
 
-		return compiler.classFile()
-			.build(
-				className,
-				clb -> {
-					clb.withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_INTERFACE | ClassFile.ACC_ABSTRACT);
+			if(subtype.superTypes().isEmpty()) {
+				clb.withInterfaceSymbols(ClassDesc.of(RUNTIME_PACKAGE, "WasmFunction"));
+			}
+			else {
+				var superType = subtype.superTypes().getFirst();
+				var superFuncRealization = (FuncTypeRealization)compiler.getDefType((DefType)superType);
 
-					if(subtype.superTypes().isEmpty()) {
-						clb.withInterfaceSymbols(ClassDesc.of(RUNTIME_PACKAGE, "WasmFunction"));
-					}
-					else {
-						var superType = subtype.superTypes().getFirst();
-						var superFuncRealization = (FuncTypeRealization)compiler.getDefType((DefType)superType);
+				clb.withInterfaceSymbols(superFuncRealization.classDesc());
 
-						clb.withInterfaceSymbols(superFuncRealization.classDesc());
+				Set<MethodTypeDesc> seenDescs = new HashSet<>();
+				seenDescs.add(methodType.descriptor());
 
-						Set<MethodTypeDesc> seenDescs = new HashSet<>();
-						seenDescs.add(methodType.descriptor());
-
-						while(superFuncRealization != null) {
-							var superMethodType = superFuncRealization.methodType().get();
-							if(seenDescs.add(superMethodType.descriptor())) {
-								clb.withMethodBody(
-									"invoke",
-									superMethodType.descriptor(),
-									ClassFile.ACC_PUBLIC | ClassFile.ACC_SYNTHETIC | ClassFile.ACC_BRIDGE,
-									cb -> {
-										cb.aload(0);
-										int slot = 1;
-										for(var param : superMethodType.descriptor().parameterList()) {
-											var tk = typeKind(param);
-											cb.loadLocal(tk, slot);
-											slot += tk.slotSize();
-										}
-										cb.invokeinterface(className, "invoke", superMethodType.descriptor());
-										cb.areturn();
-									}
-								);
+				while (superFuncRealization != null) {
+					var superMethodType = superFuncRealization.methodType().get();
+					if(seenDescs.add(superMethodType.descriptor())) {
+						clb.withMethodBody(
+							"invoke",
+							superMethodType.descriptor(),
+							ClassFile.ACC_PUBLIC | ClassFile.ACC_SYNTHETIC | ClassFile.ACC_BRIDGE,
+							cb -> {
+								cb.aload(0);
+								int slot = 1;
+								for(var param : superMethodType.descriptor().parameterList()) {
+									var tk = typeKind(param);
+									cb.loadLocal(tk, slot);
+									slot += tk.slotSize();
+								}
+								cb.invokeinterface(className, "invoke", superMethodType.descriptor());
+								cb.areturn();
 							}
-
-							superFuncRealization = superFuncRealization.superType().get();
-						}
+						);
 					}
 
-					clb.with(RuntimeVisibleAnnotationsAttribute.of(
-						Annotation.of(ClassDesc.of("java.lang.FunctionalInterface"))
-					));
-					clb.withMethod(
-						"invoke",
-						methodType.descriptor(),
-						ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT,
-						mb -> {
-							mb.with(SignatureAttribute.of(methodType.methodSignature()));
-							mb.with(RuntimeVisibleTypeAnnotationsAttribute.of(methodType.methodTypeAnnotations()));
-						}
-					);
+					superFuncRealization = superFuncRealization.superType().get();
 				}
+			}
+
+			clb.with(
+				RuntimeVisibleAnnotationsAttribute.of(Annotation.of(ClassDesc.of("java.lang.FunctionalInterface")))
 			);
+			clb.withMethod("invoke", methodType.descriptor(), ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT, mb -> {
+				mb.with(SignatureAttribute.of(methodType.methodSignature()));
+				mb.with(RuntimeVisibleTypeAnnotationsAttribute.of(methodType.methodTypeAnnotations()));
+			});
+		});
 	}
 }

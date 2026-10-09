@@ -9,12 +9,19 @@ import java.util.function.Supplier;
 
 /**
  * The realization of a struct type.
- * @param classDesc The descriptor of the struct type.
- * @param isInterface Indicates whether the struct was realized as an interface.
- * @param createMethodName The name of the create method.
- * @param createMethodType The descriptor of the create method.
- * @param fields The field realizations.
- * @param superType The realization of the supertype, or null if no supertype.
+ * 
+ * @param classDesc
+ *            The descriptor of the struct type.
+ * @param isInterface
+ *            Indicates whether the struct was realized as an interface.
+ * @param createMethodName
+ *            The name of the create method.
+ * @param createMethodType
+ *            The descriptor of the create method.
+ * @param fields
+ *            The field realizations.
+ * @param superType
+ *            The realization of the supertype, or null if no supertype.
  */
 public record StructTypeRealization(
 	ClassDesc classDesc,
@@ -27,20 +34,23 @@ public record StructTypeRealization(
 
 	/**
 	 * The realization of a field.
-	 * @param fieldType The descriptor of the field.
-	 * @param getMethod The get accessor.
-	 * @param setMethod The set accessor, or null if the field is not mutable.
+	 * 
+	 * @param fieldType
+	 *            The descriptor of the field.
+	 * @param getMethod
+	 *            The get accessor.
+	 * @param setMethod
+	 *            The set accessor, or null if the field is not mutable.
 	 */
-	record Field(
-		Supplier<ClassDesc> fieldType,
-		AccessMethod getMethod,
-		@Nullable AccessMethod setMethod
-	) {}
+	record Field(Supplier<ClassDesc> fieldType, AccessMethod getMethod, @Nullable AccessMethod setMethod) {}
 
 	/**
 	 * The realization of an accessor method.
-	 * @param methodName The name of the method.
-	 * @param methodType The descriptor of the method.
+	 * 
+	 * @param methodName
+	 *            The name of the method.
+	 * @param methodType
+	 *            The descriptor of the method.
 	 */
 	record AccessMethod(String methodName, Supplier<MethodTypeDesc> methodType) {}
 

@@ -7,7 +7,9 @@ public sealed interface ResultI64 extends WasmResult {
 
 	/**
 	 * Creates a i64 result.
-	 * @param item0 The item of this result.
+	 * 
+	 * @param item0
+	 *            The item of this result.
 	 * @return The i64 result.
 	 */
 	static ResultI64 of(long item0) {
@@ -16,7 +18,9 @@ public sealed interface ResultI64 extends WasmResult {
 
 	/**
 	 * Gets the end result values, running the trampolines if needed.
-	 * @param res The i64 result.
+	 * 
+	 * @param res
+	 *            The i64 result.
 	 * @return The end result values.
 	 */
 	static ResultI64.EndResult get(ResultI64 res) {
@@ -36,6 +40,7 @@ public sealed interface ResultI64 extends WasmResult {
 	non-sealed interface Step extends ResultI64 {
 		/**
 		 * Runs the execution step.
+		 * 
 		 * @return The next i64 result.
 		 */
 		ResultI64 step();

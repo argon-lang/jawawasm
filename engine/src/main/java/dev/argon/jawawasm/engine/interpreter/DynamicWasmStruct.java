@@ -23,7 +23,9 @@ public final class DynamicWasmStruct implements DynamicWasmEq {
 
 	/**
 	 * Gets the value of the field at an index.
-	 * @param index The index.
+	 * 
+	 * @param index
+	 *            The index.
 	 * @return The value of the field at the index.
 	 */
 	public @Nullable Object getField(int index) {
@@ -32,8 +34,11 @@ public final class DynamicWasmStruct implements DynamicWasmEq {
 
 	/**
 	 * Sets the value of the field at an index.
-	 * @param index The index.
-	 * @param value The new field value.
+	 * 
+	 * @param index
+	 *            The index.
+	 * @param value
+	 *            The new field value.
 	 */
 	public void setField(int index, @Nullable Object value) {
 		values[index] = value;

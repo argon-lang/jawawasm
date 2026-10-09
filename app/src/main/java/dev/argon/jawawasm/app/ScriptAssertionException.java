@@ -1,6 +1,5 @@
 package dev.argon.jawawasm.app;
 
-
 /**
  * A script assertion failed.
  */
@@ -12,7 +11,9 @@ public class ScriptAssertionException extends ScriptExecutionException {
 
 	/**
 	 * Creates a ScriptAssertionException.
-	 * @param message The error message.
+	 * 
+	 * @param message
+	 *            The error message.
 	 */
 	public ScriptAssertionException(String message) {
 		super(message);
@@ -20,7 +21,9 @@ public class ScriptAssertionException extends ScriptExecutionException {
 
 	/**
 	 * Creates a ScriptAssertionException.
-	 * @param cause The underlying error.
+	 * 
+	 * @param cause
+	 *            The underlying error.
 	 */
 	public ScriptAssertionException(Throwable cause) {
 		super(cause);
@@ -28,8 +31,11 @@ public class ScriptAssertionException extends ScriptExecutionException {
 
 	/**
 	 * Creates a ScriptAssertionException.
-	 * @param message The error message.
-	 * @param cause The underlying error.
+	 * 
+	 * @param message
+	 *            The error message.
+	 * @param cause
+	 *            The underlying error.
 	 */
 	public ScriptAssertionException(String message, Throwable cause) {
 		super(message, cause);

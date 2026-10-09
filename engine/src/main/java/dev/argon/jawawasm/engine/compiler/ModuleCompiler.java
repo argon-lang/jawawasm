@@ -28,16 +28,17 @@ import static java.lang.constant.ConstantDescs.*;
 public class ModuleCompiler {
 	/**
 	 * Create a WebAssembly module compiler.
-	 * @param options The compiler options.
+	 * 
+	 * @param options
+	 *            The compiler options.
 	 */
 	public ModuleCompiler(CompilerOptions options) {
 		this.options = options;
 
 		classFile = ClassFile.of(
 			ClassFile.ShortJumpsOption.FIX_SHORT_JUMPS,
-			ClassFile.ClassHierarchyResolverOption.of(
-				new GeneratedHierarchyResolver().orElse(options.classHierarchyResolver())
-			)
+			ClassFile.ClassHierarchyResolverOption
+				.of(new GeneratedHierarchyResolver().orElse(options.classHierarchyResolver()))
 		);
 	}
 
@@ -46,7 +47,6 @@ public class ModuleCompiler {
 
 	private final Queue<WasmOutputGenerator> generatorQueue = new ConcurrentLinkedQueue<>();
 	private final Map<ClassDesc, ClassHierarchyResolver.ClassHierarchyInfo> generatedHierarchy = new ConcurrentHashMap<>();
-
 
 	private final Map<DefType, DefTypeClassGenerator> typeCache = new ConcurrentHashMap<>();
 	private final Map<DefType, TypeNames> typeNames = new ConcurrentHashMap<>();
@@ -66,19 +66,32 @@ public class ModuleCompiler {
 
 	/**
 	 * Enqueue a module for compilation.
-	 * @param module The module to compile.
-	 * @param className The name of the class for the module, or {@code null} to use the sanitized module name from the name section.
-	 * @param resolver The module resolver used to look up imports.
+	 * 
+	 * @param module
+	 *            The module to compile.
+	 * @param className
+	 *            The name of the class for the module, or {@code null} to use the
+	 *            sanitized module name from the name section.
+	 * @param resolver
+	 *            The module resolver used to look up imports.
 	 * @return The realization of the module.
-	 * @throws ModuleLinkException if a linkage error occurs
-	 * @throws IllegalArgumentException if no class name or nonempty module name is provided.
+	 * @throws ModuleLinkException
+	 *             if a linkage error occurs
+	 * @throws IllegalArgumentException
+	 *             if no class name or nonempty module name is provided.
 	 */
-	public WasmModuleRealization enqueueModule(Module module, @Nullable String className, ModuleResolver<WasmModuleRealization> resolver) {
+	public WasmModuleRealization enqueueModule(
+		Module module,
+		@Nullable String className,
+		ModuleResolver<WasmModuleRealization> resolver
+	) {
 		if(className == null) {
 			var names = module.name();
 			var moduleName = names == null ? null : names.moduleName();
 			if(moduleName == null || moduleName.isEmpty()) {
-				throw new IllegalArgumentException("A class name or nonempty module name in the name section is required.");
+				throw new IllegalArgumentException(
+					"A class name or nonempty module name in the name section is required."
+				);
 			}
 			className = NameMangling.sanitizeName(moduleName);
 		}
@@ -97,6 +110,7 @@ public class ModuleCompiler {
 
 	/**
 	 * Dequeue a generator.
+	 * 
 	 * @return The generator or null if none currently remain.
 	 */
 	public @Nullable WasmOutputGenerator dequeueGenerator() {
@@ -105,30 +119,35 @@ public class ModuleCompiler {
 
 	/**
 	 * Register a class type as a Result type
-	 * @param resultType The WebAssembly result type.
-	 * @param classDesc The class type.
-	 * @throws ModuleFormatException if there is already a known class for this result type.
+	 * 
+	 * @param resultType
+	 *            The WebAssembly result type.
+	 * @param classDesc
+	 *            The class type.
+	 * @throws ModuleFormatException
+	 *             if there is already a known class for this result type.
 	 */
 	public void registerResultType(ErasedResultType resultType, ClassDesc classDesc) throws ModuleFormatException {
 		var cachedClassDesc = resultTypeCache.putIfAbsent(resultType, classDesc);
 		if(cachedClassDesc != null && !classDesc.equals(cachedClassDesc)) {
-			throw new ModuleFormatException("Conflicting types for result type " + resultType + ": " + classDesc + " and " + cachedClassDesc);
+			throw new ModuleFormatException(
+				"Conflicting types for result type " + resultType + ": " + classDesc + " and " + cachedClassDesc
+			);
 		}
 	}
 
 	/**
 	 * The ClassFile used to build class files.
+	 * 
 	 * @return The ClassFile instance.
 	 */
 	public ClassFile classFile() {
 		return classFile;
 	}
 
-
 	CompilerOptions getOptions() {
 		return options;
 	}
-
 
 	DefTypeRealization getDefType(DefType type) {
 		return typeCache.computeIfAbsent(type, t -> {
@@ -144,7 +163,13 @@ public class ModuleCompiler {
 				}
 				case StructType structType -> {
 					var className = "Struct" + structTypeIndex.getAndIncrement() + suffix;
-					var generator = new StructClassGenerator(this, subtype, structType, className, names == null ? Map.of() : names.fields());
+					var generator = new StructClassGenerator(
+						this,
+						subtype,
+						structType,
+						className,
+						names == null ? Map.of() : names.fields()
+					);
 					enqueueGenerator(generator);
 					yield generator;
 				}
@@ -160,13 +185,10 @@ public class ModuleCompiler {
 
 	TypeRealization getStorageType(StorageType storageType) {
 		return switch(storageType) {
-			case PackedType packedType -> new TypeRealization(
-				switch(packedType) {
-					case I8 -> CD_byte;
-					case I16 -> CD_short;
-				},
-				false
-			);
+			case PackedType packedType -> new TypeRealization(switch(packedType) {
+				case I8 -> CD_byte;
+				case I16 -> CD_short;
+			}, false);
 			case ValType valType -> getValType(valType);
 		};
 	}
@@ -174,25 +196,16 @@ public class ModuleCompiler {
 	TypeRealization getValType(ValType type) {
 		return switch(type) {
 			case BotType _ -> throw new RuntimeException("Unexpected bot type");
-			case NumType numType -> new TypeRealization(
-				switch(numType) {
-					case I32 -> CD_int;
-					case I64 -> CD_long;
-					case F32 -> CD_float;
-					case F64 -> CD_double;
-				},
-				false
-			);
-			case RefType refType -> new TypeRealization(
-				getHeapType(refType.heapType()),
-				refType.isNullable()
-			);
-			case VecType vecType -> new TypeRealization(
-				switch(vecType) {
-					case V128 -> ClassDesc.of("dev.argon.jawawasm.runtime.V128");
-				},
-				false
-			);
+			case NumType numType -> new TypeRealization(switch(numType) {
+				case I32 -> CD_int;
+				case I64 -> CD_long;
+				case F32 -> CD_float;
+				case F64 -> CD_double;
+			}, false);
+			case RefType refType -> new TypeRealization(getHeapType(refType.heapType()), refType.isNullable());
+			case VecType vecType -> new TypeRealization(switch(vecType) {
+				case V128 -> ClassDesc.of("dev.argon.jawawasm.runtime.V128");
+			}, false);
 		};
 	}
 
@@ -217,7 +230,9 @@ public class ModuleCompiler {
 
 	/**
 	 * Gets the realization of a result type.
-	 * @param type The result type.
+	 * 
+	 * @param type
+	 *            The result type.
 	 * @return The realization.
 	 */
 	public ResultTypeRealization getResultType(ResultType type) {
@@ -283,23 +298,23 @@ public class ModuleCompiler {
 		for(int i = 0; i < paramTypes2.size(); ++i) {
 			var paramType = paramTypes2.get(i);
 			if(paramType.isNullable()) {
-				anns.add(TypeAnnotation.of(
-					TypeAnnotation.TargetInfo.ofMethodFormalParameter(i),
-					List.of(),
-					nullableAnn
-				));
+				anns.add(
+					TypeAnnotation.of(TypeAnnotation.TargetInfo.ofMethodFormalParameter(i), List.of(), nullableAnn)
+				);
 			}
 		}
 		for(int i = 0; i < returnType.typeArguments().size(); i++) {
 			var typeArg = returnType.typeArguments().get(i);
 			if(typeArg.isNullable()) {
-				anns.add(TypeAnnotation.of(
-					TypeAnnotation.TargetInfo.ofMethodReturn(),
-					List.of(
-						TypeAnnotation.TypePathComponent.of(TypeAnnotation.TypePathComponent.Kind.TYPE_ARGUMENT, i)
-					),
-					nullableAnn
-				));
+				anns.add(
+					TypeAnnotation.of(
+						TypeAnnotation.TargetInfo.ofMethodReturn(),
+						List.of(
+							TypeAnnotation.TypePathComponent.of(TypeAnnotation.TypePathComponent.Kind.TYPE_ARGUMENT, i)
+						),
+						nullableAnn
+					)
+				);
 			}
 		}
 
@@ -323,7 +338,6 @@ public class ModuleCompiler {
 			return Signature.ClassTypeSig.of(desc);
 		}
 	}
-
 
 	private class GeneratedHierarchyResolver implements ClassHierarchyResolver {
 		@Override

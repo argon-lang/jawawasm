@@ -5,7 +5,6 @@ import org.jspecify.annotations.Nullable;
 
 import java.io.PrintWriter;
 
-
 public final class SpecTestModuleInstance extends WasmModule {
 	SpecTestModuleInstance(RuntimeOptions options, PrintWriter output) {
 		this.output = output;
@@ -99,6 +98,5 @@ public final class SpecTestModuleInstance extends WasmModule {
 		output.println(b);
 		return ResultVoid.of();
 	}
-
 
 }

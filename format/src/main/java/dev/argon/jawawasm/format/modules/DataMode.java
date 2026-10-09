@@ -13,8 +13,11 @@ public sealed interface DataMode {
 
 	/**
 	 * An active data.
-	 * @param memory The memory.
-	 * @param offset The offset in the memory.
+	 * 
+	 * @param memory
+	 *            The memory.
+	 * @param offset
+	 *            The offset in the memory.
 	 */
 	public static record Active(MemIdx memory, Expr offset) implements DataMode {}
 }

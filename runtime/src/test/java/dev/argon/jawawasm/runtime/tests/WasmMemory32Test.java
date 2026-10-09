@@ -32,14 +32,14 @@ public class WasmMemory32Test {
 	@Test
 	public void bulkCopiesOverlapAndValidateBeforeWriting() {
 		var mem = memory(1, 2);
-		WasmMemory32.copyFromArray(0, 0, 6, new byte[] {1, 2, 3, 4, 5, 6}, mem);
+		WasmMemory32.copyFromArray(0, 0, 6, new byte[]{1, 2, 3, 4, 5, 6}, mem);
 		WasmMemory32.copy(1, 0, 5, mem, mem);
 		byte[] result = new byte[6];
 		mem.copyToArray(0, 0, 6, result);
-		assertArrayEquals(new byte[] {1, 1, 2, 3, 4, 5}, result);
+		assertArrayEquals(new byte[]{1, 1, 2, 3, 4, 5}, result);
 		WasmMemory32.copy(0, 1, 5, mem, mem);
 		mem.copyToArray(0, 0, 6, result);
-		assertArrayEquals(new byte[] {1, 2, 3, 4, 5, 5}, result);
+		assertArrayEquals(new byte[]{1, 2, 3, 4, 5, 5}, result);
 		var other = memory(0, 1);
 		assertThrows(IndexOutOfBoundsException.class, () -> mem.copyFrom(0, 0, 1, other));
 		assertEquals(1, mem.loadI8(0));

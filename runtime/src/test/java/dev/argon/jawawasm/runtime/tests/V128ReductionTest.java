@@ -37,22 +37,26 @@ public class V128ReductionTest {
 			byte lane = vector.extractLane8(i);
 			any |= lane != 0;
 			all8 &= lane != 0;
-			if(lane < 0) mask8 |= 1 << i;
+			if(lane < 0)
+				mask8 |= 1 << i;
 		}
 		for(int i = 0; i < 8; ++i) {
 			short lane = vector.extractLane16(i);
 			all16 &= lane != 0;
-			if(lane < 0) mask16 |= 1 << i;
+			if(lane < 0)
+				mask16 |= 1 << i;
 		}
 		for(int i = 0; i < 4; ++i) {
 			int lane = vector.extractLane32(i);
 			all32 &= lane != 0;
-			if(lane < 0) mask32 |= 1 << i;
+			if(lane < 0)
+				mask32 |= 1 << i;
 		}
 		for(int i = 0; i < 2; ++i) {
 			long lane = vector.extractLane64(i);
 			all64 &= lane != 0;
-			if(lane < 0) mask64 |= 1 << i;
+			if(lane < 0)
+				mask64 |= 1 << i;
 		}
 		assertEquals(any, vector.anyTrue());
 		assertEquals(all8, vector.allTrue8());

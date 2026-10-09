@@ -32,7 +32,10 @@ class StackFrame {
 		}
 	}
 
-	public StackFrame(InstantiatedModule module, List<? extends Instr> block, FuncType blockType, Object[] localValues, Object[] initStack) {
+	public StackFrame(
+		InstantiatedModule module, List<? extends Instr> block, FuncType blockType, Object[] localValues,
+		Object[] initStack
+	) {
 		this.module = module;
 		this.block = block;
 		topBlockType = blockType;
@@ -48,11 +51,11 @@ class StackFrame {
 	private int ip = 0;
 	private final List<@Nullable Object> locals;
 	private final ArrayList<@Nullable Object> stack = new ArrayList<>();
-	
+
 	private void push(@Nullable Object value) {
 		stack.add(value);
 	}
-	
+
 	private @Nullable Object pop() {
 		Object value = stack.getLast();
 		stack.removeLast();
@@ -64,7 +67,7 @@ class StackFrame {
 		Objects.requireNonNull(value);
 		return value;
 	}
-	
+
 	private int popInt() {
 		return (int)popNonNull();
 	}
@@ -90,7 +93,8 @@ class StackFrame {
 	}
 
 	private @Nullable Object[] getTopValues(int n) {
-		@Nullable Object[] values = new Object[n];
+		@Nullable
+		Object[] values = new Object[n];
 		for(int i = values.length - 1; i >= 0; --i) {
 			values[i] = pop();
 		}
@@ -104,7 +108,7 @@ class StackFrame {
 	}
 
 	public DynamicFunctionResult evaluate() throws Throwable {
-		while(true) {
+		while (true) {
 			for(; ip < block.size(); ++ip) {
 				try {
 					DynamicFunctionResult result = null;
@@ -129,7 +133,8 @@ class StackFrame {
 				}
 			}
 
-			@Nullable Object[] values = getTopValues(blockType.results().types().size());
+			@Nullable
+			Object[] values = getTopValues(blockType.results().types().size());
 
 			if(stack.isEmpty()) {
 				return new DynamicFunctionResult.Values(values);
@@ -140,16 +145,24 @@ class StackFrame {
 			blockType = label.outerBlockType;
 			ip = label.endIndex;
 
-			if(!stack.isEmpty() && peek() instanceof ExceptionHandler) pop();
+			if(!stack.isEmpty() && peek() instanceof ExceptionHandler)
+				pop();
 
 			pushAll(values);
 		}
 	}
 
-	private record Label(List<? extends Instr> block, FuncType outerBlockType, ResultType resultType, int branchIndex, int endIndex) {
+	private record Label(
+		List<? extends Instr> block,
+		FuncType outerBlockType,
+		ResultType resultType,
+		int branchIndex,
+		int endIndex
+	) {
 		@Override
 		public String toString() {
-			return "Label[outerBlockType=" + outerBlockType + ", resultType=" + resultType + ", branchIndex=" + branchIndex + ", endIndex=" + endIndex + "]";
+			return "Label[outerBlockType=" + outerBlockType + ", resultType=" + resultType + ", branchIndex="
+				+ branchIndex + ", endIndex=" + endIndex + "]";
 		}
 	}
 
@@ -302,7 +315,7 @@ class StackFrame {
 					}
 				}
 			}
-			
+
 			case NumericInstr.Fnn_FBinOp fnnFBinOp -> {
 				switch(fnnFBinOp.size()) {
 					case _32 -> {
@@ -358,7 +371,7 @@ class StackFrame {
 					}
 				}
 			}
-			
+
 			case NumericInstr.Inn_IRelOp innIRelOp -> {
 				switch(innIRelOp.size()) {
 					case _32 -> {
@@ -501,13 +514,15 @@ class StackFrame {
 
 				switch(innTruncFmmS.intSize()) {
 					case _32 -> {
-						if(value.compareTo(new BigDecimal((long)Integer.MIN_VALUE - 1)) <= 0 || value.compareTo(new BigDecimal((long)Integer.MAX_VALUE + 1)) >= 0) {
+						if(value.compareTo(new BigDecimal((long)Integer.MIN_VALUE - 1)) <= 0
+							|| value.compareTo(new BigDecimal((long)Integer.MAX_VALUE + 1)) >= 0) {
 							throw new ArithmeticException();
 						}
 						push(value.intValue());
 					}
 					case _64 -> {
-						if(value.compareTo(new BigDecimal(Long.MIN_VALUE).subtract(BigDecimal.ONE)) <= 0 || value.compareTo(new BigDecimal(Long.MAX_VALUE).add(BigDecimal.ONE)) >= 0) {
+						if(value.compareTo(new BigDecimal(Long.MIN_VALUE).subtract(BigDecimal.ONE)) <= 0
+							|| value.compareTo(new BigDecimal(Long.MAX_VALUE).add(BigDecimal.ONE)) >= 0) {
 							throw new ArithmeticException();
 						}
 						push(value.longValue());
@@ -533,7 +548,6 @@ class StackFrame {
 						yield new BigDecimal(a);
 					}
 				};
-
 
 				switch(innTruncFmmU.intSize()) {
 					case _32 -> {
@@ -1753,7 +1767,8 @@ class StackFrame {
 			case ReferenceInstr.StructInstr structInstr -> evaluateStructInstr(structInstr);
 			case ReferenceInstr.ArrayInstr arrayInstr -> evaluateArrayInstr(arrayInstr);
 
-			case ReferenceInstr.Any_Convert_Extern(), ReferenceInstr.Extern_Convert_Any() -> {}
+			case ReferenceInstr.Any_Convert_Extern(),ReferenceInstr.Extern_Convert_Any() -> {
+			}
 
 			default -> throw new RuntimeException("Not implemented: " + instr);
 		}
@@ -1765,7 +1780,8 @@ class StackFrame {
 				var structType = module.getStructType(typeIdx);
 				var fieldTypes = structType.fields();
 
-				@Nullable Object[] values = new Object[fieldTypes.size()];
+				@Nullable
+				Object[] values = new Object[fieldTypes.size()];
 				for(int i = fieldTypes.size() - 1; i >= 0; --i) {
 					values[i] = packValue(pop(), fieldTypes.get(i).storageType());
 				}
@@ -1777,7 +1793,8 @@ class StackFrame {
 				var structType = module.getStructType(typeIdx);
 				var fieldTypes = structType.fields();
 
-				@Nullable Object[] values = new Object[fieldTypes.size()];
+				@Nullable
+				Object[] values = new Object[fieldTypes.size()];
 				for(int i = fieldTypes.size() - 1; i >= 0; --i) {
 					values[i] = Defaults.defaultValuePacked(fieldTypes.get(i).storageType());
 				}
@@ -1877,7 +1894,6 @@ class StackFrame {
 				int s = popInt();
 				int d = 0;
 				var array = DynamicWasmArray.create(module.getDefType(typeIdx), n);
-
 
 				switch(arrayType.fieldType().storageType()) {
 					case PackedType packedType -> {
@@ -2130,7 +2146,6 @@ class StackFrame {
 			}
 		}
 
-
 		return module.subtyping.isSubtypeHeap(objType, t.heapType());
 	}
 
@@ -2364,7 +2379,7 @@ class StackFrame {
 					case _64 -> push(MemoryAccess.loadF64(memory, address));
 				}
 			}
-			
+
 			case MemoryInstr.Inn_Store innStore -> {
 				var memory = module.getMemory(innStore.memArg().memIdx());
 				Object value = popNonNull();
@@ -2505,8 +2520,6 @@ class StackFrame {
 
 				MemoryAccess.storeI32(memory, address, value);
 			}
-
-
 
 			case MemoryInstr.V128_Load8x8_U(var memArg) -> {
 				var memory = module.getMemory(memArg.memIdx());
@@ -2730,7 +2743,6 @@ class StackFrame {
 				MemoryAccess.copyFromArray(memory, d, s, n, data.init().toByteArray());
 			}
 
-
 			case MemoryInstr.Data_Drop(var dataIdx) -> module.dropData(dataIdx);
 		}
 	}
@@ -2751,15 +2763,8 @@ class StackFrame {
 	}
 
 	private long calculateMemoryAddress(long address, long offset) {
-		if(
-			(
-				offset < 0 && address < offset
-			) ||
-				(
-					Long.compareUnsigned(address + offset, address) < 0 ||
-						Long.compareUnsigned(address + offset, offset) < 0
-				)
-		) {
+		if((offset < 0 && address < offset) || (Long.compareUnsigned(address + offset, address) < 0
+			|| Long.compareUnsigned(address + offset, offset) < 0)) {
 			throw new IndexOutOfBoundsException();
 		}
 
@@ -2856,7 +2861,8 @@ class StackFrame {
 			case ControlInstr.Call(var funcIdx) -> {
 				var func = module.getFunction(funcIdx);
 				var args = getTopValues(func.functionType().args().types().size());
-				@Nullable Object[] results = func.invokeNow(args);
+				@Nullable
+				Object[] results = func.invokeNow(args);
 				pushAll(results);
 				yield null;
 			}
@@ -2867,7 +2873,8 @@ class StackFrame {
 				}
 
 				var args = getTopValues(func.functionType().args().types().size());
-				@Nullable Object[] results = func.invokeNow(args);
+				@Nullable
+				Object[] results = func.invokeNow(args);
 				pushAll(results);
 				yield null;
 			}
@@ -2885,7 +2892,8 @@ class StackFrame {
 				}
 
 				var args = getTopValues(func.functionType().args().types().size());
-				@Nullable Object[] results = func.invokeNow(args);
+				@Nullable
+				Object[] results = func.invokeNow(args);
 				pushAll(results);
 				yield null;
 			}
@@ -2925,9 +2933,8 @@ class StackFrame {
 		};
 	}
 
-
 	private void handleException(DynamicWebAssemblyException ex) throws DynamicWebAssemblyException {
-		while(!this.stack.isEmpty()) {
+		while (!this.stack.isEmpty()) {
 			if(!(pop() instanceof ExceptionHandler(var catchClauses))) {
 				continue;
 			}
@@ -2967,27 +2974,46 @@ class StackFrame {
 		throw ex;
 	}
 
-
-
 	private FuncType expandBlockType(ControlInstr.BlockType blockType) {
 		return switch(blockType) {
-			case ControlInstr.BlockType.Empty() -> new FuncType(new ResultType(ImmutableList.of()), new ResultType(ImmutableList.of()));
+			case ControlInstr.BlockType.Empty() ->
+				new FuncType(new ResultType(ImmutableList.of()), new ResultType(ImmutableList.of()));
 			case ControlInstr.BlockType.OfIndex(var index) -> module.getFuncType(index);
-			case ControlInstr.BlockType.OfValType(var valType) -> new FuncType(new ResultType(ImmutableList.of()), new ResultType(ImmutableList.of(valType)));
+			case ControlInstr.BlockType.OfValType(var valType) ->
+				new FuncType(new ResultType(ImmutableList.of()), new ResultType(ImmutableList.of(valType)));
 		};
 	}
 
-	private void enterBlock(ControlInstr.BlockType type, List<? extends Instr> innerBlock, int branchIP, boolean useResultType) {
+	private void enterBlock(
+		ControlInstr.BlockType type,
+		List<? extends Instr> innerBlock,
+		int branchIP,
+		boolean useResultType
+	) {
 		enterBlock(type, innerBlock, null, branchIP, useResultType);
 	}
 
-	private void enterBlock(ControlInstr.BlockType type, List<? extends Instr> innerBlock, @Nullable ExceptionHandler handler, int branchIP, boolean useResultType) {
+	private void enterBlock(
+		ControlInstr.BlockType type,
+		List<? extends Instr> innerBlock,
+		@Nullable ExceptionHandler handler,
+		int branchIP,
+		boolean useResultType
+	) {
 		var expandedType = expandBlockType(type);
-		var label = new Label(block, blockType, useResultType ? expandedType.results() : expandedType.args(), branchIP, ip + 1);
+		var label = new Label(
+			block,
+			blockType,
+			useResultType ? expandedType.results() : expandedType.args(),
+			branchIP,
+			ip + 1
+		);
 
-		@Nullable Object[] values = getTopValues(expandedType.args().types().size());
+		@Nullable
+		Object[] values = getTopValues(expandedType.args().types().size());
 
-		if(handler != null) push(handler);
+		if(handler != null)
+			push(handler);
 		push(label);
 
 		for(Object value : values) {
@@ -3021,9 +3047,10 @@ class StackFrame {
 
 	private void branch(int n) {
 		var label = getLabel(n);
-		@Nullable Object[] values = getTopValues(label.resultType().types().size());
+		@Nullable
+		Object[] values = getTopValues(label.resultType().types().size());
 
-		while(true) {
+		while (true) {
 			if(n == 0 && stack.isEmpty()) {
 				break;
 			}

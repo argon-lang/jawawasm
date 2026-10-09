@@ -1,7 +1,9 @@
+import com.diffplug.gradle.spotless.SpotlessExtension
 import net.ltgt.gradle.errorprone.errorprone
 
 plugins {
     alias(libs.plugins.errorprone) apply false
+    alias(libs.plugins.spotless) apply false
 }
 
 val sharedLibs = libs
@@ -9,6 +11,14 @@ val sharedLibs = libs
 subprojects {
     apply(plugin = "java")
     apply(plugin = "net.ltgt.errorprone")
+    apply(plugin = "com.diffplug.spotless")
+
+    extensions.configure<SpotlessExtension> {
+        java {
+            target("src/**/*.java")
+            eclipse().configFile(rootProject.file("eclipse-formatter.properties"))
+        }
+    }
 
     repositories {
         mavenCentral()

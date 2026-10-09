@@ -24,7 +24,14 @@ public abstract class V128TestSupport {
 		assertEquals(high, actual.extractLane64(1), "High 64 bits");
 	}
 
-	public static void assertVector(long low, long high, V128 actual, int width, int canonicalMask, int arithmeticMask) {
+	public static void assertVector(
+		long low,
+		long high,
+		V128 actual,
+		int width,
+		int canonicalMask,
+		int arithmeticMask
+	) {
 		long mask = width == 64 ? -1L : (1L << width) - 1;
 		long canonical = width == 32 ? 0x7fc00000L : 0x7ff8000000000000L;
 		for(int i = 0; i < 128 / width; ++i) {

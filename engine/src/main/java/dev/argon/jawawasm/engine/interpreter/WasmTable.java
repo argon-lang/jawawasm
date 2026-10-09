@@ -15,8 +15,11 @@ import org.jspecify.annotations.Nullable;
 public final class WasmTable implements WasmExport {
 	/**
 	 * Create a table.
-	 * @param type The table type.
-	 * @param initialValue The initial value for elements of the table.
+	 * 
+	 * @param type
+	 *            The table type.
+	 * @param initialValue
+	 *            The initial value for elements of the table.
 	 */
 	public WasmTable(TableType type, @Nullable Object initialValue) {
 		this.tableType = type;
@@ -31,6 +34,7 @@ public final class WasmTable implements WasmExport {
 
 	/**
 	 * Gets the table type.
+	 * 
 	 * @return The table type.
 	 */
 	public synchronized TableType type() {
@@ -43,6 +47,7 @@ public final class WasmTable implements WasmExport {
 
 	/**
 	 * Gets the size of the table.
+	 * 
 	 * @return The size of the table.
 	 */
 	public synchronized long size() {
@@ -51,7 +56,9 @@ public final class WasmTable implements WasmExport {
 
 	/**
 	 * Gets a table element.
-	 * @param i The index.
+	 * 
+	 * @param i
+	 *            The index.
 	 * @return The element.
 	 */
 	public synchronized @Nullable Object get(long i) {
@@ -61,8 +68,11 @@ public final class WasmTable implements WasmExport {
 
 	/**
 	 * Sets a table element.
-	 * @param i The index.
-	 * @param value The value.
+	 * 
+	 * @param i
+	 *            The index.
+	 * @param value
+	 *            The value.
 	 */
 	public synchronized void set(long i, @Nullable Object value) {
 		Objects.checkIndex(i, values.size());
@@ -71,14 +81,18 @@ public final class WasmTable implements WasmExport {
 
 	/**
 	 * Grow the table.
-	 * @param n The number of new elements.
-	 * @param value The value to set for new elements.
+	 * 
+	 * @param n
+	 *            The number of new elements.
+	 * @param value
+	 *            The value to set for new elements.
 	 * @return The old size.
 	 */
 	public synchronized long grow(long n, @Nullable Object value) {
 		int oldSize = values.size();
 
-		if(n < 0 || (tableType.limits().max() != null && oldSize + n > tableType.limits().max()) || oldSize + n < 0 || n > Integer.MAX_VALUE) {
+		if(n < 0 || (tableType.limits().max() != null && oldSize + n > tableType.limits().max()) || oldSize + n < 0
+			|| n > Integer.MAX_VALUE) {
 			return -1;
 		}
 
@@ -91,17 +105,22 @@ public final class WasmTable implements WasmExport {
 
 	/**
 	 * Fill the table.
-	 * @param n The number of values to fill.
-	 * @param val The fill value.
-	 * @param i The start index.
-	 * @param table The table to fill.
+	 * 
+	 * @param n
+	 *            The number of values to fill.
+	 * @param val
+	 *            The fill value.
+	 * @param i
+	 *            The start index.
+	 * @param table
+	 *            The table to fill.
 	 */
 	public static void fill(long n, @Nullable Object val, long i, WasmTable table) {
 		if(!Util.sumInRange(i, n, table.size())) {
 			throw new IndexOutOfBoundsException();
 		}
 
-		while(n != 0) {
+		while (n != 0) {
 			table.set(i, val);
 			++i;
 			--n;
@@ -110,11 +129,17 @@ public final class WasmTable implements WasmExport {
 
 	/**
 	 * Copy values between tables.
-	 * @param n The number of values to copy.
-	 * @param s The start index for tableY.
-	 * @param d The start index for tableX.
-	 * @param tableX The destination table.
-	 * @param tableY The source table.
+	 * 
+	 * @param n
+	 *            The number of values to copy.
+	 * @param s
+	 *            The start index for tableY.
+	 * @param d
+	 *            The start index for tableX.
+	 * @param tableX
+	 *            The destination table.
+	 * @param tableY
+	 *            The source table.
 	 */
 	public static void copy(long n, long s, long d, WasmTable tableX, WasmTable tableY) {
 		if(!Util.sumInRange(s, n, tableY.size()) || !Util.sumInRange(d, n, tableX.size())) {
@@ -122,7 +147,7 @@ public final class WasmTable implements WasmExport {
 		}
 
 		if(d <= s) {
-			while(n != 0) {
+			while (n != 0) {
 				Object value = tableY.get(s);
 				tableX.set(d, value);
 
@@ -132,7 +157,7 @@ public final class WasmTable implements WasmExport {
 			}
 		}
 		else {
-			while(n != 0) {
+			while (n != 0) {
 				Object value = tableY.get(s + n - 1);
 				tableX.set(d + n - 1, value);
 				--n;
@@ -142,18 +167,24 @@ public final class WasmTable implements WasmExport {
 
 	/**
 	 * Initialize a table.
-	 * @param d The start index for table.
-	 * @param s The start index for elem.
-	 * @param n The number of values to copy.
-	 * @param table The destination table.
-	 * @param elem The source elements.
+	 * 
+	 * @param d
+	 *            The start index for table.
+	 * @param s
+	 *            The start index for elem.
+	 * @param n
+	 *            The number of values to copy.
+	 * @param table
+	 *            The destination table.
+	 * @param elem
+	 *            The source elements.
 	 */
 	public static void init(long d, int s, int n, WasmTable table, WasmElements elem) {
 		if(!Util.sumInRange(s, n, elem.size()) || !Util.sumInRange(d, n, table.size())) {
 			throw new IndexOutOfBoundsException();
 		}
 
-		while(n != 0) {
+		while (n != 0) {
 			var val = elem.get(s);
 			table.set(d, val);
 

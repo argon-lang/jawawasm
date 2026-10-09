@@ -8,7 +8,9 @@ import java.nio.charset.CharacterCodingException;
 public class ModuleFormatException extends Exception {
 	/**
 	 * Creates a ModuleFormatException
-	 * @param message The error message.
+	 * 
+	 * @param message
+	 *            The error message.
 	 */
 	public ModuleFormatException(String message) {
 		super(message);
@@ -16,8 +18,11 @@ public class ModuleFormatException extends Exception {
 
 	/**
 	 * Creates a ModuleFormatException
-	 * @param message The error message.
-	 * @param cause The underlying error.
+	 * 
+	 * @param message
+	 *            The error message.
+	 * @param cause
+	 *            The underlying error.
 	 */
 	public ModuleFormatException(String message, Throwable cause) {
 		super(message, cause);

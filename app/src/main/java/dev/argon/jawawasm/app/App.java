@@ -9,19 +9,22 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 
 /**
- * App for executing wast scripts.
- * Requires the wasm spec interpreter to convert text format to binary.
+ * App for executing wast scripts. Requires the wasm spec interpreter to convert
+ * text format to binary.
  */
 public class App {
 	App() {}
 
 	/**
 	 * Execute wast scripts.
-	 * @param args Command line arguments.
-	 * @throws Throwable if an error occurs.
+	 * 
+	 * @param args
+	 *            Command line arguments.
+	 * @throws Throwable
+	 *             if an error occurs.
 	 *
 	 */
-    public static void main(String[] args) throws Throwable {
+	public static void main(String[] args) throws Throwable {
 		String scriptFile = args[0];
 
 		String wasmToolsExecutableStr = System.getenv("JAWAWASM_WASM_TOOLS_PATH");
@@ -45,5 +48,5 @@ public class App {
 			}
 
 		}
-    }
+	}
 }

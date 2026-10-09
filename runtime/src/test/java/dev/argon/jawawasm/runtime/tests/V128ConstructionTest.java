@@ -37,13 +37,15 @@ public class V128ConstructionTest extends V128TestSupport {
 	public void floatingPointLaneReplacementPreservesRawBits() {
 		int[] floats = {0, 0x80000000, 0x7f800001, 0xffc12345};
 		var f32 = V128.ZERO;
-		for(int i = 0; i < floats.length; ++i) f32 = f32.replaceLaneF32(Float.intBitsToFloat(floats[i]), i);
+		for(int i = 0; i < floats.length; ++i)
+			f32 = f32.replaceLaneF32(Float.intBitsToFloat(floats[i]), i);
 		for(int i = 0; i < floats.length; ++i) {
 			assertEquals(floats[i], Float.floatToRawIntBits(f32.extractLaneF32(i)));
 		}
 		long[] doubles = {0x8000000000000000L, 0x7ff0000000000001L};
 		var f64 = V128.ZERO;
-		for(int i = 0; i < doubles.length; ++i) f64 = f64.replaceLaneF64(Double.longBitsToDouble(doubles[i]), i);
+		for(int i = 0; i < doubles.length; ++i)
+			f64 = f64.replaceLaneF64(Double.longBitsToDouble(doubles[i]), i);
 		for(int i = 0; i < doubles.length; ++i) {
 			assertEquals(doubles[i], Double.doubleToRawLongBits(f64.extractLaneF64(i)));
 		}
@@ -51,7 +53,7 @@ public class V128ConstructionTest extends V128TestSupport {
 
 	@Test
 	public void extractRejectsOutOfRangeLaneIndices() {
-		for(int i : new int[] {-1, Integer.MIN_VALUE, Integer.MAX_VALUE}) {
+		for(int i : new int[]{-1, Integer.MIN_VALUE, Integer.MAX_VALUE}) {
 			assertThrows(IllegalArgumentException.class, () -> V128.ZERO.extractLane8(i));
 			assertThrows(IllegalArgumentException.class, () -> V128.ZERO.extractLane16(i));
 			assertThrows(IllegalArgumentException.class, () -> V128.ZERO.extractLane32(i));

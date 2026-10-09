@@ -6,7 +6,9 @@ package dev.argon.jawawasm.runtime;
 public class GlobalF32 {
 	/**
 	 * Creates a global f32
-	 * @param value The initial value.
+	 * 
+	 * @param value
+	 *            The initial value.
 	 */
 	public GlobalF32(float value) {
 		this.value = value;
@@ -16,6 +18,7 @@ public class GlobalF32 {
 
 	/**
 	 * Gets the global value.
+	 * 
 	 * @return The value;
 	 */
 	public float get() {
@@ -24,7 +27,9 @@ public class GlobalF32 {
 
 	/**
 	 * Sets the global value.
-	 * @param value The new value
+	 * 
+	 * @param value
+	 *            The new value
 	 */
 	public void set(float value) {
 		this.value = value;

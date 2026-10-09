@@ -17,7 +17,9 @@ public sealed interface DynamicFunctionResult {
 
 		/**
 		 * Create a values result.
-		 * @param values The return values.
+		 * 
+		 * @param values
+		 *            The return values.
 		 */
 		public Values(@Nullable Object[] values) {
 			this.values = values;
@@ -25,6 +27,7 @@ public sealed interface DynamicFunctionResult {
 
 		/**
 		 * Get the values.
+		 * 
 		 * @return The values.
 		 */
 		public @Nullable Object[] values() {
@@ -38,22 +41,27 @@ public sealed interface DynamicFunctionResult {
 	public static non-sealed interface Delay extends DynamicFunctionResult {
 		/**
 		 * Continue execution of the function.
+		 * 
 		 * @return The function result.
-		 * @throws Throwable if an error occurs.
+		 * @throws Throwable
+		 *             if an error occurs.
 		 */
 		DynamicFunctionResult step() throws Throwable;
 	}
 
-
 	/**
 	 * Resolve a function result to get the return value.
-	 * @param result The function result.
+	 * 
+	 * @param result
+	 *            The function result.
 	 * @return The return values.
-	 * @throws Throwable if an error occurs during continued evaluation.
+	 * @throws Throwable
+	 *             if an error occurs during continued evaluation.
 	 */
 	public static @Nullable Object[] resolve(DynamicFunctionResult result) throws Throwable {
-		@Nullable Object[] value = null;
-		while(value == null) {
+		@Nullable
+		Object[] value = null;
+		while (value == null) {
 			switch(result) {
 				case Values values -> value = values.values();
 				case Delay delay -> result = delay.step();
@@ -64,9 +72,12 @@ public sealed interface DynamicFunctionResult {
 
 	/**
 	 * Resolve a function result to get the return value.
-	 * @param result The function result.
+	 * 
+	 * @param result
+	 *            The function result.
 	 * @return The return values.
-	 * @throws ExecutionException if an error occurs during evaluation.
+	 * @throws ExecutionException
+	 *             if an error occurs during evaluation.
 	 */
 	public static @Nullable Object[] resolveWith(DynamicFunctionResult.Delay result) throws ExecutionException {
 		try {

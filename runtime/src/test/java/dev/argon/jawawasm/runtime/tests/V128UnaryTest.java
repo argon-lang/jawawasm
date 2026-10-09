@@ -16,7 +16,8 @@ public class V128UnaryTest {
 	@Test
 	public void packedUnaryOperationsPreserveLaneBoundaries() {
 		Random random = new Random(128);
-		int[] amounts = {-129, -65, -33, -17, -9, -1, 0, 1, 7, 8, 15, 16, 31, 32, 63, 64, 129, Integer.MIN_VALUE, Integer.MAX_VALUE};
+		int[] amounts = {-129, -65, -33, -17, -9, -1, 0, 1, 7, 8, 15, 16, 31, 32, 63, 64, 129, Integer.MIN_VALUE,
+				Integer.MAX_VALUE};
 		for(int iteration = 0; iteration < 256; ++iteration) {
 			V128 a = V128TestSupport.bytePattern(iteration, 37);
 			V128 abs = a.abs8(), pop = a.popcnt8();
@@ -24,11 +25,16 @@ public class V128UnaryTest {
 				assertEquals((byte)Math.abs(a.extractLane8(i)), abs.extractLane8(i));
 				assertEquals((byte)Integer.bitCount(Byte.toUnsignedInt(a.extractLane8(i))), pop.extractLane8(i));
 			}
-			V128 wide = iteration == 0 ? new V128(0x8000800080008000L, Long.MIN_VALUE) : new V128(random.nextLong(), random.nextLong());
+			V128 wide = iteration == 0
+				? new V128(0x8000800080008000L, Long.MIN_VALUE)
+				: new V128(random.nextLong(), random.nextLong());
 			V128 abs16 = wide.abs16(), abs32 = wide.abs32(), abs64 = wide.abs64();
-			for(int i = 0; i < 8; ++i) assertEquals((short)Math.abs(wide.extractLane16(i)), abs16.extractLane16(i));
-			for(int i = 0; i < 4; ++i) assertEquals(Math.abs(wide.extractLane32(i)), abs32.extractLane32(i));
-			for(int i = 0; i < 2; ++i) assertEquals(Math.abs(wide.extractLane64(i)), abs64.extractLane64(i));
+			for(int i = 0; i < 8; ++i)
+				assertEquals((short)Math.abs(wide.extractLane16(i)), abs16.extractLane16(i));
+			for(int i = 0; i < 4; ++i)
+				assertEquals(Math.abs(wide.extractLane32(i)), abs32.extractLane32(i));
+			for(int i = 0; i < 2; ++i)
+				assertEquals(Math.abs(wide.extractLane64(i)), abs64.extractLane64(i));
 			for(int amount : amounts) {
 				V128 l8 = a.shl8(amount), u8 = a.shrU8(amount), s8 = a.shrS8(amount);
 				for(int i = 0; i < 16; ++i) {

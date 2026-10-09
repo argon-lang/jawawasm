@@ -13,7 +13,6 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
-
 /**
  * An interpreter for WAST scripts.
  */
@@ -37,14 +36,17 @@ public final class ScriptInterpreter extends ScriptExecutor<WasmModule> {
 	}
 
 	@Override
-	@Nullable Object[] invokeModuleExport(WasmModule module, String exportName, @Nullable Object[] args) throws ExecutionException {
+	@Nullable
+	Object[] invokeModuleExport(WasmModule module, String exportName, @Nullable Object[] args)
+		throws ExecutionException {
 		var export = (DynamicWasmFunction)module.getExport(exportName);
 		Objects.requireNonNull(export);
 		return DynamicFunctionResult.resolveWith(() -> export.invoke(args));
 	}
 
 	@Override
-	@Nullable Object getGlobalExport(WasmModule module, String exportName) {
+	@Nullable
+	Object getGlobalExport(WasmModule module, String exportName) {
 		var export = (WasmGlobal)module.getExport(exportName);
 		Objects.requireNonNull(export);
 		return export.get();

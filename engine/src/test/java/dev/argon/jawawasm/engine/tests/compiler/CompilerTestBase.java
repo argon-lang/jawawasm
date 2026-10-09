@@ -28,9 +28,13 @@ public abstract class CompilerTestBase {
 		Files.copy(Path.of("src/test/resources/compiler", fixture), wat);
 		var wasm = temporaryDirectory.resolve(fixture + ".wasm");
 		var log = temporaryDirectory.resolve(fixture + ".log");
-		var process = new ProcessBuilder(Path.of("../cargo-tools/bin/wasm-tools").toAbsolutePath().toString(),
-			"parse", wat.toString(), "-o", wasm.toString())
-			.redirectErrorStream(true).redirectOutput(log.toFile()).start();
+		var process = new ProcessBuilder(
+			Path.of("../cargo-tools/bin/wasm-tools").toAbsolutePath().toString(),
+			"parse",
+			wat.toString(),
+			"-o",
+			wasm.toString()
+		).redirectErrorStream(true).redirectOutput(log.toFile()).start();
 		try {
 			assertTrue(process.waitFor(30, TimeUnit.SECONDS), "wasm-tools timed out");
 			assertEquals(0, process.exitValue(), () -> readLog(log));
@@ -38,7 +42,9 @@ public abstract class CompilerTestBase {
 		finally {
 			process.destroyForcibly();
 		}
-		var compiler = new ModuleCompiler(new CompilerOptions(ClassHierarchyResolver.defaultResolver(), "test.generated"));
+		var compiler = new ModuleCompiler(
+			new CompilerOptions(ClassHierarchyResolver.defaultResolver(), "test.generated")
+		);
 		try(var input = Files.newInputStream(wasm)) {
 			var module = new ModuleReader(input).readModule();
 			ModuleValidator.validateModule(module);

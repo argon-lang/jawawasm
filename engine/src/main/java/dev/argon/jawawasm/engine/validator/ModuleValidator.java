@@ -20,8 +20,11 @@ public class ModuleValidator extends ValidatorBase {
 
 	/**
 	 * Validate a module.
-	 * @param module The module to validate.
-	 * @throws ValidationException if validation failed.
+	 * 
+	 * @param module
+	 *            The module to validate.
+	 * @throws ValidationException
+	 *             if validation failed.
 	 */
 	public static void validateModule(Module module) throws ValidationException {
 		Context c = new Context();
@@ -125,7 +128,8 @@ public class ModuleValidator extends ValidatorBase {
 		}
 
 		var jobs = new ArrayList<CodeValidateJob>(module.funcs().size());
-		for(var function : module.funcs()) jobs.add(prepareFunction(c, function));
+		for(var function : module.funcs())
+			jobs.add(prepareFunction(c, function));
 		new CodeValidatorQueue(jobs).run();
 
 		if(module.start() != null) {
@@ -145,7 +149,6 @@ public class ModuleValidator extends ValidatorBase {
 			}
 		}
 	}
-
 
 	private static CodeValidateJob prepareFunction(Context context, Func func) throws ValidationException {
 		context.requireFuncType(func.type());
@@ -176,7 +179,8 @@ public class ModuleValidator extends ValidatorBase {
 		var tv = new TypeValidator(context);
 		switch(import_.desc()) {
 			case ImportDesc.Func(var t) -> context.requireType(t);
-			case ImportDesc.Global(var t) -> {}
+			case ImportDesc.Global(var t) -> {
+			}
 			case ImportDesc.Mem(var t) -> tv.validateMemoryType(t);
 			case ImportDesc.Table(var t) -> tv.validateTableType(t);
 			case ImportDesc.Tag(var t) -> tv.validateTagType(t);
@@ -194,7 +198,13 @@ public class ModuleValidator extends ValidatorBase {
 	}
 
 	private void validateExpr(Expr expr, ResultType resultType, boolean constant) throws ValidationException {
-		var job = new CodeValidateJob(context.copy(), new ResultType(ImmutableList.of()), resultType, expr.body(), constant);
+		var job = new CodeValidateJob(
+			context.copy(),
+			new ResultType(ImmutableList.of()),
+			resultType,
+			expr.body(),
+			constant
+		);
 		new CodeValidatorQueue(List.of(job)).run();
 	}
 
@@ -229,10 +239,18 @@ public class ModuleValidator extends ValidatorBase {
 				var tableElementType = table.elementType();
 				new TypeValidator(context).validateReferenceType(tableElementType);
 
-				require(new Subtyping(context).isSubtypeRef(elem.type(), tableElementType), "type mismatch " + elem.type() + ", " + tableElementType);
-				validateExpr(active.offset(), new ResultType(ImmutableList.of(AddressTypeUtils.asNumType(table.addrType()))), true);
+				require(
+					new Subtyping(context).isSubtypeRef(elem.type(), tableElementType),
+					"type mismatch " + elem.type() + ", " + tableElementType
+				);
+				validateExpr(
+					active.offset(),
+					new ResultType(ImmutableList.of(AddressTypeUtils.asNumType(table.addrType()))),
+					true
+				);
 			}
-			case ElemMode.Declarative(), ElemMode.Passive() -> {}
+			case ElemMode.Declarative(),ElemMode.Passive() -> {
+			}
 		}
 	}
 
@@ -241,11 +259,15 @@ public class ModuleValidator extends ValidatorBase {
 			case DataMode.Active active -> {
 				context.requireMem(active.memory());
 				var memory = context.getMem(active.memory());
-				validateExpr(active.offset(), new ResultType(ImmutableList.of(AddressTypeUtils.asNumType(memory.addrType()))), true);
+				validateExpr(
+					active.offset(),
+					new ResultType(ImmutableList.of(AddressTypeUtils.asNumType(memory.addrType()))),
+					true
+				);
 			}
-			case DataMode.Passive() -> {}
+			case DataMode.Passive() -> {
+			}
 		}
 	}
-
 
 }

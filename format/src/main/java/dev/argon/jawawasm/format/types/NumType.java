@@ -7,17 +7,17 @@ public enum NumType implements ValType {
 	/**
 	 * 32-bit integer
 	 */
-    I32,
+	I32,
 	/**
 	 * 64-bit integer
 	 */
-    I64,
+	I64,
 	/**
 	 * 32-bit float
 	 */
-    F32,
+	F32,
 	/**
 	 * 64-bit float
 	 */
-    F64,
+	F64,
 }

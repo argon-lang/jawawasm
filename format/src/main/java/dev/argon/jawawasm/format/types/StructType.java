@@ -6,7 +6,8 @@ import java.util.List;
 
 /**
  * A WebAssembly struct type.
- * @param fields The fields of the struct.
+ * 
+ * @param fields
+ *            The fields of the struct.
  */
-public record StructType(ImmutableList<FieldType> fields) implements AggregateType {
-}
+public record StructType(ImmutableList<FieldType> fields) implements AggregateType {}

@@ -8,9 +8,12 @@ import java.util.List;
 
 /**
  * An elem section.
- * @param type The element type.
- * @param init The initializer.
- * @param mode The element mode.
+ * 
+ * @param type
+ *            The element type.
+ * @param init
+ *            The initializer.
+ * @param mode
+ *            The element mode.
  */
-public record Elem(RefType type, ImmutableList<Expr> init, ElemMode mode) {
-}
+public record Elem(RefType type, ImmutableList<Expr> init, ElemMode mode) {}

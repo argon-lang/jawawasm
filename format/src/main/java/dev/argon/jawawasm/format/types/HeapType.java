@@ -3,16 +3,14 @@ package dev.argon.jawawasm.format.types;
 import dev.argon.jawawasm.format.modules.TypeIdx;
 
 /**
- * Represents a heap type in WebAssembly.
- * A heap type defines various kinds of references that can be used in Wasm.
+ * Represents a heap type in WebAssembly. A heap type defines various kinds of
+ * references that can be used in Wasm.
  */
-public sealed interface HeapType
-	permits TypeIdx, BotType, DefType, HeapType.AbstractHeapType, RecTypeIdx
-{
+public sealed interface HeapType permits TypeIdx, BotType, DefType, HeapType.AbstractHeapType, RecTypeIdx {
 
 	/**
-	 * Represents abstract heap types in WebAssembly.
-	 * These types define different categories of reference types.
+	 * Represents abstract heap types in WebAssembly. These types define different
+	 * categories of reference types.
 	 */
 	enum AbstractHeapType implements HeapType {
 		/**

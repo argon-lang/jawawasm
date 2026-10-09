@@ -37,9 +37,12 @@ public class ModuleNamesTest {
 	public void rejectsMissingOrEmptyModuleNamesWithoutClassName() {
 		for(var module : ImmutableList.of(module(null), module(names(null)), module(names("")))) {
 			var compiler = compiler();
-			var error = assertThrows(IllegalArgumentException.class, () -> compiler.enqueueModule(module, null, name -> {
-				throw new AssertionError("Unexpected import");
-			}));
+			var error = assertThrows(
+				IllegalArgumentException.class,
+				() -> compiler.enqueueModule(module, null, name -> {
+					throw new AssertionError("Unexpected import");
+				})
+			);
 			var message = error.getMessage();
 			assertNotNull(message);
 			assertTrue(message.contains("class name"));
@@ -52,11 +55,30 @@ public class ModuleNamesTest {
 	}
 
 	private static Names names(@Nullable String moduleName) {
-		return new Names(moduleName, ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of());
+		return new Names(
+			moduleName,
+			ImmutableMap.of(),
+			ImmutableMap.of(),
+			ImmutableMap.of(),
+			ImmutableMap.of(),
+			ImmutableMap.of()
+		);
 	}
 
 	private static Module module(@Nullable Names names) {
-		return new Module(ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), ImmutableList.of(),
-			ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), null, ImmutableList.of(), ImmutableList.of(), names);
+		return new Module(
+			ImmutableList.of(),
+			ImmutableList.of(),
+			ImmutableList.of(),
+			ImmutableList.of(),
+			ImmutableList.of(),
+			ImmutableList.of(),
+			ImmutableList.of(),
+			ImmutableList.of(),
+			null,
+			ImmutableList.of(),
+			ImmutableList.of(),
+			names
+		);
 	}
 }

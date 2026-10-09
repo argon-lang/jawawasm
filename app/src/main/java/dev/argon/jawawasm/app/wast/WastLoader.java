@@ -18,28 +18,34 @@ public class WastLoader {
 	public WastLoader(Path wasmToolsExecutable) {
 		this.wasmToolsExecutable = wasmToolsExecutable;
 	}
-	
+
 	private final Path wasmToolsExecutable;
 
 	public WastScriptLoaded loadScript(Path scriptPath) throws IOException, InterruptedException {
 		Path dir = Files.createTempDirectory("jawawasm-");
 		WastScriptLoaded loaded = null;
 		try {
-			ProcessBuilder pb = new ProcessBuilder(wasmToolsExecutable.toString(), "json-from-wast", scriptPath.toString(), "--wasm-dir", dir.toString());
+			ProcessBuilder pb = new ProcessBuilder(
+				wasmToolsExecutable.toString(),
+				"json-from-wast",
+				scriptPath.toString(),
+				"--wasm-dir",
+				dir.toString()
+			);
 			pb.redirectOutput(ProcessBuilder.Redirect.PIPE);
 			pb.redirectError(ProcessBuilder.Redirect.PIPE);
 
 			Process process = pb.start();
 
-			ObjectMapper mapper = JsonMapper.builder()
-				.addModule(new GuavaModule())
-				.build();
+			ObjectMapper mapper = JsonMapper.builder().addModule(new GuavaModule()).build();
 			String jsonText = IOUtils.toString(process.getInputStream(), StandardCharsets.UTF_8);
 
 			int exitCode = process.waitFor();
 			if(exitCode != 0) {
 				String errorText = IOUtils.toString(process.getErrorStream(), StandardCharsets.UTF_8);
-				throw new IOException("wasm-tools failed with exit code " + exitCode + "\nOutput: " + jsonText + "\nError: " + errorText);
+				throw new IOException(
+					"wasm-tools failed with exit code " + exitCode + "\nOutput: " + jsonText + "\nError: " + errorText
+				);
 			}
 
 			WastScript script = mapper.readValue(jsonText, WastScript.class);
@@ -48,7 +54,9 @@ public class WastLoader {
 		}
 		finally {
 			if(loaded == null) {
-				try { FileUtils.deleteDirectory(dir.toFile()); }
+				try {
+					FileUtils.deleteDirectory(dir.toFile());
+				}
 				catch(IOException _) {
 					// Unable to cleanup temp files. Don't suppress original error.
 				}

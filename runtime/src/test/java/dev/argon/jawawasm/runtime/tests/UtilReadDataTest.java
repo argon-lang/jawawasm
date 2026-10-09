@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class UtilReadDataTest {
 	@Test
 	public void readsAllBytesIncludingEmptyAndMultipleBufferLengths() {
-		for(int size : new int[] {0, 1, 4096, 20000}) {
+		for(int size : new int[]{0, 1, 4096, 20000}) {
 			byte[] expected = new byte[size];
 			new Random(size).nextBytes(expected);
 			assertArrayEquals(expected, Util.readData(new ByteArrayInputStream(expected)));
@@ -39,7 +39,7 @@ public class UtilReadDataTest {
 	@Test
 	public void leavesTheCallerStreamOpen() {
 		TrackingStream stream = new TrackingStream();
-		assertArrayEquals(new byte[] {1, 2, 3}, Util.readData(stream));
+		assertArrayEquals(new byte[]{1, 2, 3}, Util.readData(stream));
 		assertFalse(stream.closed);
 	}
 
@@ -47,7 +47,7 @@ public class UtilReadDataTest {
 		private boolean closed;
 
 		private TrackingStream() {
-			super(new byte[] {1, 2, 3});
+			super(new byte[]{1, 2, 3});
 		}
 
 		@Override

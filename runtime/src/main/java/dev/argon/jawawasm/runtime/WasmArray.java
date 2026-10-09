@@ -15,23 +15,31 @@ public sealed abstract class WasmArray implements WasmEq permits WasmArrayMutabl
 
 	/**
 	 * Gets the length of the array.
+	 * 
 	 * @return The length.
 	 */
 	public abstract int length();
 
 	/**
 	 * Gets the underlying array.
+	 * 
 	 * @return The array.
 	 */
 	protected abstract Object unsafeGetArray();
 
 	/**
 	 * Copy between two arrays.
-	 * @param dest The destination array.
-	 * @param d The destination index.
-	 * @param src The source array.
-	 * @param s The source index.
-	 * @param n The number of elements to copy.
+	 * 
+	 * @param dest
+	 *            The destination array.
+	 * @param d
+	 *            The destination index.
+	 * @param src
+	 *            The source array.
+	 * @param s
+	 *            The source index.
+	 * @param n
+	 *            The number of elements to copy.
 	 */
 	public static void copy(WasmArrayMutable dest, int d, WasmArray src, int s, int n) {
 		Objects.requireNonNull(dest);
@@ -48,11 +56,17 @@ public sealed abstract class WasmArray implements WasmEq permits WasmArrayMutabl
 
 	/**
 	 * Copy from a Java array to a WebAssembly array.
-	 * @param dest The destination array.
-	 * @param d The destination index.
-	 * @param src The source array.
-	 * @param s The source index.
-	 * @param n The number of elements to copy.
+	 * 
+	 * @param dest
+	 *            The destination array.
+	 * @param d
+	 *            The destination index.
+	 * @param src
+	 *            The source array.
+	 * @param s
+	 *            The source index.
+	 * @param n
+	 *            The number of elements to copy.
 	 */
 	public static void copyFromArray(WasmArrayMutable dest, int d, int s, int n, Object[] src) {
 		Objects.requireNonNull(dest);
@@ -67,14 +81,19 @@ public sealed abstract class WasmArray implements WasmEq permits WasmArrayMutabl
 		System.arraycopy(src, s, dest.unsafeGetArray(), d, n);
 	}
 
-
 	/**
 	 * Initialize an array from data.
-	 * @param array The array to initialize.
-	 * @param d The starting destination index.
-	 * @param data The data source.
-	 * @param s The starting index in data.
-	 * @param n The number of array elements to initialize.
+	 * 
+	 * @param array
+	 *            The array to initialize.
+	 * @param d
+	 *            The starting destination index.
+	 * @param data
+	 *            The data source.
+	 * @param s
+	 *            The starting index in data.
+	 * @param n
+	 *            The number of array elements to initialize.
 	 */
 	protected static void initArrayFromData(byte[] array, int d, byte[] data, int s, int n) {
 		Objects.checkFromIndexSize(d, n, array.length);
@@ -89,15 +108,24 @@ public sealed abstract class WasmArray implements WasmEq permits WasmArrayMutabl
 
 	/**
 	 * Initialize an array from data.
-	 * @param array The array to initialize.
-	 * @param d The starting destination index.
-	 * @param data The data source.
-	 * @param s The starting index in data.
-	 * @param n The number of array elements to initialize.
+	 * 
+	 * @param array
+	 *            The array to initialize.
+	 * @param d
+	 *            The starting destination index.
+	 * @param data
+	 *            The data source.
+	 * @param s
+	 *            The starting index in data.
+	 * @param n
+	 *            The number of array elements to initialize.
 	 */
 	protected static void initArrayFromData(short[] array, int d, byte[] data, int s, int n) {
 		Objects.checkFromIndexSize(d, n, array.length);
-		if(n * 2 < 0) throw new IndexOutOfBoundsException("Number of items copied results in overflow when multiplied by byte size.");
+		if(n * 2 < 0)
+			throw new IndexOutOfBoundsException(
+				"Number of items copied results in overflow when multiplied by byte size."
+			);
 		Objects.checkFromIndexSize(s, n * 2, data.length);
 		for(int i = 0; i < n; ++i) {
 			array[d + i] = (short)((data[s + i * 2] & 0xFF) | ((data[s + i * 2 + 1] & 0xFF) << 8));
@@ -106,107 +134,140 @@ public sealed abstract class WasmArray implements WasmEq permits WasmArrayMutabl
 
 	/**
 	 * Initialize an array from data.
-	 * @param array The array to initialize.
-	 * @param d The starting destination index.
-	 * @param data The data source.
-	 * @param s The starting index in data.
-	 * @param n The number of array elements to initialize.
+	 * 
+	 * @param array
+	 *            The array to initialize.
+	 * @param d
+	 *            The starting destination index.
+	 * @param data
+	 *            The data source.
+	 * @param s
+	 *            The starting index in data.
+	 * @param n
+	 *            The number of array elements to initialize.
 	 */
 	protected static void initArrayFromData(int[] array, int d, byte[] data, int s, int n) {
 		Objects.checkFromIndexSize(d, n, array.length);
-		if(n * 4 < 0) throw new IndexOutOfBoundsException("Number of items copied results in overflow when multiplied by byte size.");
+		if(n * 4 < 0)
+			throw new IndexOutOfBoundsException(
+				"Number of items copied results in overflow when multiplied by byte size."
+			);
 		Objects.checkFromIndexSize(s, n * 4, data.length);
 		for(int i = 0; i < n; ++i) {
-			array[d + i] = (data[s + i * 4] & 0xFF) |
-				((data[s + i * 4 + 1] & 0xFF) << 8) |
-				((data[s + i * 4 + 2] & 0xFF) << 16) |
-				((data[s + i * 4 + 3] & 0xFF) << 24);
+			array[d + i] = (data[s + i * 4] & 0xFF) | ((data[s + i * 4 + 1] & 0xFF) << 8)
+				| ((data[s + i * 4 + 2] & 0xFF) << 16) | ((data[s + i * 4 + 3] & 0xFF) << 24);
 		}
 	}
 
 	/**
 	 * Initialize an array from data.
-	 * @param array The array to initialize.
-	 * @param d The starting destination index.
-	 * @param data The data source.
-	 * @param s The starting index in data.
-	 * @param n The number of array elements to initialize.
+	 * 
+	 * @param array
+	 *            The array to initialize.
+	 * @param d
+	 *            The starting destination index.
+	 * @param data
+	 *            The data source.
+	 * @param s
+	 *            The starting index in data.
+	 * @param n
+	 *            The number of array elements to initialize.
 	 */
 	protected static void initArrayFromData(float[] array, int d, byte[] data, int s, int n) {
 		Objects.checkFromIndexSize(d, n, array.length);
-		if(n * 4 < 0) throw new IndexOutOfBoundsException("Number of items copied results in overflow when multiplied by byte size.");
+		if(n * 4 < 0)
+			throw new IndexOutOfBoundsException(
+				"Number of items copied results in overflow when multiplied by byte size."
+			);
 		Objects.checkFromIndexSize(s, n * 4, data.length / 4);
 		for(int i = 0; i < n; ++i) {
 			array[d + i] = Float.intBitsToFloat(
-				(data[s + i * 4] & 0xFF) |
-					((data[s + i * 4 + 1] & 0xFF) << 8) |
-					((data[s + i * 4 + 2] & 0xFF) << 16) |
-					((data[s + i * 4 + 3] & 0xFF) << 24)
+				(data[s + i * 4] & 0xFF) | ((data[s + i * 4 + 1] & 0xFF) << 8) | ((data[s + i * 4 + 2] & 0xFF) << 16)
+					| ((data[s + i * 4 + 3] & 0xFF) << 24)
 			);
 		}
 	}
 
 	/**
 	 * Initialize an array from data.
-	 * @param array The array to initialize.
-	 * @param d The starting destination index.
-	 * @param data The data source.
-	 * @param s The starting index in data.
-	 * @param n The number of array elements to initialize.
+	 * 
+	 * @param array
+	 *            The array to initialize.
+	 * @param d
+	 *            The starting destination index.
+	 * @param data
+	 *            The data source.
+	 * @param s
+	 *            The starting index in data.
+	 * @param n
+	 *            The number of array elements to initialize.
 	 */
 	protected static void initArrayFromData(long[] array, int d, byte[] data, int s, int n) {
 		Objects.checkFromIndexSize(d, n, array.length);
-		if(n * 8 < 0) throw new IndexOutOfBoundsException("Number of items copied results in overflow when multiplied by byte size.");
+		if(n * 8 < 0)
+			throw new IndexOutOfBoundsException(
+				"Number of items copied results in overflow when multiplied by byte size."
+			);
 		Objects.checkFromIndexSize(s, n * 8, data.length);
 		for(int i = 0; i < n; ++i) {
-			array[d + i] = (long)(data[s + i * 8] & 0xFF) |
-				((long)(data[s + i * 8 + 1] & 0xFF) << 8) |
-				((long)(data[s + i * 8 + 2] & 0xFF) << 16) |
-				((long)(data[s + i * 8 + 3] & 0xFF) << 24) |
-				((long)(data[s + i * 8 + 4] & 0xFF) << 32) |
-				((long)(data[s + i * 8 + 5] & 0xFF) << 40) |
-				((long)(data[s + i * 8 + 6] & 0xFF) << 48) |
-				((long)(data[s + i * 8 + 7] & 0xFF) << 56);
+			array[d + i] = (long)(data[s + i * 8] & 0xFF) | ((long)(data[s + i * 8 + 1] & 0xFF) << 8)
+				| ((long)(data[s + i * 8 + 2] & 0xFF) << 16) | ((long)(data[s + i * 8 + 3] & 0xFF) << 24)
+				| ((long)(data[s + i * 8 + 4] & 0xFF) << 32) | ((long)(data[s + i * 8 + 5] & 0xFF) << 40)
+				| ((long)(data[s + i * 8 + 6] & 0xFF) << 48) | ((long)(data[s + i * 8 + 7] & 0xFF) << 56);
 		}
 	}
 
 	/**
 	 * Initialize an array from data.
-	 * @param array The array to initialize.
-	 * @param d The starting destination index.
-	 * @param data The data source.
-	 * @param s The starting index in data.
-	 * @param n The number of array elements to initialize.
+	 * 
+	 * @param array
+	 *            The array to initialize.
+	 * @param d
+	 *            The starting destination index.
+	 * @param data
+	 *            The data source.
+	 * @param s
+	 *            The starting index in data.
+	 * @param n
+	 *            The number of array elements to initialize.
 	 */
 	protected static void initArrayFromData(double[] array, int d, byte[] data, int s, int n) {
 		Objects.checkFromIndexSize(d, n, array.length);
-		if(n * 8 < 0) throw new IndexOutOfBoundsException("Number of items copied results in overflow when multiplied by byte size.");
+		if(n * 8 < 0)
+			throw new IndexOutOfBoundsException(
+				"Number of items copied results in overflow when multiplied by byte size."
+			);
 		Objects.checkFromIndexSize(s, n * 8, data.length / 8);
 		for(int i = 0; i < n; ++i) {
 			array[d + i] = Double.longBitsToDouble(
-				(long)(data[s + i * 8] & 0xFF) |
-					((long)(data[s + i * 8 + 1] & 0xFF) << 8) |
-					((long)(data[s + i * 8 + 2] & 0xFF) << 16) |
-					((long)(data[s + i * 8 + 3] & 0xFF) << 24) |
-					((long)(data[s + i * 8 + 4] & 0xFF) << 32) |
-					((long)(data[s + i * 8 + 5] & 0xFF) << 40) |
-					((long)(data[s + i * 8 + 6] & 0xFF) << 48) |
-					((long)(data[s + i * 8 + 7] & 0xFF) << 56)
+				(long)(data[s + i * 8] & 0xFF) | ((long)(data[s + i * 8 + 1] & 0xFF) << 8)
+					| ((long)(data[s + i * 8 + 2] & 0xFF) << 16) | ((long)(data[s + i * 8 + 3] & 0xFF) << 24)
+					| ((long)(data[s + i * 8 + 4] & 0xFF) << 32) | ((long)(data[s + i * 8 + 5] & 0xFF) << 40)
+					| ((long)(data[s + i * 8 + 6] & 0xFF) << 48) | ((long)(data[s + i * 8 + 7] & 0xFF) << 56)
 			);
 		}
 	}
 
 	/**
 	 * Initialize an array from data.
-	 * @param array The array to initialize.
-	 * @param d The starting destination index.
-	 * @param data The data source.
-	 * @param s The starting index in data.
-	 * @param n The number of array elements to initialize.
+	 * 
+	 * @param array
+	 *            The array to initialize.
+	 * @param d
+	 *            The starting destination index.
+	 * @param data
+	 *            The data source.
+	 * @param s
+	 *            The starting index in data.
+	 * @param n
+	 *            The number of array elements to initialize.
 	 */
 	protected static void initArrayFromData(V128[] array, int d, byte[] data, int s, int n) {
 		Objects.checkFromIndexSize(d, n, array.length);
-		if(n * 16 < 0) throw new IndexOutOfBoundsException("Number of items copied results in overflow when multiplied by byte size.");
+		if(n * 16 < 0)
+			throw new IndexOutOfBoundsException(
+				"Number of items copied results in overflow when multiplied by byte size."
+			);
 		Objects.checkFromIndexSize(s, n * 16, data.length / 16);
 		var bytes = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
 		for(int i = 0; i < n; ++i) {

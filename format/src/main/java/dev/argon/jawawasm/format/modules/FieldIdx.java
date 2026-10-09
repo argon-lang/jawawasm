@@ -2,7 +2,8 @@ package dev.argon.jawawasm.format.modules;
 
 /**
  * A field index.
- * @param index The index.
+ * 
+ * @param index
+ *            The index.
  */
-public record FieldIdx(int index) {
-}
+public record FieldIdx(int index) {}

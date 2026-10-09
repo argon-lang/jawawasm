@@ -17,7 +17,8 @@ public class AddressTypeUtils {
 	/**
 	 * Gets the NumType for an address type.
 	 *
-	 * @param addrType The address type.
+	 * @param addrType
+	 *            The address type.
 	 * @return The corresponding num type.
 	 */
 	public static NumType asNumType(AddrType addrType) {
@@ -27,12 +28,13 @@ public class AddressTypeUtils {
 		};
 	}
 
-
 	/**
 	 * Unbox an address as a long.
 	 *
-	 * @param addrType The address type
-	 * @param address The boxed address.
+	 * @param addrType
+	 *            The address type
+	 * @param address
+	 *            The boxed address.
 	 * @return The address as a long.
 	 */
 	public static long unboxAddress(AddrType addrType, @Nullable Object address) {
@@ -44,12 +46,13 @@ public class AddressTypeUtils {
 		};
 	}
 
-
 	/**
 	 * Box an address.
 	 *
-	 * @param addrType The address type
-	 * @param address The long value of the address.
+	 * @param addrType
+	 *            The address type
+	 * @param address
+	 *            The long value of the address.
 	 * @return The address boxed in the correct type.
 	 */
 	public static Object boxAddress(AddrType addrType, long address) {
@@ -61,12 +64,17 @@ public class AddressTypeUtils {
 
 	/**
 	 * Gets the type of a memory.
-	 * @param memory The memory.
+	 * 
+	 * @param memory
+	 *            The memory.
 	 * @return The type of the memory.
 	 */
 	public static MemType getMemoryType(WasmMemory memory) {
 		return switch(memory) {
-			case WasmMemory32 mem -> new MemType(AddrType.I32, new Limits(mem.pageSize(), mem.maxPageSize() == null ? null : mem.maxPageSize().longValue()));
+			case WasmMemory32 mem -> new MemType(
+				AddrType.I32,
+				new Limits(mem.pageSize(), mem.maxPageSize() == null ? null : mem.maxPageSize().longValue())
+			);
 			case WasmMemory64 mem -> new MemType(AddrType.I64, new Limits(mem.pageSize(), mem.maxPageSize()));
 		};
 	}

@@ -15,7 +15,9 @@ public sealed interface ParametricInstr extends Instr {
 
 	/**
 	 * WebAssembly `select` instruction
-	 * @param types The operand types.
+	 * 
+	 * @param types
+	 *            The operand types.
 	 */
 	public static record Select(@Nullable ImmutableList<ValType> types) implements ParametricInstr {}
 }

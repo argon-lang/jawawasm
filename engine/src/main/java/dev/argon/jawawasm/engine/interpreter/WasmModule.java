@@ -8,8 +8,11 @@ import org.jspecify.annotations.Nullable;
 public interface WasmModule {
 	/**
 	 * Get an export.
-	 * @param name The export name.
+	 * 
+	 * @param name
+	 *            The export name.
 	 * @return The export.
 	 */
-	@Nullable WasmExport getExport(String name);
+	@Nullable
+	WasmExport getExport(String name);
 }

@@ -19,7 +19,10 @@ import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.*;
 import static java.lang.constant.ConstantDescs.*;
 
 class StructClassGenerator extends DefTypeClassGenerator {
-	public StructClassGenerator(ModuleCompiler compiler, SubType subtype, StructType structType, String className, Map<Integer, String> fieldNames) {
+	public StructClassGenerator(
+		ModuleCompiler compiler, SubType subtype, StructType structType, String className,
+		Map<Integer, String> fieldNames
+	) {
 		super(compiler);
 		this.subtype = subtype;
 		this.structType = structType;
@@ -62,40 +65,27 @@ class StructClassGenerator extends DefTypeClassGenerator {
 
 			fields[i] = new StructTypeRealization.Field(
 				t,
-				new StructTypeRealization.AccessMethod(
-					"get" + i,
-					() -> MethodTypeDesc.of(t.get())
-				),
+				new StructTypeRealization.AccessMethod("get" + i, () -> MethodTypeDesc.of(t.get())),
 				switch(fieldType.mut()) {
 					case Const -> null;
-					case Var -> new StructTypeRealization.AccessMethod(
-						"set" + i,
-						() -> MethodTypeDesc.of(CD_void, t.get())
-					);
+					case Var ->
+						new StructTypeRealization.AccessMethod("set" + i, () -> MethodTypeDesc.of(CD_void, t.get()));
 				}
 			);
 		}
 
-		return new StructTypeRealization(
-			className,
-			!subtype.isFinal(),
-			"create",
-			() -> {
-				var paramTypes = structType.fields().stream()
-					.map(fieldType -> compiler.getStorageType(fieldType.storageType()).type())
-					.toList();
+		return new StructTypeRealization(className, !subtype.isFinal(), "create", () -> {
+			var paramTypes = structType.fields().stream()
+				.map(fieldType -> compiler.getStorageType(fieldType.storageType()).type()).toList();
 
-				return MethodTypeDesc.of(className, paramTypes);
-			},
-			List.of(fields),
-			() -> {
-				if(subtype.superTypes().isEmpty()) {
-					return null;
-				}
-
-				return (StructTypeRealization)compiler.getDefType((DefType)subtype.superTypes().getFirst());
+			return MethodTypeDesc.of(className, paramTypes);
+		}, List.of(fields), () -> {
+			if(subtype.superTypes().isEmpty()) {
+				return null;
 			}
-		);
+
+			return (StructTypeRealization)compiler.getDefType((DefType)subtype.superTypes().getFirst());
+		});
 	}
 
 	@Override
@@ -109,52 +99,47 @@ class StructClassGenerator extends DefTypeClassGenerator {
 			compiler.enqueueGenerator(implClass);
 		}
 
-		return compiler.classFile()
-			.build(className, clb -> {
-				if(subtype.superTypes().isEmpty()) {
-					clb.withInterfaceSymbols(wasmStruct);
-				}
-				else {
-					clb.withInterfaceSymbols(
-						subtype.superTypes()
-							.stream()
-							.map(compiler::getHeapType)
-							.toList()
-					);
-				}
+		return compiler.classFile().build(className, clb -> {
+			if(subtype.superTypes().isEmpty()) {
+				clb.withInterfaceSymbols(wasmStruct);
+			}
+			else {
+				clb.withInterfaceSymbols(subtype.superTypes().stream().map(compiler::getHeapType).toList());
+			}
 
-				int flags = ClassFile.ACC_PUBLIC;
-				if(subtype.isFinal()) {
-					flags |= ClassFile.ACC_FINAL;
-				}
-				else {
-					flags |= ClassFile.ACC_ABSTRACT | ClassFile.ACC_INTERFACE;
-				}
+			int flags = ClassFile.ACC_PUBLIC;
+			if(subtype.isFinal()) {
+				flags |= ClassFile.ACC_FINAL;
+			}
+			else {
+				flags |= ClassFile.ACC_ABSTRACT | ClassFile.ACC_INTERFACE;
+			}
 
-				clb.withFlags(flags);
+			clb.withFlags(flags);
 
-				if(subtype.isFinal()) {
-					generateFinalStruct(clb, className);
-					generateFactoryMethods(clb, className, className);
-				}
-				else {
-					generateAbstractMethods(clb);
-					generateFactoryMethods(clb, className, className.nested("Impl"));
-				}
+			if(subtype.isFinal()) {
+				generateFinalStruct(clb, className);
+				generateFactoryMethods(clb, className, className);
+			}
+			else {
+				generateAbstractMethods(clb);
+				generateFactoryMethods(clb, className, className.nested("Impl"));
+			}
 
-				if(implClass != null) {
-					clb.with(
-						InnerClassesAttribute.of(
-							InnerClassInfo.of(implClass.className(), Optional.of(className), Optional.of("Impl"), ClassFile.ACC_PRIVATE | ClassFile.ACC_STATIC | ClassFile.ACC_FINAL)
+			if(implClass != null) {
+				clb.with(
+					InnerClassesAttribute.of(
+						InnerClassInfo.of(
+							implClass.className(),
+							Optional.of(className),
+							Optional.of("Impl"),
+							ClassFile.ACC_PRIVATE | ClassFile.ACC_STATIC | ClassFile.ACC_FINAL
 						)
-					);
-					clb.with(
-						NestMembersAttribute.ofSymbols(
-							implClass.className()
-						)
-					);
-				}
-			});
+					)
+				);
+				clb.with(NestMembersAttribute.ofSymbols(implClass.className()));
+			}
+		});
 	}
 
 	private void generateFinalStruct(ClassBuilder clb, ClassDesc implClass) {
@@ -179,41 +164,28 @@ class StructClassGenerator extends DefTypeClassGenerator {
 
 			clb.withField(fieldName, t.type(), flags);
 
-
-			clb.withMethod(
-				"get" + i,
-				MethodTypeDesc.of(t.type()),
-				ClassFile.ACC_PUBLIC,
-				mb -> {
-					if(t.isNullable()) {
-						mb.with(
-							RuntimeVisibleTypeAnnotationsAttribute.of(
-								TypeAnnotation.of(
-									TypeAnnotation.TargetInfo.ofMethodReturn(),
-									List.of(),
-									nullableAnn
-								)
-							)
-						);
-					}
-
-					mb.withCode(cb -> {
-						cb.aload(0);
-						cb.getfield(implClass, fieldName, t.type());
-						cb.return_(tk);
-					});
+			clb.withMethod("get" + i, MethodTypeDesc.of(t.type()), ClassFile.ACC_PUBLIC, mb -> {
+				if(t.isNullable()) {
+					mb.with(
+						RuntimeVisibleTypeAnnotationsAttribute
+							.of(TypeAnnotation.of(TypeAnnotation.TargetInfo.ofMethodReturn(), List.of(), nullableAnn))
+					);
 				}
-			);
+
+				mb.withCode(cb -> {
+					cb.aload(0);
+					cb.getfield(implClass, fieldName, t.type());
+					cb.return_(tk);
+				});
+			});
 
 			if(fieldType.mut() == Mut.Const) {
 				Set<ClassDesc> seenGetTypes = new HashSet<>();
 				seenGetTypes.add(t.type());
 
-				for(
-					var superTypeRealization = realization().superType().get();
-					superTypeRealization != null;
-					superTypeRealization = superTypeRealization.superType().get()
-				) {
+				for(var superTypeRealization = realization().superType()
+					.get(); superTypeRealization != null; superTypeRealization = superTypeRealization.superType()
+						.get()) {
 					if(i >= superTypeRealization.fields().size()) {
 						break;
 					}
@@ -223,7 +195,6 @@ class StructClassGenerator extends DefTypeClassGenerator {
 					if(!seenGetTypes.add(superFieldType)) {
 						continue;
 					}
-
 
 					clb.withMethodBody(
 						"get" + i,
@@ -238,60 +209,45 @@ class StructClassGenerator extends DefTypeClassGenerator {
 				}
 			}
 
-
 			if(fieldType.mut() == Mut.Var) {
-				clb.withMethod(
-					"set" + i,
-					MethodTypeDesc.of(CD_void, t.type()),
-					ClassFile.ACC_PUBLIC,
-					mb -> {
-						if(t.isNullable()) {
-							mb.with(
-								RuntimeVisibleTypeAnnotationsAttribute.of(
-									TypeAnnotation.of(
-										TypeAnnotation.TargetInfo.ofMethodFormalParameter(0),
-										List.of(),
-										nullableAnn
-									)
-								)
-							);
-						}
-
-						mb.withCode(cb -> {
-							cb.aload(0);
-							cb.loadLocal(tk, 1);
-							cb.putfield(implClass, fieldName, t.type());
-							cb.return_();
-						});
+				clb.withMethod("set" + i, MethodTypeDesc.of(CD_void, t.type()), ClassFile.ACC_PUBLIC, mb -> {
+					if(t.isNullable()) {
+						mb.with(
+							RuntimeVisibleTypeAnnotationsAttribute.of(
+								TypeAnnotation
+									.of(TypeAnnotation.TargetInfo.ofMethodFormalParameter(0), List.of(), nullableAnn)
+							)
+						);
 					}
-				);
+
+					mb.withCode(cb -> {
+						cb.aload(0);
+						cb.loadLocal(tk, 1);
+						cb.putfield(implClass, fieldName, t.type());
+						cb.return_();
+					});
+				});
 			}
 		}
 
-
-		clb.withMethodBody(
-			"<init>",
-			MethodTypeDesc.of(CD_void, constructorParams),
-			ClassFile.ACC_PRIVATE,
-			cb -> {
-				int slot = 1;
-				for(int i = 0; i < fields.size(); ++i) {
-					var t = fieldTypes[i].type();
-					var tk = typeKind(t);
-
-					cb.aload(0);
-					cb.loadLocal(tk, slot);
-
-					cb.putfield(implClass, fieldName(i), t);
-
-					slot += tk.slotSize();
-				}
+		clb.withMethodBody("<init>", MethodTypeDesc.of(CD_void, constructorParams), ClassFile.ACC_PRIVATE, cb -> {
+			int slot = 1;
+			for(int i = 0; i < fields.size(); ++i) {
+				var t = fieldTypes[i].type();
+				var tk = typeKind(t);
 
 				cb.aload(0);
-				cb.invokespecial(CD_Object, "<init>", MethodTypeDesc.of(CD_void));
-				cb.return_();
+				cb.loadLocal(tk, slot);
+
+				cb.putfield(implClass, fieldName(i), t);
+
+				slot += tk.slotSize();
 			}
-		);
+
+			cb.aload(0);
+			cb.invokespecial(CD_Object, "<init>", MethodTypeDesc.of(CD_void));
+			cb.return_();
+		});
 	}
 
 	private void generateAbstractMethods(ClassBuilder clb) {
@@ -309,11 +265,7 @@ class StructClassGenerator extends DefTypeClassGenerator {
 					if(t.isNullable()) {
 						mb.with(
 							RuntimeVisibleTypeAnnotationsAttribute.of(
-								TypeAnnotation.of(
-									TypeAnnotation.TargetInfo.ofMethodReturn(),
-									List.of(),
-									nullableAnn
-								)
+								TypeAnnotation.of(TypeAnnotation.TargetInfo.ofMethodReturn(), List.of(), nullableAnn)
 							)
 						);
 					}
@@ -354,7 +306,6 @@ class StructClassGenerator extends DefTypeClassGenerator {
 			fieldTypes[i] = t;
 			constructorParams.add(t.type());
 		}
-
 
 		clb.withMethodBody(
 			"create",
@@ -400,20 +351,23 @@ class StructClassGenerator extends DefTypeClassGenerator {
 
 		@Override
 		byte[] generateImpl() {
-			return compiler.classFile()
-				.build(className, clb -> {
-					clb.withInterfaceSymbols(StructClassGenerator.this.className);
-					clb.withFlags(ClassFile.ACC_FINAL);
-					generateFinalStruct(clb, className);
+			return compiler.classFile().build(className, clb -> {
+				clb.withInterfaceSymbols(StructClassGenerator.this.className);
+				clb.withFlags(ClassFile.ACC_FINAL);
+				generateFinalStruct(clb, className);
 
-
-					clb.with(NestHostAttribute.of(StructClassGenerator.this.className));
-					clb.with(
-						InnerClassesAttribute.of(
-							InnerClassInfo.of(className(), Optional.of(StructClassGenerator.this.className), Optional.of("Impl"), ClassFile.ACC_PRIVATE | ClassFile.ACC_STATIC | ClassFile.ACC_FINAL)
+				clb.with(NestHostAttribute.of(StructClassGenerator.this.className));
+				clb.with(
+					InnerClassesAttribute.of(
+						InnerClassInfo.of(
+							className(),
+							Optional.of(StructClassGenerator.this.className),
+							Optional.of("Impl"),
+							ClassFile.ACC_PRIVATE | ClassFile.ACC_STATIC | ClassFile.ACC_FINAL
 						)
-					);
-				});
+					)
+				);
+			});
 		}
 	}
 }

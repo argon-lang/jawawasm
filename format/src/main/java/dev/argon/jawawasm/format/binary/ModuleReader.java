@@ -32,7 +32,9 @@ public class ModuleReader {
 
 	/**
 	 * Creates a module reader.
-	 * @param is The stream containing the WebAssembly binary format.
+	 * 
+	 * @param is
+	 *            The stream containing the WebAssembly binary format.
 	 */
 	public ModuleReader(InputStream is) {
 		this.is = is;
@@ -186,7 +188,8 @@ public class ModuleReader {
 		void read(ImmutableList.Builder<T> v) throws IOException, ModuleFormatException;
 	}
 
-	private <T> ImmutableList<T> readVectorBuild(ReadVectorBuilder<T> reader) throws IOException, ModuleFormatException {
+	private <T> ImmutableList<T> readVectorBuild(ReadVectorBuilder<T> reader)
+		throws IOException, ModuleFormatException {
 		int len = readU32();
 		if(len < 0) {
 			throw new ModuleFormatException("vector length overflow");
@@ -205,7 +208,7 @@ public class ModuleReader {
 	private <T> ImmutableList<T> readVector(ValueReader<T> reader) throws IOException, ModuleFormatException {
 		return readVectorBuild(v -> v.add(reader.read()));
 	}
-	
+
 	private byte[] readByteVec() throws IOException, ModuleFormatException {
 		int len = readU32();
 		if(len < 0) {
@@ -232,7 +235,6 @@ public class ModuleReader {
 		byte value = 0;
 		int shift = 0;
 
-
 		do {
 			b = readByte();
 
@@ -248,7 +250,7 @@ public class ModuleReader {
 			value |= (byte)((b & 0x7F) << shift);
 			shift += 7;
 
-		} while((b & 0x80) == 0x80);
+		} while ((b & 0x80) == 0x80);
 		return value;
 	}
 
@@ -256,7 +258,6 @@ public class ModuleReader {
 		byte b;
 		int value = 0;
 		int shift = 0;
-
 
 		do {
 			b = readByte();
@@ -273,7 +274,7 @@ public class ModuleReader {
 			value |= (b & 0x7F) << shift;
 			shift += 7;
 
-		} while((b & 0x80) == 0x80);
+		} while ((b & 0x80) == 0x80);
 		return value;
 	}
 
@@ -297,7 +298,7 @@ public class ModuleReader {
 			value |= (b & 0x7F) << shift;
 			shift += 7;
 
-		} while((b & 0x80) == 0x80);
+		} while ((b & 0x80) == 0x80);
 
 		if(shift < 32 && (b & 0x40) == 0x40) {
 			value |= ~0 << shift;
@@ -326,7 +327,7 @@ public class ModuleReader {
 			value |= (long)(b & 0x7F) << shift;
 			shift += 7;
 
-		} while((b & 0x80) == 0x80);
+		} while ((b & 0x80) == 0x80);
 
 		if(shift < 64 && (b & 0x40) == 0x40) {
 			value |= ~0L << shift;
@@ -355,7 +356,7 @@ public class ModuleReader {
 			value |= (long)(b & 0x7F) << shift;
 			shift += 7;
 
-		} while((b & 0x80) == 0x80);
+		} while ((b & 0x80) == 0x80);
 
 		return value;
 	}
@@ -380,7 +381,7 @@ public class ModuleReader {
 			value |= (long)(b & 0x7F) << shift;
 			shift += 7;
 
-		} while((b & 0x80) == 0x80);
+		} while ((b & 0x80) == 0x80);
 
 		if((b & 0x40) == 0x40) {
 			value |= ~0L << shift;
@@ -406,9 +407,8 @@ public class ModuleReader {
 
 	private String readName() throws IOException, ModuleFormatException {
 		byte[] data = readByteVec();
-		var decoder = StandardCharsets.UTF_8.newDecoder()
-				.onMalformedInput(CodingErrorAction.REPORT)
-				.onUnmappableCharacter(CodingErrorAction.REPORT);
+		var decoder = StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
+			.onUnmappableCharacter(CodingErrorAction.REPORT);
 
 		var bb = ByteBuffer.wrap(data);
 		CharBuffer cb;
@@ -591,8 +591,6 @@ public class ModuleReader {
 		};
 	}
 
-
-
 	private Limits readLimits(boolean hasMax) throws IOException, ModuleFormatException {
 		if(hasMax) {
 			long min = readU64();
@@ -660,8 +658,6 @@ public class ModuleReader {
 		return new TagType(type);
 	}
 
-
-
 	private ControlInstr.BlockType readBlockType() throws IOException, ModuleFormatException {
 		long value = readS33();
 
@@ -703,7 +699,7 @@ public class ModuleReader {
 				var thenInstrs = ImmutableList.<Instr>builder();
 				boolean reachedEnd = false;
 				boolean hasElse = false;
-				while(!reachedEnd && !hasElse) {
+				while (!reachedEnd && !hasElse) {
 					var instr = readInstrOrTerminator();
 					switch(instr) {
 						case BlockTerminator terminator -> {
@@ -720,7 +716,7 @@ public class ModuleReader {
 				var elseInstrs = ImmutableList.<Instr>builder();
 				if(hasElse) {
 					reachedEnd = false;
-					while(!reachedEnd) {
+					while (!reachedEnd) {
 						var instr = readInstrOrTerminator();
 						switch(instr) {
 							case BlockTerminator terminator -> {
@@ -798,7 +794,6 @@ public class ModuleReader {
 				var t = readTypeIdx();
 				yield new ControlInstr.Return_Call_Ref(t);
 			}
-
 
 			// Reference
 			case 0xD0 -> {
@@ -1035,18 +1030,15 @@ public class ModuleReader {
 				yield new NumericInstr.I32_Const(n);
 			}
 
-
 			case 0x42 -> {
 				var n = readS64();
 				yield new NumericInstr.I64_Const(n);
 			}
 
-
 			case 0x43 -> {
 				var x = readF32();
 				yield new NumericInstr.F32_Const(x);
 			}
-
 
 			case 0x44 -> {
 				var x = readF64();
@@ -1090,7 +1082,7 @@ public class ModuleReader {
 			case 0x64 -> new NumericInstr.Fnn_FRelOp(NumericInstr.NumSize._64, NumericInstr.FRelOp.GT);
 			case 0x65 -> new NumericInstr.Fnn_FRelOp(NumericInstr.NumSize._64, NumericInstr.FRelOp.LE);
 			case 0x66 -> new NumericInstr.Fnn_FRelOp(NumericInstr.NumSize._64, NumericInstr.FRelOp.GE);
-			
+
 			case 0x67 -> new NumericInstr.Inn_IUnOp(NumericInstr.NumSize._32, NumericInstr.IUnOp.CLZ);
 			case 0x68 -> new NumericInstr.Inn_IUnOp(NumericInstr.NumSize._32, NumericInstr.IUnOp.CTZ);
 			case 0x69 -> new NumericInstr.Inn_IUnOp(NumericInstr.NumSize._32, NumericInstr.IUnOp.POPCNT);
@@ -1128,7 +1120,7 @@ public class ModuleReader {
 			case 0x88 -> new NumericInstr.Inn_IBinOp(NumericInstr.NumSize._64, NumericInstr.IBinOp.SHR_U);
 			case 0x89 -> new NumericInstr.Inn_IBinOp(NumericInstr.NumSize._64, NumericInstr.IBinOp.ROTL);
 			case 0x8A -> new NumericInstr.Inn_IBinOp(NumericInstr.NumSize._64, NumericInstr.IBinOp.ROTR);
-			
+
 			case 0x8B -> new NumericInstr.Fnn_FUnOp(NumericInstr.NumSize._32, NumericInstr.FUnOp.ABS);
 			case 0x8C -> new NumericInstr.Fnn_FUnOp(NumericInstr.NumSize._32, NumericInstr.FUnOp.NEG);
 			case 0x8D -> new NumericInstr.Fnn_FUnOp(NumericInstr.NumSize._32, NumericInstr.FUnOp.CEIL);
@@ -1190,7 +1182,6 @@ public class ModuleReader {
 			case 0xC2 -> new NumericInstr.Inn_Extend8_S(NumericInstr.NumSize._64);
 			case 0xC3 -> new NumericInstr.Inn_Extend16_S(NumericInstr.NumSize._64);
 			case 0xC4 -> new NumericInstr.I64_Extend32_S();
-
 
 			// Extended Opcodes
 			case 0xFB -> switch(readU32()) {
@@ -1319,14 +1310,17 @@ public class ModuleReader {
 					var ht1 = readHeapType();
 					var ht2 = readHeapType();
 
-					yield new ControlInstr.Br_OnCastFail(label, new RefType(t1Nullable, ht1), new RefType(t2Nullable, ht2));
+					yield new ControlInstr.Br_OnCastFail(
+						label,
+						new RefType(t1Nullable, ht1),
+						new RefType(t2Nullable, ht2)
+					);
 				}
 				case 26 -> new ReferenceInstr.Any_Convert_Extern();
 				case 27 -> new ReferenceInstr.Extern_Convert_Any();
 				case 28 -> new ReferenceInstr.Ref_I31();
 				case 29 -> new ReferenceInstr.I31_Get_S();
 				case 30 -> new ReferenceInstr.I31_Get_U();
-
 
 				default -> throw new ModuleFormatException("illegal opcode");
 			};
@@ -1508,7 +1502,7 @@ public class ModuleReader {
 						byte laneIdx = readByte();
 						yield new MemoryInstr.V128_Store64_Lane(memArg, laneIdx);
 					}
-					
+
 					case 12 -> new VectorInstr.V128_Const(readV128());
 
 					case 13 -> new VectorInstr.I8x16_Op_Instr(new VectorInstr.Shuffle(readV128()));
@@ -1582,7 +1576,6 @@ public class ModuleReader {
 					case 18 -> new VectorInstr.I64x2_Op_Instr(new VectorInstr.Splat());
 					case 19 -> new VectorInstr.F32x4_Op_Instr(new VectorInstr.Splat());
 					case 20 -> new VectorInstr.F64x2_Op_Instr(new VectorInstr.Splat());
-
 
 					case 35 -> new VectorInstr.I8x16_Op_Instr(VectorInstr.VIRelOp_S.EQ);
 					case 36 -> new VectorInstr.I8x16_Op_Instr(VectorInstr.VIRelOp_S.NE);
@@ -1745,7 +1738,7 @@ public class ModuleReader {
 					case 221 -> new VectorInstr.I64x2_Op_Instr(new VectorInstr.I64x2_ExtMul_High_I32x4_S());
 					case 222 -> new VectorInstr.I64x2_Op_Instr(new VectorInstr.I64x2_ExtMul_Low_I32x4_U());
 					case 223 -> new VectorInstr.I64x2_Op_Instr(new VectorInstr.I64x2_ExtMul_High_I32x4_U());
-					
+
 					case 103 -> new VectorInstr.F32x4_Op_Instr(VectorInstr.VFUnOp.CEIL);
 					case 104 -> new VectorInstr.F32x4_Op_Instr(VectorInstr.VFUnOp.FLOOR);
 					case 105 -> new VectorInstr.F32x4_Op_Instr(VectorInstr.VFUnOp.TRUNC);
@@ -1797,10 +1790,11 @@ public class ModuleReader {
 					case 274 -> new VectorInstr.I16x8_Relaxed_Dot_I8x16_I7x16_S();
 					case 275 -> new VectorInstr.I32x4_Relaxed_Dot_I8x16_I7x16_Add_S();
 
-					default -> throw new ModuleFormatException("Unsupported Vector opcode: " + Integer.toUnsignedString(vecOp));
+					default -> throw new ModuleFormatException(
+						"Unsupported Vector opcode: " + Integer.toUnsignedString(vecOp)
+					);
 				};
 			}
-
 
 			default -> throw new ModuleFormatException("illegal opcode " + Integer.toHexString(Byte.toUnsignedInt(b)));
 		};
@@ -1808,7 +1802,7 @@ public class ModuleReader {
 
 	private ImmutableList<Instr> readInstructionBlock() throws IOException, ModuleFormatException {
 		var instrs = ImmutableList.<Instr>builder();
-		while(true) {
+		while (true) {
 			var instr = readInstrOrTerminator();
 			if(instr == BlockTerminator.END) {
 				break;
@@ -1841,11 +1835,9 @@ public class ModuleReader {
 		return new MemoryInstr.MemArg(new MemIdx(memIndex), offset, align);
 	}
 
-
 	private Expr readExpr() throws IOException, ModuleFormatException {
 		return new Expr(readInstructionBlock());
 	}
-
 
 	private LabelIdx readLabelIdx() throws IOException, ModuleFormatException {
 		return new LabelIdx(readU32());
@@ -1854,24 +1846,31 @@ public class ModuleReader {
 	private FuncIdx readFuncIdx() throws IOException, ModuleFormatException {
 		return new FuncIdx(readU32());
 	}
+
 	private TypeIdx readTypeIdx() throws IOException, ModuleFormatException {
 		return new TypeIdx(readU32());
 	}
+
 	private TableIdx readTableIdx() throws IOException, ModuleFormatException {
 		return new TableIdx(readU32());
 	}
+
 	private LocalIdx readLocalIdx() throws IOException, ModuleFormatException {
 		return new LocalIdx(readU32());
 	}
+
 	private GlobalIdx readGlobalIdx() throws IOException, ModuleFormatException {
 		return new GlobalIdx(readU32());
 	}
+
 	private TagIdx readTagIdx() throws IOException, ModuleFormatException {
 		return new TagIdx(readU32());
 	}
+
 	private ElemIdx readElemIdx() throws IOException, ModuleFormatException {
 		return new ElemIdx(readU32());
 	}
+
 	private DataIdx readDataIdx() throws IOException, ModuleFormatException {
 		if(!hasDataCount && lastSection == 10) { // Only give error in the code section
 			throw new ModuleFormatException("data count section required");
@@ -1879,9 +1878,11 @@ public class ModuleReader {
 
 		return new DataIdx(readU32());
 	}
+
 	private MemIdx readMemIdx() throws IOException, ModuleFormatException {
 		return new MemIdx(readU32());
 	}
+
 	private FieldIdx readFieldIdx() throws IOException, ModuleFormatException {
 		return new FieldIdx(readU32());
 	}
@@ -1917,7 +1918,8 @@ public class ModuleReader {
 						return;
 					}
 
-					default -> {}
+					default -> {
+					}
 				}
 			}
 
@@ -2182,8 +2184,7 @@ public class ModuleReader {
 				}
 			}
 
-			var locals = localDecls.stream()
-				.flatMap(decl -> Stream.generate(decl::t).limit(decl.n()))
+			var locals = localDecls.stream().flatMap(decl -> Stream.generate(decl::t).limit(decl.n()))
 				.collect(ImmutableList.toImmutableList());
 
 			var body = readExpr();
@@ -2213,7 +2214,7 @@ public class ModuleReader {
 				var data = readByteVec();
 				yield new Data(ByteString.copyFrom(data), new DataMode.Active(mem, offset));
 			}
-			
+
 			default -> throw new ModuleFormatException("illegal data mode");
 		});
 	}
@@ -2243,14 +2244,15 @@ public class ModuleReader {
 
 	private Names readNameCustomSectionContent() throws IOException, ModuleFormatException {
 		int lastSubSectionId = -1;
-		@Nullable String moduleName = null;
+		@Nullable
+		String moduleName = null;
 		ImmutableMap<Integer, String> functionNames = ImmutableMap.of();
 		ImmutableMap<Integer, ImmutableMap<Integer, String>> localNames = ImmutableMap.of();
 		ImmutableMap<Integer, String> typeNames = ImmutableMap.of();
 		ImmutableMap<Integer, ImmutableMap<Integer, String>> fieldNames = ImmutableMap.of();
 		ImmutableMap<Integer, String> tagNames = ImmutableMap.of();
 
-		while(peekByte() >= 0) {
+		while (peekByte() >= 0) {
 			int id = Byte.toUnsignedInt(readByte());
 			if(id <= lastSubSectionId) {
 				throw new ModuleFormatException("name subsections must be increasing");
@@ -2276,7 +2278,7 @@ public class ModuleReader {
 		return new Names(moduleName, functionNames, localNames, typeNames, fieldNames, tagNames);
 	}
 
-	private static final int[] SECTION_ORDER = { 1, 2, 3, 4, 5, 13, 6, 7, 8, 9, 12, 10, 11 };
+	private static final int[] SECTION_ORDER = {1, 2, 3, 4, 5, 13, 6, 7, 8, 9, 12, 10, 11};
 
 	private int getSectionIndex(int section) {
 		for(int i = 0; i < SECTION_ORDER.length; ++i) {
@@ -2288,12 +2290,14 @@ public class ModuleReader {
 		return -1;
 	}
 
-
 	/**
 	 * Reads a module.
+	 * 
 	 * @return The parsed module.
-	 * @throws IOException when an IO error occurs in the stream.
-	 * @throws ModuleFormatException if the WebAssembly module is invalid.
+	 * @throws IOException
+	 *             when an IO error occurs in the stream.
+	 * @throws ModuleFormatException
+	 *             if the WebAssembly module is invalid.
 	 */
 	public dev.argon.jawawasm.format.modules.Module readModule() throws IOException, ModuleFormatException {
 		ImmutableList<RecursiveType> types = ImmutableList.of();
@@ -2304,12 +2308,14 @@ public class ModuleReader {
 		ImmutableList<Global> globals = ImmutableList.of();
 		ImmutableList<Elem> elems = ImmutableList.of();
 		ImmutableList<Data> datas = ImmutableList.of();
-		@Nullable Start start = null;
+		@Nullable
+		Start start = null;
 		ImmutableList<Import> imports = ImmutableList.of();
 		ImmutableList<Export> exports = ImmutableList.of();
 		ImmutableList<Code> codeSec = ImmutableList.of();
 		int dataCount = 0;
-		@Nullable Names names = null;
+		@Nullable
+		Names names = null;
 
 		try {
 			int magic = readFixedInt();
@@ -2322,7 +2328,7 @@ public class ModuleReader {
 				throw new ModuleFormatException("unknown binary version");
 			}
 
-			while(true) {
+			while (true) {
 				int section = tryReadByte();
 				if(section < 0) {
 					break;
@@ -2356,7 +2362,8 @@ public class ModuleReader {
 						});
 
 						switch(customSection) {
-							case null -> {}
+							case null -> {
+							}
 							case Names nameSection -> {
 								if(names == null) {
 									names = nameSection;
@@ -2442,7 +2449,8 @@ public class ModuleReader {
 		}
 	}
 
-	private <T extends @Nullable Object> T readSection(int expectedSize, ValueReader<T> f) throws IOException, ModuleFormatException {
+	private <T extends @Nullable Object> T readSection(int expectedSize, ValueReader<T> f)
+		throws IOException, ModuleFormatException {
 		long sectionStart = offset;
 		long sectionSize = Integer.toUnsignedLong(expectedSize);
 		T res = f.read();
@@ -2454,10 +2462,12 @@ public class ModuleReader {
 		return res;
 	}
 
-	private <T> @Nullable T readCustomSection(long expectedSize, ValueReader<? extends @Nullable T> f) throws IOException, ModuleFormatException {
+	private <T> @Nullable T readCustomSection(long expectedSize, ValueReader<? extends @Nullable T> f)
+		throws IOException, ModuleFormatException {
 		enterCustomSection(expectedSize);
 
-		@Nullable T result;
+		@Nullable
+		T result;
 		try {
 			result = f.read();
 		}
@@ -2470,5 +2480,5 @@ public class ModuleReader {
 
 		return result;
 	}
-	
+
 }

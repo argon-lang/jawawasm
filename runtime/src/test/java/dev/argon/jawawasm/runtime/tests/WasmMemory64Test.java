@@ -32,14 +32,14 @@ public class WasmMemory64Test {
 	@Test
 	public void bulkCopiesOverlapAndValidateBeforeWriting() {
 		var mem = memory(1, 2);
-		WasmMemory64.copyFromArray(0, 0, 6, new byte[] {1, 2, 3, 4, 5, 6}, mem);
+		WasmMemory64.copyFromArray(0, 0, 6, new byte[]{1, 2, 3, 4, 5, 6}, mem);
 		WasmMemory64.copy(1, 0, 5, mem, mem);
 		byte[] result = new byte[6];
 		mem.copyToArray(0, 0, 6, result);
-		assertArrayEquals(new byte[] {1, 1, 2, 3, 4, 5}, result);
+		assertArrayEquals(new byte[]{1, 1, 2, 3, 4, 5}, result);
 		WasmMemory64.copy(0, 1, 5, mem, mem);
 		mem.copyToArray(0, 0, 6, result);
-		assertArrayEquals(new byte[] {1, 2, 3, 4, 5, 5}, result);
+		assertArrayEquals(new byte[]{1, 2, 3, 4, 5, 5}, result);
 		var other = memory(0, 1);
 		assertThrows(IndexOutOfBoundsException.class, () -> mem.copyFrom(0, 0, 1, other));
 		assertEquals(1, mem.loadI8(0));
@@ -72,7 +72,10 @@ public class WasmMemory64Test {
 		assertEquals(-1, mem.grow(1));
 		assertEquals(-1, mem.grow(-1));
 		assertEquals(-1, mem.grow(Long.MAX_VALUE));
-		assertThrows(IllegalArgumentException.class, () -> memory(Long.MAX_VALUE / 65536 + 1, Long.MAX_VALUE / 65536 + 1));
+		assertThrows(
+			IllegalArgumentException.class,
+			() -> memory(Long.MAX_VALUE / 65536 + 1, Long.MAX_VALUE / 65536 + 1)
+		);
 		assertThrows(IllegalArgumentException.class, () -> memory(2, 1));
 	}
 
@@ -82,7 +85,10 @@ public class WasmMemory64Test {
 		assertThrows(IndexOutOfBoundsException.class, () -> mem.loadI8(1L << 32));
 		assertThrows(IndexOutOfBoundsException.class, () -> WasmMemory64.loadI8(1L << 32, 0, mem));
 		assertThrows(IndexOutOfBoundsException.class, () -> WasmMemory64.loadI8(Long.MAX_VALUE, 1, mem));
-		assertThrows(IndexOutOfBoundsException.class, () -> WasmMemory64.storeI8(Long.MIN_VALUE, (byte)1, Long.MIN_VALUE, mem));
+		assertThrows(
+			IndexOutOfBoundsException.class,
+			() -> WasmMemory64.storeI8(Long.MIN_VALUE, (byte)1, Long.MIN_VALUE, mem)
+		);
 		assertThrows(IndexOutOfBoundsException.class, () -> mem.copyFrom(0, 0, Long.MIN_VALUE, mem));
 		assertEquals(0, mem.loadI8(0));
 		assertEquals(-1, mem.grow(Long.MIN_VALUE));

@@ -24,8 +24,20 @@ final class SpecTestModuleInterpreter implements WasmModule {
 		exports.put("global_f32", new WasmGlobal(new GlobalType(Mut.Const, NumType.F32), 666.6f));
 		exports.put("global_f64", new WasmGlobal(new GlobalType(Mut.Const, NumType.F64), 666.6));
 		exports.put("memory", new WasmMemoryExport(WasmMemory32.create(options, 1, 2)));
-		exports.put("table", new WasmTable(new TableType(AddrType.I32, new Limits(10, 20L), new RefType(true, HeapType.AbstractHeapType.FUNC)), null));
-		exports.put("table64", new WasmTable(new TableType(AddrType.I64, new Limits(10, 20L), new RefType(true, HeapType.AbstractHeapType.FUNC)), null));
+		exports.put(
+			"table",
+			new WasmTable(
+				new TableType(AddrType.I32, new Limits(10, 20L), new RefType(true, HeapType.AbstractHeapType.FUNC)),
+				null
+			)
+		);
+		exports.put(
+			"table64",
+			new WasmTable(
+				new TableType(AddrType.I64, new Limits(10, 20L), new RefType(true, HeapType.AbstractHeapType.FUNC)),
+				null
+			)
+		);
 		exports.put("print", new Print());
 		exports.put("print_i32", new PrintI32());
 		exports.put("print_i64", new PrintI64());
@@ -34,7 +46,7 @@ final class SpecTestModuleInterpreter implements WasmModule {
 		exports.put("print_i32_f32", new PrintI32F32());
 		exports.put("print_f64_f64", new PrintF64F64());
 	}
-	
+
 	private final PrintWriter output;
 
 	private final Map<String, WasmExport> exports = new HashMap<>();
@@ -53,7 +65,7 @@ final class SpecTestModuleInterpreter implements WasmModule {
 		@Override
 		public DynamicFunctionResult invoke(@Nullable Object[] args) throws Throwable {
 			output.println();
-			return new DynamicFunctionResult.Values(new Object[] {});
+			return new DynamicFunctionResult.Values(new Object[]{});
 		}
 	}
 
@@ -67,7 +79,7 @@ final class SpecTestModuleInterpreter implements WasmModule {
 		public DynamicFunctionResult invoke(@Nullable Object[] args) throws Throwable {
 			int n = (int)Objects.requireNonNull(args[0]);
 			output.println(n);
-			return new DynamicFunctionResult.Values(new Object[] {});
+			return new DynamicFunctionResult.Values(new Object[]{});
 		}
 	}
 
@@ -81,7 +93,7 @@ final class SpecTestModuleInterpreter implements WasmModule {
 		public DynamicFunctionResult invoke(@Nullable Object[] args) throws Throwable {
 			long n = (long)Objects.requireNonNull(args[0]);
 			output.println(n);
-			return new DynamicFunctionResult.Values(new Object[] {});
+			return new DynamicFunctionResult.Values(new Object[]{});
 		}
 	}
 
@@ -95,7 +107,7 @@ final class SpecTestModuleInterpreter implements WasmModule {
 		public DynamicFunctionResult invoke(@Nullable Object[] args) throws Throwable {
 			float n = (float)Objects.requireNonNull(args[0]);
 			output.println(n);
-			return new DynamicFunctionResult.Values(new Object[] {});
+			return new DynamicFunctionResult.Values(new Object[]{});
 		}
 	}
 
@@ -109,14 +121,17 @@ final class SpecTestModuleInterpreter implements WasmModule {
 		public DynamicFunctionResult invoke(@Nullable Object[] args) throws Throwable {
 			double n = (double)Objects.requireNonNull(args[0]);
 			output.println(n);
-			return new DynamicFunctionResult.Values(new Object[] {});
+			return new DynamicFunctionResult.Values(new Object[]{});
 		}
 	}
 
 	private final class PrintI32F32 implements DynamicWasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
-			return new FuncType(new ResultType(ImmutableList.of(NumType.I32, NumType.F32)), new ResultType(ImmutableList.of()));
+			return new FuncType(
+				new ResultType(ImmutableList.of(NumType.I32, NumType.F32)),
+				new ResultType(ImmutableList.of())
+			);
 		}
 
 		@Override
@@ -125,14 +140,17 @@ final class SpecTestModuleInterpreter implements WasmModule {
 			float m = (float)Objects.requireNonNull(args[1]);
 			output.println(n);
 			output.println(m);
-			return new DynamicFunctionResult.Values(new Object[] {});
+			return new DynamicFunctionResult.Values(new Object[]{});
 		}
 	}
 
 	private final class PrintF64F64 implements DynamicWasmFunction.SimpleFunction {
 		@Override
 		public FuncType functionType() {
-			return new FuncType(new ResultType(ImmutableList.of(NumType.F64, NumType.F64)), new ResultType(ImmutableList.of()));
+			return new FuncType(
+				new ResultType(ImmutableList.of(NumType.F64, NumType.F64)),
+				new ResultType(ImmutableList.of())
+			);
 		}
 
 		@Override
@@ -141,7 +159,7 @@ final class SpecTestModuleInterpreter implements WasmModule {
 			double m = (double)Objects.requireNonNull(args[1]);
 			output.println(n);
 			output.println(m);
-			return new DynamicFunctionResult.Values(new Object[] {});
+			return new DynamicFunctionResult.Values(new Object[]{});
 		}
 	}
 }

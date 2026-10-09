@@ -31,16 +31,21 @@ import static java.lang.constant.ConstantDescs.*;
 public class ReflectionEngine {
 	/**
 	 * Create an engine.
-	 * @param packageName The name of the Java package used for generated classes.
-	 * @param context The runtime context.
+	 * 
+	 * @param packageName
+	 *            The name of the Java package used for generated classes.
+	 * @param context
+	 *            The runtime context.
 	 */
 	public ReflectionEngine(String packageName, RuntimeContext context) {
 		this.context = context;
 
-		compiler = new ModuleCompiler(new CompilerOptions(
-			ClassHierarchyResolver.ofClassLoading(ReflectionEngine.class.getClassLoader()),
-			packageName
-		));
+		compiler = new ModuleCompiler(
+			new CompilerOptions(
+				ClassHierarchyResolver.ofClassLoading(ReflectionEngine.class.getClassLoader()),
+				packageName
+			)
+		);
 
 		try {
 			var loader = new ReflectionModuleLoader(compiler);
@@ -66,20 +71,26 @@ public class ReflectionEngine {
 
 	/**
 	 * Instantiates a WebAssembly module.
-	 * @param module The module to instantiate.
-	 * @param resolver The resolver to use.
+	 * 
+	 * @param module
+	 *            The module to instantiate.
+	 * @param resolver
+	 *            The resolver to use.
 	 * @return The instantiated module.
-	 * @throws ExecutionException when an error occurs executing WebAssembly code.
-	 * @throws ModuleLinkException when an error occurs while linking.
+	 * @throws ExecutionException
+	 *             when an error occurs executing WebAssembly code.
+	 * @throws ModuleLinkException
+	 *             when an error occurs while linking.
 	 */
-	public ReflectionModule instantiateModule(Module module, ModuleResolver<ReflectionModule> resolver) throws ExecutionException, ModuleLinkException {
+	public ReflectionModule instantiateModule(Module module, ModuleResolver<ReflectionModule> resolver)
+		throws ExecutionException, ModuleLinkException {
 		try {
 			int currentIndex = moduleIndex.getAndIncrement();
-			WasmModuleRealization classRealization = compiler.enqueueModule(module, "Module" + currentIndex, new MappedResolver(resolver));
+			WasmModuleRealization classRealization = compiler
+				.enqueueModule(module, "Module" + currentIndex, new MappedResolver(resolver));
 			List<byte[]> newClassBytecode = new ArrayList<>();
 
-			genLoop:
-			for(;;) {
+			genLoop : for(;;) {
 				var gen = compiler.dequeueGenerator();
 
 				String name;
@@ -110,11 +121,17 @@ public class ReflectionEngine {
 					var classModel = compiler.classFile().parse(ncb);
 					System.err.println("Class: " + classModel.thisClass().asInternalName());
 					for(var method : classModel.methods()) {
-						System.err.println("Method: " + method.methodName().stringValue() + " " + method.methodTypeSymbol().descriptorString());
+						System.err.println(
+							"Method: " + method.methodName().stringValue() + " "
+								+ method.methodTypeSymbol().descriptorString()
+						);
 						method.code().ifPresent(code -> code.elementList().forEach(System.err::println));
 					}
 
-					throw new RuntimeException("Verification errors for " + classModel.thisClass() + ":\n" + errors.stream().map(VerifyError::toString).collect(Collectors.joining(",")));
+					throw new RuntimeException(
+						"Verification errors for " + classModel.thisClass() + ":\n"
+							+ errors.stream().map(VerifyError::toString).collect(Collectors.joining(","))
+					);
 				}
 			}
 
@@ -125,7 +142,6 @@ public class ReflectionEngine {
 
 			methodParamTypes.add(RuntimeContext.class);
 			methodArgs.add(context);
-
 
 			Set<String> seenImportModules = new HashSet<>();
 			for(var imp : module.imports()) {
@@ -140,7 +156,8 @@ public class ReflectionEngine {
 
 			WasmModule instance;
 			try {
-				instance = (WasmModule)cls.getDeclaredConstructor(methodParamTypes.toArray(Class<?>[]::new)).newInstance(methodArgs.toArray());
+				instance = (WasmModule)cls.getDeclaredConstructor(methodParamTypes.toArray(Class<?>[]::new))
+					.newInstance(methodArgs.toArray());
 			}
 			catch(InvocationTargetException e) {
 				throw new ExecutionException(e.getCause());
@@ -157,9 +174,13 @@ public class ReflectionEngine {
 
 	/**
 	 * Adds a host module to this engine.
-	 * @param module The module to add.
-	 * @return The reflection module representing the module instance and its exports.
-	 * @throws ModuleFormatException if the module is invalid
+	 * 
+	 * @param module
+	 *            The module to add.
+	 * @return The reflection module representing the module instance and its
+	 *         exports.
+	 * @throws ModuleFormatException
+	 *             if the module is invalid
 	 */
 	public ReflectionModule addHostModule(WasmModule module) throws ModuleFormatException {
 		var cls = module.getClass();
@@ -176,7 +197,8 @@ public class ReflectionEngine {
 		return new ReflectionModule(module, exports);
 	}
 
-	private Map<String, ReflectionExport> getExports(Class<?> cls, WasmModuleRealization classRealization) throws ClassNotFoundException, NoSuchMethodException {
+	private Map<String, ReflectionExport> getExports(Class<?> cls, WasmModuleRealization classRealization)
+		throws ClassNotFoundException, NoSuchMethodException {
 		Map<String, ReflectionExport> exports = new HashMap<>();
 		for(var exp : classRealization.exports()) {
 			ReflectionExport export;
@@ -257,8 +279,6 @@ public class ReflectionEngine {
 		}
 	}
 
-
-
 	private static String getBinaryName(ClassDesc classDesc) {
 		return getInternalName(classDesc).replace('/', '.');
 	}
@@ -309,7 +329,8 @@ public class ReflectionEngine {
 				var uri = URI.create("memory:///" + name);
 				try {
 					return URL.of(uri, new EngineResourceURLStreamLoader());
-				} catch(MalformedURLException e) {
+				}
+				catch(MalformedURLException e) {
 					return null;
 				}
 			}
@@ -332,13 +353,13 @@ public class ReflectionEngine {
 		}
 
 		@Override
-		public void connect() throws IOException {
-		}
+		public void connect() throws IOException {}
 
 		@Override
 		public InputStream getInputStream() throws IOException {
 			var path = getURL().getPath();
-			if(path.startsWith("/")) path = path.substring(1);
+			if(path.startsWith("/"))
+				path = path.substring(1);
 			var data = generatedFiles.get(path);
 			Objects.requireNonNull(data);
 			return new ByteArrayInputStream(data);

@@ -18,7 +18,6 @@ import java.util.Comparator;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
-
 /**
  * An executor for WAST scripts that uses a class loader.
  */
@@ -45,12 +44,15 @@ public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionMod
 	}
 
 	@Override
-	ReflectionModule instantiateModule(Module module, ModuleResolver<ReflectionModule> resolver) throws ExecutionException {
+	ReflectionModule instantiateModule(Module module, ModuleResolver<ReflectionModule> resolver)
+		throws ExecutionException {
 		return engine.instantiateModule(module, resolver);
 	}
 
 	@Override
-	@Nullable Object[] invokeModuleExport(ReflectionModule module, String exportName, @Nullable Object[] args) throws ExecutionException {
+	@Nullable
+	Object[] invokeModuleExport(ReflectionModule module, String exportName, @Nullable Object[] args)
+		throws ExecutionException {
 		try {
 			if(!(module.exports().get(exportName) instanceof ReflectionExport.FunctionExport export)) {
 				throw new RuntimeException("Could not find function export");
@@ -59,11 +61,9 @@ public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionMod
 			Object result = export.method().invoke(module.module(), args);
 
 			var stepClass = Arrays.stream(export.method().getReturnType().getDeclaredClasses())
-				.filter(c -> c.getSimpleName().equals("Step"))
-				.findAny()
-				.orElseThrow();
+				.filter(c -> c.getSimpleName().equals("Step")).findAny().orElseThrow();
 
-			while(stepClass.isInstance(result)) {
+			while (stepClass.isInstance(result)) {
 				Method stepMethod = stepClass.getMethod("step");
 				result = stepMethod.invoke(result);
 			}
@@ -72,10 +72,10 @@ public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionMod
 
 			var fields = Arrays.stream(endResult.getClass().getDeclaredFields())
 				.filter(f -> f.canAccess(endResult) && f.getName().startsWith("item"))
-				.sorted(Comparator.comparingInt(f -> Integer.parseInt(f.getName().substring(4))))
-				.toList();
+				.sorted(Comparator.comparingInt(f -> Integer.parseInt(f.getName().substring(4)))).toList();
 
-			@Nullable Object[] results = new @Nullable Object[fields.size()];
+			@Nullable
+			Object[] results = new @Nullable Object[fields.size()];
 			for(int i = 0; i < fields.size(); ++i) {
 				results[i] = fields.get(i).get(endResult);
 			}
@@ -90,11 +90,11 @@ public final class ScriptReflectionExecutor extends ScriptExecutor<ReflectionMod
 	}
 
 	@Override
-	@Nullable Object getGlobalExport(ReflectionModule module, String exportName) {
+	@Nullable
+	Object getGlobalExport(ReflectionModule module, String exportName) {
 		try {
 			return switch(module.exports().get(exportName)) {
-				case ReflectionExport.GlobalExportConst(var method) ->
-					method.invoke(module.module());
+				case ReflectionExport.GlobalExportConst(var method) -> method.invoke(module.module());
 
 				case ReflectionExport.GlobalExportVar(var method) -> {
 					var globalObj = method.invoke(module.module());

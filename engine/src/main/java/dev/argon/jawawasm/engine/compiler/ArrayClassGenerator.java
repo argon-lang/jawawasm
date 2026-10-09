@@ -70,49 +70,53 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 			compiler.enqueueGenerator(implClass);
 		}
 
-		return compiler.classFile()
-			.build(className, clb -> {
-				var elementTypeRealization = compiler.getStorageType(arrayType.fieldType().storageType());
-				ClassDesc superClass;
-				if(subtype.superTypes().isEmpty()) {
-					superClass = switch(arrayType.fieldType().mut()) {
-						case Const -> wasmArrayImmutable;
-						case Var -> wasmArrayMutable;
-					};
-				}
-				else {
-					superClass = compiler.getHeapType(subtype.superTypes().getFirst());
-				}
+		return compiler.classFile().build(className, clb -> {
+			var elementTypeRealization = compiler.getStorageType(arrayType.fieldType().storageType());
+			ClassDesc superClass;
+			if(subtype.superTypes().isEmpty()) {
+				superClass = switch(arrayType.fieldType().mut()) {
+					case Const -> wasmArrayImmutable;
+					case Var -> wasmArrayMutable;
+				};
+			}
+			else {
+				superClass = compiler.getHeapType(subtype.superTypes().getFirst());
+			}
 
+			clb.withFlags(ClassFile.ACC_PUBLIC);
+			clb.withSuperclass(superClass);
 
-				clb.withFlags(ClassFile.ACC_PUBLIC);
-				clb.withSuperclass(superClass);
+			if(subtype.isFinal()) {
+				generateFinalArray(clb, className, superClass, elementTypeRealization);
+				generateFactoryMethods(clb, className, className, elementTypeRealization);
+			}
+			else {
+				generateAbstractMethods(clb, superClass, elementTypeRealization);
+				generateFactoryMethods(clb, className, className.nested("Impl"), elementTypeRealization);
+			}
 
-				if(subtype.isFinal()) {
-					generateFinalArray(clb, className, superClass, elementTypeRealization);
-					generateFactoryMethods(clb, className, className, elementTypeRealization);
-				}
-				else {
-					generateAbstractMethods(clb, superClass, elementTypeRealization);
-					generateFactoryMethods(clb, className, className.nested("Impl"), elementTypeRealization);
-				}
-
-				if(implClass != null) {
-					clb.with(
-						InnerClassesAttribute.of(
-							InnerClassInfo.of(implClass.className(), Optional.of(className), Optional.of("Impl"), ClassFile.ACC_PRIVATE | ClassFile.ACC_STATIC | ClassFile.ACC_FINAL)
+			if(implClass != null) {
+				clb.with(
+					InnerClassesAttribute.of(
+						InnerClassInfo.of(
+							implClass.className(),
+							Optional.of(className),
+							Optional.of("Impl"),
+							ClassFile.ACC_PRIVATE | ClassFile.ACC_STATIC | ClassFile.ACC_FINAL
 						)
-					);
-					clb.with(
-						NestMembersAttribute.ofSymbols(
-							implClass.className()
-						)
-					);
-				}
-			});
+					)
+				);
+				clb.with(NestMembersAttribute.ofSymbols(implClass.className()));
+			}
+		});
 	}
 
-	private void generateFinalArray(ClassBuilder clb, ClassDesc thisClass, ClassDesc superClass, TypeRealization elementTypeRealization) {
+	private void generateFinalArray(
+		ClassBuilder clb,
+		ClassDesc thisClass,
+		ClassDesc superClass,
+		TypeRealization elementTypeRealization
+	) {
 		clb.withField("array", elementTypeRealization.type().arrayType(), ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL);
 
 		clb.withMethodBody(
@@ -130,61 +134,41 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 			}
 		);
 
+		clb.withMethodBody("length", MethodTypeDesc.of(CD_int), ClassFile.ACC_PUBLIC, cb -> {
+			cb.aload(0);
+			cb.getfield(thisClass, "array", elementTypeRealization.type().arrayType());
+			cb.arraylength();
+			cb.ireturn();
+		});
 
-		clb.withMethodBody(
-			"length",
-			MethodTypeDesc.of(CD_int),
-			ClassFile.ACC_PUBLIC,
-			cb -> {
+		clb.withMethod("get", MethodTypeDesc.of(elementTypeRealization.type(), CD_int), ClassFile.ACC_PUBLIC, mb -> {
+			if(elementTypeRealization.isNullable()) {
+				mb.with(
+					RuntimeVisibleTypeAnnotationsAttribute
+						.of(TypeAnnotation.of(TypeAnnotation.TargetInfo.ofMethodReturn(), List.of(), nullableAnn))
+				);
+			}
+
+			mb.withCode(cb -> {
 				cb.aload(0);
 				cb.getfield(thisClass, "array", elementTypeRealization.type().arrayType());
-				cb.arraylength();
-				cb.ireturn();
-			}
-		);
-
-		clb.withMethod(
-			"get",
-			MethodTypeDesc.of(elementTypeRealization.type(), CD_int),
-			ClassFile.ACC_PUBLIC,
-			mb -> {
-				if(elementTypeRealization.isNullable()) {
-					mb.with(
-						RuntimeVisibleTypeAnnotationsAttribute.of(
-							TypeAnnotation.of(
-								TypeAnnotation.TargetInfo.ofMethodReturn(),
-								List.of(),
-								nullableAnn
-							)
-						)
-					);
-				}
-
-				mb.withCode(cb -> {
-					cb.aload(0);
-					cb.getfield(thisClass, "array", elementTypeRealization.type().arrayType());
-					cb.iload(1);
-					cb.arrayLoad(typeKind(elementTypeRealization.type()));
-					cb.return_(typeKind(elementTypeRealization.type()));
-				});
-			}
-		);
+				cb.iload(1);
+				cb.arrayLoad(typeKind(elementTypeRealization.type()));
+				cb.return_(typeKind(elementTypeRealization.type()));
+			});
+		});
 
 		if(arrayType.fieldType().mut() == Mut.Const) {
 			Set<ClassDesc> seenGetTypes = new HashSet<>();
 			seenGetTypes.add(elementTypeRealization.type());
 
-			for(
-				var superTypeRealization = realization().superType().get();
-				superTypeRealization != null;
-				superTypeRealization = superTypeRealization.superType().get()
-			) {
+			for(var superTypeRealization = realization().superType()
+				.get(); superTypeRealization != null; superTypeRealization = superTypeRealization.superType().get()) {
 				var superFieldType = superTypeRealization.elementType().get();
 
 				if(!seenGetTypes.add(superFieldType)) {
 					continue;
 				}
-
 
 				clb.withMethodBody(
 					"get",
@@ -210,11 +194,8 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 					if(elementTypeRealization.isNullable()) {
 						mb.with(
 							RuntimeVisibleTypeAnnotationsAttribute.of(
-								TypeAnnotation.of(
-									TypeAnnotation.TargetInfo.ofMethodFormalParameter(0),
-									List.of(),
-									nullableAnn
-								)
+								TypeAnnotation
+									.of(TypeAnnotation.TargetInfo.ofMethodFormalParameter(0), List.of(), nullableAnn)
 							)
 						);
 					}
@@ -239,11 +220,8 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 					if(elementTypeRealization.isNullable()) {
 						mb.with(
 							RuntimeVisibleTypeAnnotationsAttribute.of(
-								TypeAnnotation.of(
-									TypeAnnotation.TargetInfo.ofMethodFormalParameter(1),
-									List.of(),
-									nullableAnn
-								)
+								TypeAnnotation
+									.of(TypeAnnotation.TargetInfo.ofMethodFormalParameter(1), List.of(), nullableAnn)
 							)
 						);
 					}
@@ -254,9 +232,12 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 						cb.aload(0);
 						cb.getfield(thisClass, "array", elementTypeRealization.type().arrayType());
 						cb.arraylength();
-						cb.invokestatic(ClassDesc.of("java.util.Objects"), "checkFromIndexSize", MethodTypeDesc.of(CD_int, CD_int, CD_int, CD_int));
+						cb.invokestatic(
+							ClassDesc.of("java.util.Objects"),
+							"checkFromIndexSize",
+							MethodTypeDesc.of(CD_int, CD_int, CD_int, CD_int)
+						);
 						cb.pop();
-
 
 						cb.aload(0);
 						cb.getfield(thisClass, "array", elementTypeRealization.type().arrayType());
@@ -266,10 +247,24 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 						cb.iadd();
 						cb.loadLocal(typeKind(elementTypeRealization.type()), 2);
 						if(elementTypeRealization.type().isPrimitive()) {
-							cb.invokestatic(ClassDesc.of("java.util.Arrays"), "fill", MethodTypeDesc.of(CD_void, elementTypeRealization.type().arrayType(), CD_int, CD_int, elementTypeRealization.type()));
+							cb.invokestatic(
+								ClassDesc.of("java.util.Arrays"),
+								"fill",
+								MethodTypeDesc.of(
+									CD_void,
+									elementTypeRealization.type().arrayType(),
+									CD_int,
+									CD_int,
+									elementTypeRealization.type()
+								)
+							);
 						}
 						else {
-							cb.invokestatic(ClassDesc.of("java.util.Arrays"), "fill", MethodTypeDesc.of(CD_void, CD_Object.arrayType(), CD_int, CD_int, CD_Object));
+							cb.invokestatic(
+								ClassDesc.of("java.util.Arrays"),
+								"fill",
+								MethodTypeDesc.of(CD_void, CD_Object.arrayType(), CD_int, CD_int, CD_Object)
+							);
 						}
 
 						cb.return_();
@@ -292,7 +287,14 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 						cb.invokestatic(
 							wasmArray,
 							"initArrayFromData",
-							MethodTypeDesc.of(CD_void, elementTypeRealization.type().arrayType(), CD_int, CD_byte.arrayType(), CD_int, CD_int)
+							MethodTypeDesc.of(
+								CD_void,
+								elementTypeRealization.type().arrayType(),
+								CD_int,
+								CD_byte.arrayType(),
+								CD_int,
+								CD_int
+							)
 						);
 						cb.return_();
 					}
@@ -300,30 +302,24 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 			}
 		}
 
-		clb.withMethodBody(
-			"unsafeGetArray",
-			MethodTypeDesc.of(CD_Object),
-			ClassFile.ACC_PROTECTED,
-			cb -> {
-				cb.aload(0);
-				cb.getfield(thisClass, "array", elementTypeRealization.type().arrayType());
-				cb.areturn();
-			}
-		);
+		clb.withMethodBody("unsafeGetArray", MethodTypeDesc.of(CD_Object), ClassFile.ACC_PROTECTED, cb -> {
+			cb.aload(0);
+			cb.getfield(thisClass, "array", elementTypeRealization.type().arrayType());
+			cb.areturn();
+		});
 
 	}
 
-	private void generateAbstractMethods(ClassBuilder clb, ClassDesc superClass, TypeRealization elementTypeRealization) {
-		clb.withMethodBody(
-			"<init>",
-			MethodTypeDesc.of(CD_void),
-			ClassFile.ACC_PRIVATE,
-			cb -> {
-				cb.aload(0);
-				cb.invokespecial(superClass, "<init>", MethodTypeDesc.of(CD_void));
-				cb.return_();
-			}
-		);
+	private void generateAbstractMethods(
+		ClassBuilder clb,
+		ClassDesc superClass,
+		TypeRealization elementTypeRealization
+	) {
+		clb.withMethodBody("<init>", MethodTypeDesc.of(CD_void), ClassFile.ACC_PRIVATE, cb -> {
+			cb.aload(0);
+			cb.invokespecial(superClass, "<init>", MethodTypeDesc.of(CD_void));
+			cb.return_();
+		});
 
 		clb.withMethod(
 			"get",
@@ -332,13 +328,8 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 			mb -> {
 				if(elementTypeRealization.isNullable()) {
 					mb.with(
-						RuntimeVisibleTypeAnnotationsAttribute.of(
-							TypeAnnotation.of(
-								TypeAnnotation.TargetInfo.ofMethodReturn(),
-								List.of(),
-								nullableAnn
-							)
-						)
+						RuntimeVisibleTypeAnnotationsAttribute
+							.of(TypeAnnotation.of(TypeAnnotation.TargetInfo.ofMethodReturn(), List.of(), nullableAnn))
 					);
 				}
 			}
@@ -353,11 +344,8 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 					if(elementTypeRealization.isNullable()) {
 						mb.with(
 							RuntimeVisibleTypeAnnotationsAttribute.of(
-								TypeAnnotation.of(
-									TypeAnnotation.TargetInfo.ofMethodFormalParameter(0),
-									List.of(),
-									nullableAnn
-								)
+								TypeAnnotation
+									.of(TypeAnnotation.TargetInfo.ofMethodFormalParameter(0), List.of(), nullableAnn)
 							)
 						);
 					}
@@ -372,11 +360,8 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 					if(elementTypeRealization.isNullable()) {
 						mb.with(
 							RuntimeVisibleTypeAnnotationsAttribute.of(
-								TypeAnnotation.of(
-									TypeAnnotation.TargetInfo.ofMethodFormalParameter(1),
-									List.of(),
-									nullableAnn
-								)
+								TypeAnnotation
+									.of(TypeAnnotation.TargetInfo.ofMethodFormalParameter(1), List.of(), nullableAnn)
 							)
 						);
 					}
@@ -394,22 +379,22 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 		}
 	}
 
-
 	private boolean isDefaultableDataType(StorageType t) {
 		return !(t instanceof RefType(var isNullable, _)) || isNullable;
 	}
 
 	private boolean isInitDataType(ClassDesc elementType) {
-		return elementType.equals(CD_byte) ||
-			elementType.equals(CD_short) ||
-			elementType.equals(CD_int) ||
-			elementType.equals(CD_float) ||
-			elementType.equals(CD_long) ||
-			elementType.equals(CD_double) ||
-			elementType.equals(v128Type);
+		return elementType.equals(CD_byte) || elementType.equals(CD_short) || elementType.equals(CD_int)
+			|| elementType.equals(CD_float) || elementType.equals(CD_long) || elementType.equals(CD_double)
+			|| elementType.equals(v128Type);
 	}
 
-	private void generateFactoryMethods(ClassBuilder clb, ClassDesc thisClass, ClassDesc implClass, TypeRealization elementTypeRealization) {
+	private void generateFactoryMethods(
+		ClassBuilder clb,
+		ClassDesc thisClass,
+		ClassDesc implClass,
+		TypeRealization elementTypeRealization
+	) {
 		clb.withMethodBody(
 			"nCopies",
 			MethodTypeDesc.of(thisClass, elementTypeRealization.type(), CD_int),
@@ -428,13 +413,26 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 				cb.dup();
 				cb.loadLocal(typeKind(elementTypeRealization.type()), 0);
 				if(elementTypeRealization.type().isPrimitive()) {
-					cb.invokestatic(ClassDesc.of("java.util.Arrays"), "fill", MethodTypeDesc.of(CD_void, elementTypeRealization.type().arrayType(), elementTypeRealization.type()));
+					cb.invokestatic(
+						ClassDesc.of("java.util.Arrays"),
+						"fill",
+						MethodTypeDesc
+							.of(CD_void, elementTypeRealization.type().arrayType(), elementTypeRealization.type())
+					);
 				}
 				else {
-					cb.invokestatic(ClassDesc.of("java.util.Arrays"), "fill", MethodTypeDesc.of(CD_void, CD_Object.arrayType(), CD_Object));
+					cb.invokestatic(
+						ClassDesc.of("java.util.Arrays"),
+						"fill",
+						MethodTypeDesc.of(CD_void, CD_Object.arrayType(), CD_Object)
+					);
 				}
 
-				cb.invokespecial(implClass, "<init>", MethodTypeDesc.of(CD_void, elementTypeRealization.type().arrayType()));
+				cb.invokespecial(
+					implClass,
+					"<init>",
+					MethodTypeDesc.of(CD_void, elementTypeRealization.type().arrayType())
+				);
 				cb.areturn();
 			}
 		);
@@ -448,11 +446,7 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 					if(elementTypeRealization.type().equals(v128Type)) {
 						cb.iload(0);
 						loadV128(cb, V128.ZERO);
-						cb.invokestatic(
-							thisClass,
-							"nCopies",
-							MethodTypeDesc.of(thisClass, v128Type, CD_int)
-						);
+						cb.invokestatic(thisClass, "nCopies", MethodTypeDesc.of(thisClass, v128Type, CD_int));
 						cb.areturn();
 					}
 					else {
@@ -467,33 +461,36 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 							cb.anewarray(elementTypeRealization.type());
 						}
 
-						cb.invokespecial(implClass, "<init>", MethodTypeDesc.of(CD_void, elementTypeRealization.type().arrayType()));
+						cb.invokespecial(
+							implClass,
+							"<init>",
+							MethodTypeDesc.of(CD_void, elementTypeRealization.type().arrayType())
+						);
 						cb.areturn();
 					}
 				}
 			);
 		}
 
-		clb.withMethodBody(
-			"empty",
-			MethodTypeDesc.of(thisClass),
-			ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC,
-			cb -> {
-				cb.new_(implClass);
-				cb.dup();
+		clb.withMethodBody("empty", MethodTypeDesc.of(thisClass), ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC, cb -> {
+			cb.new_(implClass);
+			cb.dup();
 
-				cb.iconst_0();
-				if(elementTypeRealization.type().isPrimitive()) {
-					cb.newarray(typeKind(elementTypeRealization.type()));
-				}
-				else {
-					cb.anewarray(elementTypeRealization.type());
-				}
-
-				cb.invokespecial(implClass, "<init>", MethodTypeDesc.of(CD_void, elementTypeRealization.type().arrayType()));
-				cb.areturn();
+			cb.iconst_0();
+			if(elementTypeRealization.type().isPrimitive()) {
+				cb.newarray(typeKind(elementTypeRealization.type()));
 			}
-		);
+			else {
+				cb.anewarray(elementTypeRealization.type());
+			}
+
+			cb.invokespecial(
+				implClass,
+				"<init>",
+				MethodTypeDesc.of(CD_void, elementTypeRealization.type().arrayType())
+			);
+			cb.areturn();
+		});
 
 		// Copy from another array.
 		clb.withMethod(
@@ -503,13 +500,17 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 			mb -> {
 				if(elementTypeRealization.isNullable()) {
 					mb.with(
-						RuntimeVisibleTypeAnnotationsAttribute.of(
-							TypeAnnotation.of(
-								TypeAnnotation.TargetInfo.ofMethodFormalParameter(2),
-								List.of(TypeAnnotation.TypePathComponent.of(TypeAnnotation.TypePathComponent.Kind.ARRAY, 0)),
-								nullableAnn
+						RuntimeVisibleTypeAnnotationsAttribute
+							.of(
+								TypeAnnotation.of(
+									TypeAnnotation.TargetInfo.ofMethodFormalParameter(2),
+									List.of(
+										TypeAnnotation.TypePathComponent
+											.of(TypeAnnotation.TypePathComponent.Kind.ARRAY, 0)
+									),
+									nullableAnn
+								)
 							)
-						)
 					);
 				}
 
@@ -530,12 +531,20 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 					cb.aload(3);
 					cb.iconst_0();
 					cb.iload(1);
-					cb.invokestatic(ClassDesc.of("java.lang.System"), "arraycopy", MethodTypeDesc.of(CD_void, CD_Object, CD_int, CD_Object, CD_int, CD_int));
+					cb.invokestatic(
+						ClassDesc.of("java.lang.System"),
+						"arraycopy",
+						MethodTypeDesc.of(CD_void, CD_Object, CD_int, CD_Object, CD_int, CD_int)
+					);
 
 					cb.new_(implClass);
 					cb.dup();
 					cb.aload(3);
-					cb.invokespecial(implClass, "<init>", MethodTypeDesc.of(CD_void, elementTypeRealization.type().arrayType()));
+					cb.invokespecial(
+						implClass,
+						"<init>",
+						MethodTypeDesc.of(CD_void, elementTypeRealization.type().arrayType())
+					);
 					cb.areturn();
 				});
 			}
@@ -549,23 +558,30 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 			mb -> {
 				if(elementTypeRealization.isNullable()) {
 					mb.with(
-						RuntimeVisibleTypeAnnotationsAttribute.of(
-							TypeAnnotation.of(
-								TypeAnnotation.TargetInfo.ofMethodFormalParameter(0),
-								List.of(TypeAnnotation.TypePathComponent.of(TypeAnnotation.TypePathComponent.Kind.ARRAY, 0)),
-								nullableAnn
+						RuntimeVisibleTypeAnnotationsAttribute
+							.of(
+								TypeAnnotation.of(
+									TypeAnnotation.TargetInfo.ofMethodFormalParameter(0),
+									List.of(
+										TypeAnnotation.TypePathComponent
+											.of(TypeAnnotation.TypePathComponent.Kind.ARRAY, 0)
+									),
+									nullableAnn
+								)
 							)
-						)
 					);
 				}
-
 
 				mb.withCode(cb -> {
 					cb.iconst_0();
 					cb.aload(0);
 					cb.arraylength();
 					cb.aload(0);
-					cb.invokestatic(thisClass, "copyOfJavaArray", MethodTypeDesc.of(thisClass, CD_int, CD_int, elementTypeRealization.type().arrayType()));
+					cb.invokestatic(
+						thisClass,
+						"copyOfJavaArray",
+						MethodTypeDesc.of(thisClass, CD_int, CD_int, elementTypeRealization.type().arrayType())
+					);
 					cb.areturn();
 				});
 			}
@@ -574,7 +590,12 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 		generateNewDataFactoryMethods(clb, thisClass, implClass, elementTypeRealization);
 	}
 
-	private void generateNewDataFactoryMethods(ClassBuilder clb, ClassDesc thisClass, ClassDesc implClass, TypeRealization elementTypeRealization) {
+	private void generateNewDataFactoryMethods(
+		ClassBuilder clb,
+		ClassDesc thisClass,
+		ClassDesc implClass,
+		TypeRealization elementTypeRealization
+	) {
 		if(!isInitDataType(elementTypeRealization.type())) {
 			return;
 		}
@@ -599,12 +620,27 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 				cb.aload(2);
 				cb.iload(0);
 				cb.iload(1);
-				cb.invokestatic(wasmArray, "initArrayFromData", MethodTypeDesc.of(CD_void, elementTypeRealization.type().arrayType(), CD_int, CD_byte.arrayType(), CD_int, CD_int));
+				cb.invokestatic(
+					wasmArray,
+					"initArrayFromData",
+					MethodTypeDesc.of(
+						CD_void,
+						elementTypeRealization.type().arrayType(),
+						CD_int,
+						CD_byte.arrayType(),
+						CD_int,
+						CD_int
+					)
+				);
 
 				cb.new_(implClass);
 				cb.dup();
 				cb.aload(3);
-				cb.invokespecial(implClass, "<init>", MethodTypeDesc.of(CD_void, elementTypeRealization.type().arrayType()));
+				cb.invokespecial(
+					implClass,
+					"<init>",
+					MethodTypeDesc.of(CD_void, elementTypeRealization.type().arrayType())
+				);
 				cb.areturn();
 			}
 		);
@@ -629,21 +665,25 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 
 		@Override
 		byte[] generateImpl() {
-			return compiler.classFile()
-				.build(className, clb -> {
-					var elementTypeRealization = compiler.getStorageType(arrayType.fieldType().storageType());
+			return compiler.classFile().build(className, clb -> {
+				var elementTypeRealization = compiler.getStorageType(arrayType.fieldType().storageType());
 
-					clb.withInterfaceSymbols(ArrayClassGenerator.this.className);
-					clb.withFlags(ClassFile.ACC_FINAL);
-					generateFinalArray(clb, className, ArrayClassGenerator.this.className, elementTypeRealization);
+				clb.withInterfaceSymbols(ArrayClassGenerator.this.className);
+				clb.withFlags(ClassFile.ACC_FINAL);
+				generateFinalArray(clb, className, ArrayClassGenerator.this.className, elementTypeRealization);
 
-					clb.with(NestHostAttribute.of(ArrayClassGenerator.this.className));
-					clb.with(
-						InnerClassesAttribute.of(
-							InnerClassInfo.of(className(), Optional.of(ArrayClassGenerator.this.className), Optional.of("Impl"), ClassFile.ACC_PRIVATE | ClassFile.ACC_STATIC | ClassFile.ACC_FINAL)
+				clb.with(NestHostAttribute.of(ArrayClassGenerator.this.className));
+				clb.with(
+					InnerClassesAttribute.of(
+						InnerClassInfo.of(
+							className(),
+							Optional.of(ArrayClassGenerator.this.className),
+							Optional.of("Impl"),
+							ClassFile.ACC_PRIVATE | ClassFile.ACC_STATIC | ClassFile.ACC_FINAL
 						)
-					);
-				});
+					)
+				);
+			});
 		}
 	}
 }

@@ -25,7 +25,8 @@ import java.util.concurrent.ExecutionException;
  */
 public final class InstantiatedModule implements WasmModule {
 
-	InstantiatedModule(Engine engine, Module module, ModuleResolver<WasmModule> resolver) throws ExecutionException, ModuleLinkException {
+	InstantiatedModule(Engine engine, Module module, ModuleResolver<WasmModule> resolver)
+		throws ExecutionException, ModuleLinkException {
 		this.engine = engine;
 		this.module = module;
 		this.resolver = resolver;
@@ -44,12 +45,12 @@ public final class InstantiatedModule implements WasmModule {
 		new MemoryBuilder().build(memories);
 		new TagBuilder().build(tags);
 
-
 		elements = new WasmElements[module.elems().size()];
 		for(int i = 0; i < elements.length; ++i) {
 			Elem elem = module.elems().get(i);
 
-			@Nullable Object[] values = new Object[elem.init().size()];
+			@Nullable
+			Object[] values = new Object[elem.init().size()];
 			for(int j = 0; j < values.length; ++j) {
 				values[j] = evaluateInitializer(elem.init().get(j).body(), elem.type());
 			}
@@ -66,7 +67,10 @@ public final class InstantiatedModule implements WasmModule {
 
 						var table = getTable(tableIdx);
 						var addrType = table.type().addrType();
-						long offset = AddressTypeUtils.unboxAddress(addrType, evaluateInitializer(offsetExpr.body(), AddressTypeUtils.asNumType(addrType)));
+						long offset = AddressTypeUtils.unboxAddress(
+							addrType,
+							evaluateInitializer(offsetExpr.body(), AddressTypeUtils.asNumType(addrType))
+						);
 						WasmTable.init(offset, 0, instElem.size(), table, instElem);
 						dropElement(new ElemIdx(i));
 					}
@@ -74,7 +78,8 @@ public final class InstantiatedModule implements WasmModule {
 					case ElemMode.Declarative() -> {
 						dropElement(new ElemIdx(i));
 					}
-					case ElemMode.Passive() -> {}
+					case ElemMode.Passive() -> {
+					}
 				}
 			}
 
@@ -84,10 +89,14 @@ public final class InstantiatedModule implements WasmModule {
 					case DataMode.Active(var memoryIdx, var offsetExpr) -> {
 						var memory = getMemory(memoryIdx);
 						var addrType = MemoryAccess.addressType(memory);
-						long offset = AddressTypeUtils.unboxAddress(addrType, evaluateInitializer(offsetExpr.body(), AddressTypeUtils.asNumType(addrType)));
+						long offset = AddressTypeUtils.unboxAddress(
+							addrType,
+							evaluateInitializer(offsetExpr.body(), AddressTypeUtils.asNumType(addrType))
+						);
 						MemoryAccess.copyFromArray(memory, offset, 0, data.init().size(), data.init().toByteArray());
 					}
-					case DataMode.Passive() -> {}
+					case DataMode.Passive() -> {
+					}
 				}
 			}
 		}
@@ -97,7 +106,7 @@ public final class InstantiatedModule implements WasmModule {
 
 		if(module.start() != null) {
 			var startFunc = getFunction(module.start().func());
-			DynamicFunctionResult.resolveWith(() -> startFunc.invoke(new Object[] {}));
+			DynamicFunctionResult.resolveWith(() -> startFunc.invoke(new Object[]{}));
 		}
 	}
 
@@ -113,7 +122,6 @@ public final class InstantiatedModule implements WasmModule {
 	private final List<DynamicWasmTag> tags = new ArrayList<>();
 	private final WasmElements[] elements;
 	private final Set<Integer> droppedData = new HashSet<>();
-
 
 	private final Map<String, WasmModule> referencedModules = new HashMap<>();
 	private final Map<String, WasmExport> exports = new HashMap<>();
@@ -132,7 +140,6 @@ public final class InstantiatedModule implements WasmModule {
 		}
 	};
 
-
 	private synchronized WasmModule getReference(String name) throws ModuleResolutionException {
 		WasmModule ref = referencedModules.get(name);
 		if(ref == null) {
@@ -146,17 +153,12 @@ public final class InstantiatedModule implements WasmModule {
 	public synchronized @Nullable WasmExport getExport(String name) {
 		WasmExport export = exports.get(name);
 		if(export == null) {
-			ExportDesc desc = module.exports()
-					.stream()
-					.filter((Export e) -> e.name().equals(name))
-					.map(Export::desc)
-					.findFirst()
-					.orElse(null);
+			ExportDesc desc = module.exports().stream().filter((Export e) -> e.name().equals(name)).map(Export::desc)
+				.findFirst().orElse(null);
 
 			if(desc == null) {
 				return null;
 			}
-
 
 			export = createExport(desc);
 			exports.put(name, export);
@@ -176,27 +178,26 @@ public final class InstantiatedModule implements WasmModule {
 	}
 
 	private @Nullable Object evaluateInitializer(List<? extends Instr> init, ValType type) throws ExecutionException {
-		@Nullable Object[] values = DynamicFunctionResult.resolveWith(() ->
-				new StackFrame(
-						InstantiatedModule.this,
-						init,
-						new FuncType(
-								new ResultType(ImmutableList.of()),
-								new ResultType(ImmutableList.of(type))
-						),
-						new Object[] {},
-						new Object[] {}
-				)
-						.evaluate()
+		@Nullable
+		Object[] values = DynamicFunctionResult.resolveWith(
+			() -> new StackFrame(
+				InstantiatedModule.this,
+				init,
+				new FuncType(new ResultType(ImmutableList.of()), new ResultType(ImmutableList.of(type))),
+				new Object[]{},
+				new Object[]{}
+			).evaluate()
 		);
 		return values[0];
 	}
 
 	private abstract class IndexSpaceBuilder<T, TImportDesc extends ImportDesc, Def> {
 		abstract @Nullable TImportDesc castImportDesc(ImportDesc desc);
+
 		abstract T checkImport(TImportDesc desc, WasmExport export) throws ModuleLinkException;
 
 		abstract List<? extends Def> definitions();
+
 		abstract T create(Def def) throws ExecutionException;
 
 		final void build(List<T> items) throws ModuleLinkException {
@@ -247,7 +248,9 @@ public final class InstantiatedModule implements WasmModule {
 			var defType = getDefType(desc.type());
 
 			if(!subtyping.isSubtypeDefType(importDefType, defType)) {
-				throw new ModuleLinkException("incompatible import type: Expected " + defType + ", Actual " + importDefType);
+				throw new ModuleLinkException(
+					"incompatible import type: Expected " + defType + ", Actual " + importDefType
+				);
 			}
 
 			return func;
@@ -342,7 +345,11 @@ public final class InstantiatedModule implements WasmModule {
 		protected WasmMemory create(Mem memory) {
 			var limits = memory.type().limits();
 			return switch(memory.type().addrType()) {
-				case I32 -> WasmMemory32.create(engine.getOptions(), Math.toIntExact(limits.min()), limits.max() == null ? null : Math.toIntExact(limits.max()));
+				case I32 -> WasmMemory32.create(
+					engine.getOptions(),
+					Math.toIntExact(limits.min()),
+					limits.max() == null ? null : Math.toIntExact(limits.max())
+				);
 				case I64 -> WasmMemory64.create(engine.getOptions(), limits.min(), limits.max());
 			};
 		}
@@ -395,7 +402,9 @@ public final class InstantiatedModule implements WasmModule {
 			var defType = getDefType(desc.type().funcType());
 
 			if(!subtyping.isSubtypeDefType(importDefType, defType)) {
-				throw new ModuleLinkException("incompatible import type: Expected " + defType + ", Actual " + importDefType);
+				throw new ModuleLinkException(
+					"incompatible import type: Expected " + defType + ", Actual " + importDefType
+				);
 			}
 
 			return tag;
@@ -460,13 +469,13 @@ public final class InstantiatedModule implements WasmModule {
 	}
 
 	WasmElements getElement(ElemIdx index) {
-		synchronized(elements) {
+		synchronized (elements) {
 			return elements[index.index()];
 		}
 	}
 
 	Data getData(DataIdx index) {
-		synchronized(droppedData) {
+		synchronized (droppedData) {
 			if(droppedData.contains(index.index())) {
 				return new Data(ByteString.EMPTY, new DataMode.Passive());
 			}
@@ -475,18 +484,16 @@ public final class InstantiatedModule implements WasmModule {
 		}
 	}
 
-
 	void dropElement(ElemIdx index) {
-		synchronized(elements) {
-			elements[index.index()] = new WasmElements(new Object[] {});
+		synchronized (elements) {
+			elements[index.index()] = new WasmElements(new Object[]{});
 		}
 	}
 
 	void dropData(DataIdx index) {
-		synchronized(droppedData) {
+		synchronized (droppedData) {
 			droppedData.add(index.index());
 		}
 	}
-
 
 }

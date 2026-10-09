@@ -8,17 +8,19 @@ import org.jspecify.annotations.Nullable;
 public final class I31 implements WasmEq {
 	/**
 	 * Create a 31-bit value.
-	 * @param value The value. The top bit is discarded.
+	 * 
+	 * @param value
+	 *            The value. The top bit is discarded.
 	 */
 	public I31(int value) {
 		this.value = (value << 1) >> 1;
 	}
 
-
 	private final int value;
 
 	/**
 	 * Gets the value interpreted as a signed integer.
+	 * 
 	 * @return The value.
 	 */
 	public int signedValue() {
@@ -27,6 +29,7 @@ public final class I31 implements WasmEq {
 
 	/**
 	 * Gets the value interpreted as an unsigned integer.
+	 * 
 	 * @return The value.
 	 */
 	public int unsignedValue() {

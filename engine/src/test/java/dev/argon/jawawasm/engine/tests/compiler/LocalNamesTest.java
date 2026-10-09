@@ -11,8 +11,7 @@ public class LocalNamesTest extends CompilerTestBase {
 	@Test
 	public void emitsLocalNamesWithJvmSlotsAndScopes() throws Exception {
 		var methods = compile("local-names.wat").stream()
-			.filter(c -> c.thisClass().asInternalName().contains("_Funcs_"))
-			.flatMap(c -> c.methods().stream())
+			.filter(c -> c.thisClass().asInternalName().contains("_Funcs_")).flatMap(c -> c.methods().stream())
 			.toList();
 		var named = methods.stream().filter(m -> m.methodName().stringValue().equals("func0_named")).toList();
 		assertEquals(2, named.size());
@@ -20,11 +19,15 @@ public class LocalNamesTest extends CompilerTestBase {
 			var code = method.findAttribute(Attributes.code()).orElseThrow();
 			var locals = code.findAttribute(Attributes.localVariableTable()).orElseThrow().localVariables();
 			boolean thunk = method.methodType().stringValue().startsWith("(L");
-			assertEquals(thunk ? List.of("wide", "value-name") : List.of("wide", "value-name", "double-value", "counter"),
-				locals.stream().map(l -> l.name().stringValue()).toList());
+			assertEquals(
+				thunk ? List.of("wide", "value-name") : List.of("wide", "value-name", "double-value", "counter"),
+				locals.stream().map(l -> l.name().stringValue()).toList()
+			);
 			assertEquals(thunk ? List.of(1, 3) : List.of(0, 2, 4, 6), locals.stream().map(l -> l.slot()).toList());
-			assertEquals(thunk ? List.of("J", "I") : List.of("J", "I", "D", "I"),
-				locals.stream().map(l -> l.type().stringValue()).toList());
+			assertEquals(
+				thunk ? List.of("J", "I") : List.of("J", "I", "D", "I"),
+				locals.stream().map(l -> l.type().stringValue()).toList()
+			);
 			for(int i = 0; i < locals.size(); ++i) {
 				var local = locals.get(i);
 				if(i < 2) {

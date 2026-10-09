@@ -25,7 +25,7 @@ class Context {
 		CompositeType expand() {
 			var result = expanded;
 			if(result == null) {
-				synchronized(this) {
+				synchronized (this) {
 					result = expanded;
 					if(result == null) {
 						result = TypeUnroll.expand(definition);
@@ -94,27 +94,32 @@ class Context {
 			throw new ValidationException("unknown type " + idx.index());
 		}
 	}
+
 	public void requireFuncType(TypeIdx idx) throws ValidationException {
 		requireType(idx);
 		if(!(getCompositeType(idx) instanceof FuncType)) {
 			throw new ValidationException("Function type expected");
 		}
 	}
+
 	public void requireStructType(TypeIdx idx) throws ValidationException {
 		requireType(idx);
 		if(!(getCompositeType(idx) instanceof StructType)) {
 			throw new ValidationException("Function type expected");
 		}
 	}
+
 	public void requireArrayType(TypeIdx idx) throws ValidationException {
 		requireType(idx);
 		if(!(getCompositeType(idx) instanceof ArrayType)) {
 			throw new ValidationException("Function type expected");
 		}
 	}
+
 	public DefType getType(TypeIdx idx) {
 		return types.get(idx.index()).definition;
 	}
+
 	public CompositeType getCompositeType(TypeIdx idx) {
 		return types.get(idx.index()).expand();
 	}
@@ -128,9 +133,11 @@ class Context {
 			throw new ValidationException("unknown function " + idx.index());
 		}
 	}
+
 	public TypeIdx getFunc(FuncIdx idx) {
 		return funcs.get(idx.index());
 	}
+
 	public FuncType getFuncType(FuncIdx idx) {
 		return (FuncType)getCompositeType(getFunc(idx));
 	}
@@ -139,12 +146,12 @@ class Context {
 		funcs.add(t);
 	}
 
-
 	public void requireTable(TableIdx idx) throws ValidationException {
 		if(!(idx.index() >= 0 && idx.index() < tables.size())) {
 			throw new ValidationException("unknown table " + idx.index());
 		}
 	}
+
 	public TableType getTable(TableIdx idx) {
 		return tables.get(idx.index());
 	}
@@ -153,12 +160,12 @@ class Context {
 		tables.add(t);
 	}
 
-
 	public void requireMem(MemIdx idx) throws ValidationException {
 		if(!(idx.index() >= 0 && idx.index() < mems.size())) {
 			throw new ValidationException("unknown memory " + idx.index());
 		}
 	}
+
 	MemType getMem(MemIdx idx) {
 		return mems.get(idx.index());
 	}
@@ -167,15 +174,16 @@ class Context {
 		mems.add(t);
 	}
 
-
 	public void requireTag(TagIdx idx) throws ValidationException {
 		if(!(idx.index() >= 0 && idx.index() < tags.size())) {
 			throw new ValidationException("unknown tag " + idx.index());
 		}
 	}
+
 	public TagType getTag(TagIdx idx) {
 		return tags.get(idx.index());
 	}
+
 	public void addTag(TagType t) {
 		tags.add(t);
 	}
@@ -185,6 +193,7 @@ class Context {
 			throw new ValidationException("unknown global " + idx.index());
 		}
 	}
+
 	public GlobalType getGlobal(GlobalIdx idx) {
 		return globals.get(idx.index());
 	}
@@ -193,12 +202,12 @@ class Context {
 		globals.add(t);
 	}
 
-
 	public void requireElem(ElemIdx idx) throws ValidationException {
 		if(!(idx.index() >= 0 && idx.index() < elems.size())) {
 			throw new ValidationException("unknown elem segment " + idx.index());
 		}
 	}
+
 	public RefType getElem(ElemIdx idx) {
 		return elems.get(idx.index());
 	}
@@ -206,7 +215,6 @@ class Context {
 	public void addElem(RefType t) {
 		elems.add(t);
 	}
-
 
 	public void requireData(DataIdx idx) throws ValidationException {
 		if(!(idx.index() >= 0 && idx.index() < datas)) {
@@ -227,7 +235,6 @@ class Context {
 	void addRef(FuncIdx idx) {
 		refs.add(idx);
 	}
-
 
 	public void requireLocal(LocalIdx local) throws ValidationException {
 		if(!(local.index() >= 0 && local.index() < locals.size())) {
@@ -272,9 +279,10 @@ class Context {
 			initLocalsShared = false;
 		}
 		else {
-			if(initialized.get(index)) return;
+			if(initialized.get(index))
+				return;
 			if(initLocalsShared) {
-				initialized = (BitSet) initialized.clone();
+				initialized = (BitSet)initialized.clone();
 				initLocals = initialized;
 				initLocalsShared = false;
 			}
@@ -287,9 +295,11 @@ class Context {
 			throw new ValidationException("unknown label " + labelIdx.index());
 		}
 	}
+
 	public ResultType getLabel(LabelIdx labelIdx) {
 		return labels.get(labels.size() - 1 - labelIdx.index());
 	}
+
 	public void addLabel(ResultType t) {
 		labels.add(t);
 	}
@@ -299,21 +309,20 @@ class Context {
 			throw new ValidationException("missing return type in context");
 		}
 	}
+
 	public ResultType getReturn() {
 		if(return_ == null) {
 			throw new IllegalStateException();
 		}
 		return return_;
 	}
+
 	public void setReturn(ResultType t) {
 		return_ = t;
 	}
 
-
-
 	public boolean isDefaultable(StorageType t) {
 		return !(t instanceof RefType rt) || rt.isNullable();
 	}
-
 
 }

@@ -37,7 +37,7 @@ public class CopyOnWriteSetTest {
 		var copy = set.clone();
 		iterator.remove();
 		assertThrows(IllegalStateException.class, iterator::remove);
-		while(iterator.hasNext()) {
+		while (iterator.hasNext()) {
 			iterator.next();
 			iterator.remove();
 		}

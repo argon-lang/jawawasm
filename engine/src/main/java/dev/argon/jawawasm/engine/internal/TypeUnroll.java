@@ -7,6 +7,7 @@ import java.util.ArrayList;
 
 /**
  * Internal use only.
+ * 
  * @hidden
  */
 public final class TypeUnroll extends TypeResolver {

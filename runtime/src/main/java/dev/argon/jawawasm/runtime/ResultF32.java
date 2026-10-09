@@ -7,7 +7,9 @@ public sealed interface ResultF32 extends WasmResult {
 
 	/**
 	 * Creates a f32 result.
-	 * @param item0 The item of this result.
+	 * 
+	 * @param item0
+	 *            The item of this result.
 	 * @return The f32 result.
 	 */
 	static ResultF32 of(float item0) {
@@ -16,7 +18,9 @@ public sealed interface ResultF32 extends WasmResult {
 
 	/**
 	 * Gets the end result values, running the trampolines if needed.
-	 * @param res The f32 result.
+	 * 
+	 * @param res
+	 *            The f32 result.
 	 * @return The end result values.
 	 */
 	static ResultF32.EndResult get(ResultF32 res) {
@@ -36,6 +40,7 @@ public sealed interface ResultF32 extends WasmResult {
 	non-sealed interface Step extends ResultF32 {
 		/**
 		 * Runs the execution step.
+		 * 
 		 * @return The next f32 result.
 		 */
 		ResultF32 step();

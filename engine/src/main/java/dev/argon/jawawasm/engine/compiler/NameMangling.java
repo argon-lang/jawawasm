@@ -9,9 +9,12 @@ public class NameMangling {
 	}
 
 	/**
-	 * Escapes the name according to the rules specified in
-	 * <a href="https://web.archive.org/web/20160622140347/https://blogs.oracle.com/jrose/entry/symbolic_freedom_in_the_vm">symbolic freedom in the VM</a>.
-	 * @param name The name to be escaped.
+	 * Escapes the name according to the rules specified in <a href=
+	 * "https://web.archive.org/web/20160622140347/https://blogs.oracle.com/jrose/entry/symbolic_freedom_in_the_vm">symbolic
+	 * freedom in the VM</a>.
+	 * 
+	 * @param name
+	 *            The name to be escaped.
 	 * @return The escaped name.
 	 */
 	public static String escapeName(String name) {
