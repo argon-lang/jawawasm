@@ -40,7 +40,7 @@ subprojects {
 
     tasks.withType<JavaCompile>().configureEach {
         options.errorprone {
-            disable("RefactorSwitch")
+            disable("RefactorSwitch", "EffectivelyPrivate")
             option("NullAway:OnlyNullMarked", "true")
             option("NullAway:JSpecifyExperimental", "true")
             option("NullAway:JSpecifyMode", "true")

@@ -24,8 +24,21 @@ public abstract class CompilerTestBase {
 	public Path temporaryDirectory;
 
 	public final List<ClassModel> compile(String fixture) throws Exception {
+		return compileBytecode(fixture).stream().map(ClassFile.of()::parse).toList();
+	}
+
+	protected final List<byte[]> compileBytecode(String fixture) throws Exception {
 		var wat = temporaryDirectory.resolve(fixture);
-		Files.copy(Path.of("src/test/resources/compiler", fixture), wat);
+		Files.copy(
+			Path.of("src/test/resources/compiler", fixture),
+			wat,
+			java.nio.file.StandardCopyOption.REPLACE_EXISTING
+		);
+		return compileWatFile(wat);
+	}
+
+	private dev.argon.jawawasm.format.modules.Module readWatFile(Path wat) throws Exception {
+		var fixture = java.util.Objects.requireNonNull(wat.getFileName()).toString();
 		var wasm = temporaryDirectory.resolve(fixture + ".wasm");
 		var log = temporaryDirectory.resolve(fixture + ".log");
 		var process = new ProcessBuilder(
@@ -42,23 +55,30 @@ public abstract class CompilerTestBase {
 		finally {
 			process.destroyForcibly();
 		}
-		var compiler = new ModuleCompiler(
-			new CompilerOptions(ClassHierarchyResolver.defaultResolver(), "test.generated")
-		);
 		try(var input = Files.newInputStream(wasm)) {
 			var module = new ModuleReader(input).readModule();
 			ModuleValidator.validateModule(module);
-			compiler.enqueueModule(module, "LargeModule", name -> {
-				throw new AssertionError("Unexpected import: " + name);
-			});
+			return module;
 		}
-		var classes = new ArrayList<ClassModel>();
+	}
+
+	private List<byte[]> compileWatFile(Path wat) throws Exception {
+		var module = readWatFile(wat);
+		var options = new CompilerOptions(ClassHierarchyResolver.defaultResolver(), "test.generated");
+		var compiler = new ModuleCompiler(options);
+		compiler.enqueueModule(module, "LargeModule", name -> {
+			throw new AssertionError("Unexpected import: " + name);
+		});
+		var classes = new ArrayList<byte[]>();
 		for(var generator = compiler.dequeueGenerator(); generator != null; generator = compiler.dequeueGenerator()) {
 			if(generator instanceof WasmClassGenerator classGenerator) {
-				classes.add(ClassFile.of().parse(classGenerator.generate()));
+				classes.add(classGenerator.generate());
 			}
 		}
-		assertTrue(classes.stream().anyMatch(c -> c.thisClass().asInternalName().equals("test/generated/LargeModule")));
+		assertTrue(
+			classes.stream().map(ClassFile.of()::parse)
+				.anyMatch(c -> c.thisClass().asInternalName().equals("test/generated/LargeModule"))
+		);
 		return classes;
 	}
 

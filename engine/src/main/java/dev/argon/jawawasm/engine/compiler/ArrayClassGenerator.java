@@ -444,8 +444,8 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 				ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC,
 				cb -> {
 					if(elementTypeRealization.type().equals(v128Type)) {
-						cb.iload(0);
 						loadV128(cb, V128.ZERO);
+						cb.iload(0);
 						cb.invokestatic(thisClass, "nCopies", MethodTypeDesc.of(thisClass, v128Type, CD_int));
 						cb.areturn();
 					}

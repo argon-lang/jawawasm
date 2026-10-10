@@ -44,20 +44,22 @@ class ResultClassGenerator extends WasmClassGenerator {
 			clb.withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_INTERFACE | ClassFile.ACC_ABSTRACT);
 			clb.withInterfaceSymbols(ClassDesc.of(RUNTIME_PACKAGE, "WasmResult"));
 			clb.with(
-				InnerClassesAttribute.of(
-					InnerClassInfo.of(
-						stepInterface.className(),
-						Optional.of(className),
-						Optional.of("Step"),
-						ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC | ClassFile.ACC_ABSTRACT
-					),
-					InnerClassInfo.of(
-						endResultClass.className(),
-						Optional.of(className),
-						Optional.of("EndResult"),
-						ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC | ClassFile.ACC_FINAL
+				InnerClassesAttribute
+					.of(
+						InnerClassInfo.of(
+							stepInterface.className(),
+							Optional.of(className),
+							Optional.of("Step"),
+							ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC | ClassFile.ACC_INTERFACE
+								| ClassFile.ACC_ABSTRACT
+						),
+						InnerClassInfo.of(
+							endResultClass.className(),
+							Optional.of(className),
+							Optional.of("EndResult"),
+							ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC | ClassFile.ACC_FINAL
+						)
 					)
-				)
 			);
 			clb.with(PermittedSubclassesAttribute.ofSymbols(stepInterface.className(), endResultClass.className()));
 			clb.with(NestMembersAttribute.ofSymbols(stepInterface.className(), endResultClass.className()));
@@ -278,7 +280,8 @@ class ResultClassGenerator extends WasmClassGenerator {
 							className,
 							Optional.of(ResultClassGenerator.this.className),
 							Optional.of("Step"),
-							ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC | ClassFile.ACC_ABSTRACT
+							ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC | ClassFile.ACC_INTERFACE
+								| ClassFile.ACC_ABSTRACT
 						)
 					)
 				);
