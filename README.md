@@ -12,6 +12,93 @@ and data resources are bundled in `format`; parsing at runtime needs no Rust
 toolchain or engine dependency.
 Parsed WAST scripts keep the files referenced by their commands in memory.
 
+## Gradle plugin
+
+The `gradle-plugin` project provides the `dev.argon.jawawasm` plugin. It requires
+Gradle running on Java 24 or later. After publishing the plugin and its dependencies
+to your Maven repository, add that repository to `pluginManagement.repositories`
+and apply the plugin:
+
+```kotlin
+plugins {
+    id("dev.argon.jawawasm") version "0.3.0-SNAPSHOT"
+}
+
+wasm {
+    packageName.set("example.wasm")
+    val first = module("First") {
+        source.set(layout.projectDirectory.file("src/main/wasm/first.wasm"))
+        // className defaults to the entry name (First).
+    }
+    module("Second") {
+        source.set(layout.projectDirectory.file("src/main/wasm/second.wasm"))
+        className.set("SecondModule")
+        imports.put("./first.wasm", first)
+    }
+}
+```
+
+Run `compileWasm` to convert all configured binary Wasm files in one shared
+`AOTEngine`. Each module explicitly lists its `imports`: keys are the exact
+import module strings in that Wasm file, and values are `WasmModule` or
+`HostModule` objects (or providers of those objects). For example, Second's import
+`./first.wasm` resolves to First. Each module has its own mapping, so the same
+import path can refer to different targets in different modules. Names and paths
+are never inferred or normalized. Every import must have a mapping; unknown
+targets and dependency cycles are rejected. Dependencies compile before their
+importers. Java hosts use the shared `classpath`.
+
+All modules share generated result types, a package, and the output directory
+`build/generated/wasm` (override it with `outputDirectory`). The task validates
+every input and replaces its output directory on recompilation. A change to any
+module recompiles the set, preserving consistent shared types even when Gradle
+uses its build cache or configuration cache. The `compileWasmFirst` and
+`compileWasmSecond` tasks are entry points to the same complete compilation.
+Provider-backed sources and classpaths retain their producer task dependencies.
+
+Generated classes and resources are automatically available to main Java sources
+and bundled in the main JAR. Add the runtime dependency:
+
+```kotlin
+dependencies {
+    implementation("dev.argon.jawawasm:jawawasm-runtime:0.3.0-SNAPSHOT")
+}
+```
+
+The plugin applies Java and creates a `wasmHost` source set automatically. Put Java
+host classes in `src/wasmHost/java` and host resources in `src/wasmHost/resources`.
+Host compilation and AOT lookup use the main compile classpath captured before
+host and generated Wasm outputs are added. Declare their dependencies with the
+usual `implementation` or `compileOnly` configurations. Gradle compiles the hosts
+before `compileWasm`. Host classes and resources are bundled in the main JAR and
+are available to main Java sources.
+
+```kotlin
+dependencies {
+    implementation("dev.argon.jawawasm:jawawasm-runtime:0.3.0-SNAPSHOT")
+    // Java host classes supplied by a library use the same configuration:
+    // implementation("com.example:wasm-hosts:1.0")
+}
+wasm {
+    val host = hostModules.create("Host") {
+        className.set("example.host.HostModule")
+    }
+    module("WithHost") {
+        source.set(layout.projectDirectory.file("src/main/wasm/with-host.wasm"))
+        imports.put("env", host)
+    }
+}
+```
+
+The host source set compiles independently of main sources, avoiding a cycle
+when main Java code uses the generated Wasm classes. Host code must not depend
+on main sources or generated Wasm classes.
+
+Generated classes require the JawaWasm runtime and the Java version used for
+compilation. In modular Java projects, also configure `--patch-module` when
+compiling Java sources that reference generated classes, as demonstrated by
+`format/build.gradle.kts`.
+
 ## Setup
 
 If using SDKMAN, run `sdk env` to use the expected versions of Java and Gradle.
@@ -28,7 +115,8 @@ formatting. Formatting is also checked by `./gradlew check`.
 
 In order to run the tests for this project, submodules need to be checked out and built.
 The application and its tests use the compiled WAST parser directly. The
-compiler fixtures and reflection driver still use wasm-tools during setup.
+compiler fixtures, Gradle plugin tests, and reflection driver use wasm-tools
+installed during setup.
 To perform this setup, run the script `setup-tests.sh`.
 This script will set up the submodule and build the tools needed to run the test suite.
 If you run into issues building, see the [reference interpreter README](https://github.com/WebAssembly/spec/tree/main/interpreter#building).

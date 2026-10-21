@@ -162,9 +162,8 @@ public class FallbackControlTest {
 
 	@Test
 	public void splitsBeforeLargeBranchTable() throws Exception {
-		var source = "(module (func (export \"f\") (param i32) (result i32) "
-			+ "block (result i32) i32.const 42 " + "nop ".repeat(20000)
-			+ "local.get 0 br_table " + "0 ".repeat(12000) + "0 end))";
+		var source = "(module (func (export \"f\") (param i32) (result i32) " + "block (result i32) i32.const 42 "
+			+ "nop ".repeat(20000) + "local.get 0 br_table " + "0 ".repeat(12000) + "0 end))";
 		for(int selector : new int[]{0, 11999, 12000, -1}) {
 			assertResult(source, new Object[]{selector}, 42);
 		}

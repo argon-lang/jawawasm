@@ -1,0 +1,14 @@
+plugins { id 'dev.argon.jawawasm' }
+dependencies {
+    implementation files(providers.gradleProperty('runtimeJar'))
+}
+wasm {
+    packageName = 'example.generated'
+    def localHost = hostModules.create('LocalHost') {
+        className = 'example.LocalHost'
+    }
+    module('Consumer') {
+        source = layout.projectDirectory.file('consumer.wasm')
+        imports.put('env', localHost)
+    }
+}

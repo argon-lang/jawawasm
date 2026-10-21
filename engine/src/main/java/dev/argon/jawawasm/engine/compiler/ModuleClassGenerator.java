@@ -3577,11 +3577,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			var resultType = realizedMethodType.descriptor().returnType();
 			var endResultType = resultType.nested("EndResult");
 
-			cb.invokeinterface(
-				realizedType.classDesc(),
-				realizedType.methodName(),
-				realizedMethodType.descriptor()
-			);
+			cb.invokeinterface(realizedType.classDesc(), realizedType.methodName(), realizedMethodType.descriptor());
 			cb.invokestatic(resultType, "get", MethodTypeDesc.of(endResultType, resultType), true);
 			unpackResultType(funcType.results(), endResultType);
 
@@ -3686,8 +3682,8 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			var resultType = realizedMethodType.descriptor().returnType();
 			var stepResultType = resultType.nested("Step");
 
-			var invokeDynamicSig = realizedMethodType.descriptor()
-				.insertParameterTypes(0, realizedType.classDesc()).changeReturnType(stepResultType);
+			var invokeDynamicSig = realizedMethodType.descriptor().insertParameterTypes(0, realizedType.classDesc())
+				.changeReturnType(stepResultType);
 
 			var stepSig = MethodTypeDesc.of(resultType);
 
@@ -4457,7 +4453,6 @@ class ModuleClassGenerator extends WasmClassGenerator {
 			tempVarSlot = oldTempVarSlot;
 		}
 
-
 	}
 
 	private class FallbackFunctionClassGenerator extends WasmClassGenerator {
@@ -4734,11 +4729,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 		FallbackFunctionBodyGenerator(
 			CodeBuilder cb, FallbackFunctionBodyCallback callback, FallbackFunctionClassGenerator helper
 		) {
-			super(
-				cb,
-				closure.resolveResultType(getFuncType(types.get(helper.func.type().index())).results()),
-				1
-			);
+			super(cb, closure.resolveResultType(getFuncType(types.get(helper.func.type().index())).results()), 1);
 			this.callback = callback;
 			this.helper = helper;
 		}
@@ -4900,8 +4891,7 @@ class ModuleClassGenerator extends WasmClassGenerator {
 				else {
 					for(var field : destination.stashedStack) {
 						// Load this, rearrange the value, putfield, and allow a reference cast.
-						size += 4 + (slotSize(field.type()) == 2 ? 2 : 1)
-							+ (field.type().isPrimitive() ? 0 : 3);
+						size += 4 + (slotSize(field.type()) == 2 ? 2 : 1) + (field.type().isPrimitive() ? 0 : 3);
 					}
 					// Load the state (allowing ldc_w) and return it.
 					size += 4;

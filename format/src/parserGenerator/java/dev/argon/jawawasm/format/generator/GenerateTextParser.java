@@ -35,11 +35,16 @@ public final class GenerateTextParser {
 			}
 		}
 		var engine = new AOTEngine("dev.argon.jawawasm.format.internal.generated", classPath.build(), output);
-		engine.addHostModule(ClassDesc.of("dev.argon.jawawasm.format.internal.ParserCallbacks"), "callback");
+		var callbacks = engine.addHostModule(ClassDesc.of("dev.argon.jawawasm.format.internal.ParserCallbacks"));
 		try(var input = Files.newInputStream(Path.of(args[0]))) {
 			var module = new ModuleReader(input).readModule();
 			ModuleValidator.validateModule(module);
-			engine.emitModule(module, "TextParserModule");
+			engine.emitModule(module, "TextParserModule", name -> {
+				if(!name.equals("callback")) {
+					throw new dev.argon.jawawasm.runtime.ModuleResolutionException("Unknown module: " + name);
+				}
+				return callbacks;
+			});
 		}
 	}
 }

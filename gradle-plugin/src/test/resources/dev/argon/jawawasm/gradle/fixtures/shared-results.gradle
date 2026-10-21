@@ -1,0 +1,20 @@
+plugins { id 'dev.argon.jawawasm' }
+wasm {
+    packageName = 'example.shared'
+    def left = module('Left') {
+        source = layout.projectDirectory.file('left.wasm')
+    }
+    def right = module('Right') {
+        source = layout.projectDirectory.file('right.wasm')
+    }
+    module('Consumer') {
+        source = layout.projectDirectory.file('consumer.wasm')
+        imports.put('./lib/left.wasm', left)
+        imports.put('../shared/right.wasm', right)
+    }
+    module('OtherConsumer') {
+        source = layout.projectDirectory.file('consumer.wasm')
+        imports.put('./lib/left.wasm', right)
+        imports.put('../shared/right.wasm', left)
+    }
+}

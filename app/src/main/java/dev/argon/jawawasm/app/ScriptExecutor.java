@@ -34,15 +34,14 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable
 	}
 
 	final RuntimeOptions options;
-	private final ModuleResolver<Mod> resolver = new ScriptResolver();
+	private final MappedResolver<Mod> resolver = new MappedResolver<>();
 	private final PrintWriter output;
 
 	private @Nullable Module currentModuleDefinition = null;
 	private @Nullable Mod currentModule = null;
-	private Map<String, Module> definedModules = new HashMap<>();
-	private Map<String, Mod> registeredModules = new HashMap<>();
-	private Map<String, Mod> namedModules = new HashMap<>();
-	private Map<Integer, Object> externRefs = new HashMap<>();
+	private final Map<String, Module> definedModules = new HashMap<>();
+	private final Map<String, Mod> namedModules = new HashMap<>();
+	private final Map<Integer, Object> externRefs = new HashMap<>();
 
 	abstract Mod getSpecTestModule(PrintWriter output) throws ModuleFormatException, ModuleLinkException;
 
@@ -76,7 +75,7 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable
 	}
 
 	public void initialize() throws ModuleFormatException, ModuleLinkException {
-		registeredModules.put("spectest", getSpecTestModule(output));
+		resolver.put("spectest", getSpecTestModule(output));
 	}
 
 	public void executeCommand(WastScriptLoaded scriptLoaded, WastCommand command)
@@ -133,7 +132,7 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable
 
 			case WastCommand.Register register -> {
 				var module = getModuleByName(register.name());
-				registeredModules.put(register.as(), module);
+				resolver.put(register.as(), module);
 			}
 
 			case WastCommand.Action action -> {
@@ -529,17 +528,6 @@ public sealed abstract class ScriptExecutor<Mod> implements AutoCloseable
 				.readModule();
 		}
 		return new ModuleReader(input).readModule();
-	}
-
-	private final class ScriptResolver implements ModuleResolver<Mod> {
-		@Override
-		public Mod resolve(String name) throws ModuleResolutionException {
-			var module = registeredModules.get(name);
-			if(module == null) {
-				throw new ModuleResolutionException();
-			}
-			return module;
-		}
 	}
 
 	private @Nullable Object getConstantValue(WastValue value) throws ModuleFormatException {

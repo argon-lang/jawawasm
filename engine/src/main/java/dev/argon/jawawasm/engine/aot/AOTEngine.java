@@ -68,7 +68,6 @@ public class AOTEngine {
 	private final ImmutableList<Path> classPath;
 	private final Path outputDir;
 
-	private final Map<String, WasmModuleRealization> nameToRealization = new ConcurrentHashMap<>();
 	private final Map<ClassDesc, ClassHierarchyResolver.ClassHierarchyInfo> generatedClassHierarchies = new ConcurrentHashMap<>();
 
 	/**
@@ -79,13 +78,20 @@ public class AOTEngine {
 	 * @param className
 	 *            The name of the class to generate, or {@code null} to use the
 	 *            sanitized module name from the name section.
+	 * @param resolver
+	 *            Resolves this module's imports.
+	 * @return The compiled module realization.
 	 * @throws IOException
 	 *             when an error occurs while writing output.
 	 * @throws IllegalArgumentException
 	 *             if no class name or nonempty module name is provided.
 	 */
-	public void emitModule(Module module, @Nullable String className) throws IOException {
-		WasmModuleRealization realization = compiler.enqueueModule(module, className, new MappedResolver());
+	public WasmModuleRealization emitModule(
+		Module module,
+		@Nullable String className,
+		ModuleResolver<WasmModuleRealization> resolver
+	) throws IOException {
+		WasmModuleRealization realization = compiler.enqueueModule(module, className, resolver);
 
 		genLoop : for(;;) {
 			var gen = compiler.dequeueGenerator();
@@ -98,6 +104,7 @@ public class AOTEngine {
 					break genLoop;
 				}
 				case WasmClassGenerator cg -> {
+					generatedClassHierarchies.put(cg.className(), cg.hierarchyInfo());
 					content = cg.generate();
 					name = getInternalName(cg.className()) + ".class";
 				}
@@ -113,8 +120,8 @@ public class AOTEngine {
 				Files.createDirectories(parent);
 			}
 			Files.write(outputPath, content);
-			nameToRealization.put(name, realization);
 		}
+		return realization;
 	}
 
 	/**
@@ -122,31 +129,17 @@ public class AOTEngine {
 	 * 
 	 * @param moduleClass
 	 *            The module class to add.
-	 * @param name
-	 *            The name of the module.
+	 * @return The host module realization.
 	 * @throws ModuleFormatException
 	 *             if the module is invalid
 	 */
-	public void addHostModule(ClassDesc moduleClass, String name) throws ModuleFormatException {
-		var realization = moduleLoader.loadModule(moduleClass);
-		nameToRealization.put(name, realization);
+	public WasmModuleRealization addHostModule(ClassDesc moduleClass) throws ModuleFormatException {
+		return moduleLoader.loadModule(moduleClass);
 	}
 
 	private static String getInternalName(ClassDesc classDesc) {
 		var desc = classDesc.descriptorString();
 		return desc.substring(1, desc.length() - 1);
-	}
-
-	private final class MappedResolver implements ModuleResolver<WasmModuleRealization> {
-		@Override
-		public WasmModuleRealization resolve(String name) throws ModuleResolutionException {
-			var resolved = nameToRealization.get(name);
-			if(resolved == null) {
-				throw new ModuleResolutionException("Could not find resolved module realization");
-			}
-
-			return resolved;
-		}
 	}
 
 	private final class GeneratedClassResolver implements ClassHierarchyResolver {

@@ -1,0 +1,11 @@
+plugins { id 'dev.argon.jawawasm' }
+wasm {
+    packageName = 'example.wasm'
+    project.ext.firstModule = module('First') {
+        source = layout.projectDirectory.file('first.wasm')
+    }
+    project.ext.secondModule = module('Second') {
+        source = layout.projectDirectory.file('second.wasm')
+        className = 'Other'
+    }
+}

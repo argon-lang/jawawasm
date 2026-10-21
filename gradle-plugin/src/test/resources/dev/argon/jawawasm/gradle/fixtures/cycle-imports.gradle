@@ -1,0 +1,3 @@
+
+firstModule.imports.put('second', secondModule)
+secondModule.imports.put('first', firstModule)
