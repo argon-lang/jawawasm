@@ -1,6 +1,5 @@
-package dev.argon.jawawasm.app;
+package dev.argon.jawawasm.engine;
 
-import dev.argon.jawawasm.engine.ModuleResolver;
 import dev.argon.jawawasm.runtime.ModuleResolutionException;
 
 import java.util.Map;

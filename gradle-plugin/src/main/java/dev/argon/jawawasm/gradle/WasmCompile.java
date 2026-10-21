@@ -1,7 +1,9 @@
 package dev.argon.jawawasm.gradle;
 
 import com.google.common.collect.ImmutableList;
+import dev.argon.jawawasm.engine.MappedResolver;
 import dev.argon.jawawasm.engine.aot.AOTEngine;
+import dev.argon.jawawasm.engine.compiler.WasmModuleRealization;
 import dev.argon.jawawasm.engine.validator.ModuleValidator;
 import dev.argon.jawawasm.format.binary.ModuleReader;
 import dev.argon.jawawasm.runtime.ResultVoid;
@@ -105,7 +107,7 @@ public abstract class WasmCompile extends DefaultTask {
 			)
 		);
 		var engine = new AOTEngine(getPackageName().get(), classpath.build(), output.toPath());
-		var realized = new java.util.IdentityHashMap<ModuleReference, dev.argon.jawawasm.engine.compiler.WasmModuleRealization>();
+		var realized = new java.util.IdentityHashMap<ModuleReference, WasmModuleRealization>();
 		for(var host : getHostModules().get()) {
 			realized.put(host, engine.addHostModule(ClassDesc.of(host.getClassName().get())));
 		}
@@ -147,14 +149,10 @@ public abstract class WasmCompile extends DefaultTask {
 				if(configuration.getImports().get().values().stream().anyMatch(pending::containsKey)) {
 					continue;
 				}
-				var realization = engine.emitModule(entry.getValue(), configuration.getClassName().get(), name -> {
-					var target = configuration.getImports().get().get(name);
-					var imported = realized.get(target);
-					if(imported == null) {
-						throw new dev.argon.jawawasm.runtime.ModuleResolutionException("Unresolved import: " + name);
-					}
-					return imported;
-				});
+				var resolver = new MappedResolver<WasmModuleRealization>();
+				configuration.getImports().get()
+					.forEach((name, target) -> resolver.put(name, Objects.requireNonNull(realized.get(target))));
+				var realization = engine.emitModule(entry.getValue(), configuration.getClassName().get(), resolver);
 				realized.put(configuration, realization);
 				iterator.remove();
 				progressed = true;

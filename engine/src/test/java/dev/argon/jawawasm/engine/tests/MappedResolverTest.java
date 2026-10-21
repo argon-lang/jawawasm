@@ -1,6 +1,6 @@
-package dev.argon.jawawasm.app.tests;
+package dev.argon.jawawasm.engine.tests;
 
-import dev.argon.jawawasm.app.MappedResolver;
+import dev.argon.jawawasm.engine.MappedResolver;
 import dev.argon.jawawasm.runtime.ModuleResolutionException;
 import org.junit.jupiter.api.Test;
 

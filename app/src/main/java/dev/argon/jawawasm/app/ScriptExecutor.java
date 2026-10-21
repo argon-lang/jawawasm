@@ -2,6 +2,7 @@ package dev.argon.jawawasm.app;
 
 import dev.argon.jawawasm.format.wast.*;
 import dev.argon.jawawasm.engine.ModuleResolver;
+import dev.argon.jawawasm.engine.MappedResolver;
 import dev.argon.jawawasm.engine.interpreter.*;
 import dev.argon.jawawasm.engine.validator.ModuleValidator;
 import dev.argon.jawawasm.engine.validator.ValidationException;
