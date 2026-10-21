@@ -58,7 +58,7 @@ subprojects {
 
     pluginManager.withPlugin("java-library") {
         group = "dev.argon.jawawasm"
-        version = "0.3.0-SNAPSHOT"
+        version = "0.3.0"
 
         extensions.configure<JavaPluginExtension> {
             withSourcesJar()
