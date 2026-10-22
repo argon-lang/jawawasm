@@ -2,11 +2,12 @@ package dev.argon.jawawasm.gradle;
 
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
-import org.gradle.api.tasks.bundling.Jar;
+import org.gradle.api.tasks.compile.JavaCompile;
 
-/** Registers a shared AOT compilation and per-module entry points. */
+/** Registers a shared AOT compilation for all WebAssembly modules. */
 public final class JawaWasmPlugin implements Plugin<Project> {
 	/**
 	 * Creates the JawaWasm Gradle plugin.
@@ -21,9 +22,9 @@ public final class JawaWasmPlugin implements Plugin<Project> {
 		var main = sourceSets.getByName("main");
 		var compileClasspath = main.getCompileClasspath();
 		host.setCompileClasspath(compileClasspath);
-		main.setCompileClasspath(compileClasspath.plus(host.getOutput()));
-		main.setRuntimeClasspath(main.getRuntimeClasspath().plus(host.getOutput()));
-		project.getTasks().named("jar", Jar.class).configure(task -> task.from(host.getOutput()));
+		// Recompile hosts with main's module descriptor to enforce module access rules.
+		main.getJava().source(host.getJava());
+		main.getResources().source(host.getResources());
 		var extension = project.getExtensions().create("wasm", WasmExtension.class);
 		extension.getClasspath().from(host.getOutput(), compileClasspath);
 		extension.getOutputDirectory().convention(project.getLayout().getBuildDirectory().dir("generated/wasm"));
@@ -37,13 +38,14 @@ public final class JawaWasmPlugin implements Plugin<Project> {
 			task.getModules().set(project.provider(() -> extension.registeredModules().stream().toList()));
 		});
 		main.setCompileClasspath(main.getCompileClasspath().plus(project.files(compile)));
-		main.getOutput().dir(compile);
-		extension.registeredModules().all(module -> {
-			project.getTasks().register("compileWasm" + module.getName(), task -> {
-				task.setGroup("build");
-				task.setDescription("Compile the shared WebAssembly module set including " + module.getName() + ".");
-				task.dependsOn(compile);
-			});
+		((ConfigurableFileCollection)main.getOutput().getClassesDirs()).from(compile);
+		project.getTasks().named(main.getCompileJavaTaskName(), JavaCompile.class).configure(task -> {
+			var patch = project.getObjects().newInstance(WasmPatchModuleArguments.class);
+			patch.getInferModulePath().set(task.getModularity().getInferModulePath());
+			patch.getModuleDescriptors()
+				.from(task.getSource().matching(pattern -> pattern.include("**/module-info.java")));
+			patch.getGeneratedClasses().set(compile.flatMap(WasmCompile::getOutputDirectory));
+			task.getOptions().getCompilerArgumentProviders().add(patch);
 		});
 	}
 }

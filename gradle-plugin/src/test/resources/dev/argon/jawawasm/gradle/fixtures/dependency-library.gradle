@@ -1,0 +1,11 @@
+plugins {
+    id 'java-library'
+    id 'dev.argon.jawawasm'
+}
+dependencies { api files(providers.gradleProperty('runtimeJar')) }
+wasm {
+    packageName = 'example.library'
+    module('Library') {
+        source = layout.projectDirectory.file('library.wasm')
+    }
+}

@@ -1,0 +1,16 @@
+plugins {
+    id 'application'
+    id 'dev.argon.jawawasm'
+}
+application { mainClass = 'example.Main' }
+dependencies { implementation project(':library') }
+wasm {
+    packageName = 'example.generated'
+    def library = hostModules.create('Library') {
+        className = 'example.library.LibraryHost'
+    }
+    module('Application') {
+        source = layout.projectDirectory.file('application.wasm')
+        imports.put('library', library)
+    }
+}

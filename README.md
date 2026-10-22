@@ -4,15 +4,25 @@ JawaWasm is an experimental WebAssembly engine written in Java.
 It compiles to Java Bytecode.
 It also passes the entire WebAssembly 3.0 test suite.
 
+The `runtime` library contains types that are needed to execute WebAssembly.
+This includes types that represent WebAssembly values such as V128,
+types used for module imports and exports, and
+methods that implement WebAssembly operations.
+
 The `format-core` library contains the WebAssembly model and binary reader.
 The engine depends on this core. The `format` library exposes the core transitively
-and provides a WAT module reader and a WAST script parser. Its Rust parser is compiled to WebAssembly,
-then to JVM classes using the engine during the build. The generated classes
-and data resources are bundled in `format`; parsing at runtime needs no Rust
-toolchain or engine dependency.
-Parsed WAST scripts keep the files referenced by their commands in memory.
+and provides a WAT module reader and a WAST script parser.
+
+The `engine` contains three different compilation types of engines.
+The `AOTEngine` compiles WebAssembly to Java Bytecode.
+The `ReflectionEngine` compiles WebAssembly to Java Bytecode on demand, allowing execution on demand.
+The interpreter Engine uses interpretation without generating Java Bytecode.
+
 
 ## Gradle plugin
+
+See [the Gradle examples](examples/README.md) for standalone builds covering basic
+compilation, a Wasm dependency built by another project, and a custom Java host.
 
 The `gradle-plugin` project provides the `dev.argon.jawawasm` plugin. It requires
 Gradle running on Java 24 or later. After publishing the plugin and its dependencies
@@ -21,7 +31,7 @@ and apply the plugin:
 
 ```kotlin
 plugins {
-    id("dev.argon.jawawasm") version "0.3.0-SNAPSHOT"
+    id("dev.argon.jawawasm") version "0.3.0"
 }
 
 wasm {
@@ -52,8 +62,7 @@ All modules share generated result types, a package, and the output directory
 `build/generated/wasm` (override it with `outputDirectory`). The task validates
 every input and replaces its output directory on recompilation. A change to any
 module recompiles the set, preserving consistent shared types even when Gradle
-uses its build cache or configuration cache. The `compileWasmFirst` and
-`compileWasmSecond` tasks are entry points to the same complete compilation.
+uses its build cache or configuration cache.
 Provider-backed sources and classpaths retain their producer task dependencies.
 
 Generated classes and resources are automatically available to main Java sources
@@ -61,21 +70,23 @@ and bundled in the main JAR. Add the runtime dependency:
 
 ```kotlin
 dependencies {
-    implementation("dev.argon.jawawasm:jawawasm-runtime:0.3.0-SNAPSHOT")
+    implementation("dev.argon.jawawasm:jawawasm-runtime:0.3.0")
 }
 ```
 
 The plugin applies Java and creates a `wasmHost` source set automatically. Put Java
 host classes in `src/wasmHost/java` and host resources in `src/wasmHost/resources`.
 Host compilation and AOT lookup use the main compile classpath captured before
-host and generated Wasm outputs are added. Declare their dependencies with the
-usual `implementation` or `compileOnly` configurations. Gradle compiles the hosts
-before `compileWasm`. Host classes and resources are bundled in the main JAR and
+generated Wasm outputs are added. Declare their dependencies with the
+usual `implementation` or `api` configuration. Gradle compiles the hosts
+before `compileWasm`, then recompiles their sources with main sources so the main
+module descriptor enforces Java module access rules. Host resources are included
+in main resources. Host classes and resources are bundled in the main JAR and
 are available to main Java sources.
 
 ```kotlin
 dependencies {
-    implementation("dev.argon.jawawasm:jawawasm-runtime:0.3.0-SNAPSHOT")
+    implementation("dev.argon.jawawasm:jawawasm-runtime:0.3.0")
     // Java host classes supplied by a library use the same configuration:
     // implementation("com.example:wasm-hosts:1.0")
 }
@@ -95,9 +106,9 @@ when main Java code uses the generated Wasm classes. Host code must not depend
 on main sources or generated Wasm classes.
 
 Generated classes require the JawaWasm runtime and the Java version used for
-compilation. In modular Java projects, also configure `--patch-module` when
-compiling Java sources that reference generated classes, as demonstrated by
-`format/build.gradle.kts`.
+compilation. For modular Java projects, the plugin automatically adds `--patch-module` to
+main Java compilation using the module name in `module-info.java`, so main
+sources can reference generated classes.
 
 ## Setup
 
@@ -113,10 +124,9 @@ Java formatting uses Spotless with the settings in `eclipse-formatter.properties
 Run `./gradlew spotlessApply` to format sources or `./gradlew spotlessCheck` to check
 formatting. Formatting is also checked by `./gradlew check`.
 
-In order to run the tests for this project, submodules need to be checked out and built.
+To run the tests for this project, submodules need to be checked out and built.
 The application and its tests use the compiled WAST parser directly. The
 compiler fixtures, Gradle plugin tests, and reflection driver use wasm-tools
 installed during setup.
 To perform this setup, run the script `setup-tests.sh`.
 This script will set up the submodule and build the tools needed to run the test suite.
-If you run into issues building, see the [reference interpreter README](https://github.com/WebAssembly/spec/tree/main/interpreter#building).

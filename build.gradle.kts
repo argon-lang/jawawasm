@@ -9,6 +9,9 @@ plugins {
 val sharedLibs = libs
 
 subprojects {
+    group = "dev.argon.jawawasm"
+    version = "0.3.0"
+
     apply(plugin = "java")
     apply(plugin = "net.ltgt.errorprone")
     apply(plugin = "com.diffplug.spotless")
@@ -57,9 +60,6 @@ subprojects {
     }
 
     pluginManager.withPlugin("java-library") {
-        group = "dev.argon.jawawasm"
-        version = "0.3.0"
-
         extensions.configure<JavaPluginExtension> {
             withSourcesJar()
             withJavadocJar()
