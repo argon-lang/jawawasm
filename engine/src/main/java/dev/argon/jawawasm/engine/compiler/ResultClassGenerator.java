@@ -74,7 +74,7 @@ class ResultClassGenerator extends WasmClassGenerator {
 				if(desc.equals(CD_Object)) {
 					int paramIndex = sigParams.size();
 					var paramName = "T" + paramIndex;
-					sigParams.add(Signature.TypeParam.of(paramName, Optional.empty()));
+					sigParams.add(Signature.TypeParam.of(paramName, Optional.of(Signature.ClassTypeSig.of(CD_Object))));
 					sigTypeArgs.add(Signature.TypeArg.of(Signature.TypeVarSig.of(paramName)));
 					sigArgs.add(Signature.TypeVarSig.of(paramName));
 				}

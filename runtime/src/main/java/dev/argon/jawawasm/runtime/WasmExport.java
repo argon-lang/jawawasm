@@ -35,6 +35,9 @@ public @interface WasmExport {
 	 */
 	ExportType type();
 
+	/** Exact defined function type, or void for signature inference. */
+	Class<?> functionType() default void.class;
+
 	/**
 	 * The type of export.
 	 */

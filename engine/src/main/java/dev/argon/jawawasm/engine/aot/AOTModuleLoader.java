@@ -2,6 +2,7 @@ package dev.argon.jawawasm.engine.aot;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
+import dev.argon.jawawasm.engine.compiler.AnnotatedTypeLoader;
 import dev.argon.jawawasm.engine.compiler.ErasedResultType;
 import dev.argon.jawawasm.engine.compiler.ModuleCompiler;
 import dev.argon.jawawasm.engine.compiler.WasmExportRealization;
@@ -42,9 +43,11 @@ class AOTModuleLoader {
 	public AOTModuleLoader(ModuleCompiler compiler, ImmutableList<Path> classPath) {
 		this.compiler = compiler;
 		this.classPath = classPath;
+		this.typeLoader = new AnnotatedTypeLoader(compiler, this::loadClassModel);
 	}
 
 	private final ModuleCompiler compiler;
+	private final AnnotatedTypeLoader typeLoader;
 	private final ImmutableList<Path> classPath;
 
 	private static final ClassDesc CD_WasmExport = ClassDesc.of("dev.argon.jawawasm.runtime.WasmExport");
@@ -146,9 +149,19 @@ class AOTModuleLoader {
 
 				var nestedPath = new ArrayList<>(path);
 				nestedPath
-					.add(TypeAnnotation.TypePathComponent.of(TypeAnnotation.TypePathComponent.Kind.INNER_TYPE, i));
+					.add(TypeAnnotation.TypePathComponent.of(TypeAnnotation.TypePathComponent.Kind.TYPE_ARGUMENT, i));
 
 				if(typeArg instanceof Signature.TypeArg.Bounded bounded) {
+					if(bounded.wildcardIndicator() == Signature.TypeArg.Bounded.WildcardIndicator.SUPER) {
+						throw new ModuleFormatException(
+							"Contravariant type arguments cannot represent WebAssembly values"
+						);
+					}
+					if(bounded.wildcardIndicator() != Signature.TypeArg.Bounded.WildcardIndicator.NONE) {
+						nestedPath.add(
+							TypeAnnotation.TypePathComponent.of(TypeAnnotation.TypePathComponent.Kind.WILDCARD, 0)
+						);
+					}
 					typeArgs.add(getTypeInfo(bounded.boundType(), nestedPath, annotations));
 				}
 				else {
@@ -238,7 +251,12 @@ class AOTModuleLoader {
 				exports.add(export);
 			}
 		}
-		for(var innerClass : nestedClasses(moduleClass)) {
+		var explicitTags = typeLoader.tagExports(moduleClass);
+		exports.addAll(explicitTags);
+		for(var innerClass : explicitTags.isEmpty()
+			&& AnnotatedTypeLoader.annotation(moduleClass, "WasmTagExports").isEmpty()
+				? nestedClasses(moduleClass)
+				: List.<ClassDesc>of()) {
 			var export = loadExport(innerClass);
 			if(export != null) {
 				exports.add(export);
@@ -302,11 +320,6 @@ class AOTModuleLoader {
 	 *             if the class is not a valid result type.
 	 */
 	public ErasedResultType loadResultClass(ClassDesc tDesc) throws ModuleFormatException {
-		if(!tDesc.packageName().equals("dev.argon.jawawasm.runtime")) {
-			throw new ModuleFormatException(
-				"Result types must be defined in dev.argon.jawawasm.runtime, Found: " + tDesc.descriptorString()
-			);
-		}
 
 		var tModel = loadClassModel(tDesc);
 
@@ -392,6 +405,7 @@ class AOTModuleLoader {
 		}
 
 		var resultType = new ErasedResultType(resTypes.build());
+		typeLoader.validateResultClass(tModel, resultType);
 
 		compiler.registerResultType(resultType, tDesc);
 
@@ -529,6 +543,14 @@ class AOTModuleLoader {
 	}
 
 	private DefType loadExternalFunctionType(MethodModel method) throws ModuleFormatException {
+		var export = method.findAttribute(Attributes.runtimeVisibleAnnotations()).stream()
+			.flatMap(a -> a.annotations().stream()).filter(a -> a.classSymbol().equals(CD_WasmExport)).findFirst();
+		if(export.isPresent()) {
+			var defined = getAnnotationValue(export.get(), "functionType");
+			if(defined.isPresent() && !((AnnotationValue.OfClass)defined.get()).classSymbol().equals(CD_void)) {
+				return typeLoader.functionExport(((AnnotationValue.OfClass)defined.get()).classSymbol(), method);
+			}
+		}
 		var paramTypes = ImmutableList.<ValType>builder();
 		var methodType = getMethodTypeInfo(method);
 		for(var param : methodType.paramTypes()) {
@@ -720,7 +742,7 @@ class AOTModuleLoader {
 			return HeapType.AbstractHeapType.ARRAY;
 		}
 		else {
-			throw new RuntimeException("Not implemented");
+			return typeLoader.load(cd);
 		}
 	}
 

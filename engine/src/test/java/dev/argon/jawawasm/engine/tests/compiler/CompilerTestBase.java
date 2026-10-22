@@ -37,7 +37,7 @@ public abstract class CompilerTestBase {
 		return compileWatFile(wat);
 	}
 
-	private dev.argon.jawawasm.format.modules.Module readWatFile(Path wat) throws Exception {
+	protected final dev.argon.jawawasm.format.modules.Module readWatFile(Path wat) throws Exception {
 		var fixture = java.util.Objects.requireNonNull(wat.getFileName()).toString();
 		var wasm = temporaryDirectory.resolve(fixture + ".wasm");
 		var log = temporaryDirectory.resolve(fixture + ".log");

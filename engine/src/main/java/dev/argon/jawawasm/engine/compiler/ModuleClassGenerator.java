@@ -101,7 +101,8 @@ class ModuleClassGenerator extends WasmClassGenerator {
 	@Override
 	protected byte[] generateImpl() {
 		if(cachedBytecode == null) {
-			cachedBytecode = compiler.classFile().build(className(), this::buildClass);
+			cachedBytecode = BindingMetadata
+				.module(compiler, compiler.classFile().build(className(), this::buildClass), exports);
 		}
 		return cachedBytecode;
 	}
@@ -2340,7 +2341,14 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var fieldRealization = realization.fields().get(fieldIdx.index());
 					var getMethod = fieldRealization.getMethod();
 
-					cb.invokevirtual(realization.classDesc(), getMethod.methodName(), getMethod.methodType().get());
+					if(realization.isInterface())
+						cb.invokeinterface(
+							realization.classDesc(),
+							getMethod.methodName(),
+							getMethod.methodType().get()
+						);
+					else
+						cb.invokevirtual(realization.classDesc(), getMethod.methodName(), getMethod.methodType().get());
 
 					stackTypes.removeLast();
 					stackTypes.add(stackType(fieldRealization.fieldType().get()));
@@ -2352,7 +2360,14 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var fieldRealization = realization.fields().get(fieldIdx.index());
 					var getMethod = fieldRealization.getMethod();
 
-					cb.invokevirtual(realization.classDesc(), getMethod.methodName(), getMethod.methodType().get());
+					if(realization.isInterface())
+						cb.invokeinterface(
+							realization.classDesc(),
+							getMethod.methodName(),
+							getMethod.methodType().get()
+						);
+					else
+						cb.invokevirtual(realization.classDesc(), getMethod.methodName(), getMethod.methodType().get());
 
 					stackTypes.removeLast();
 					stackTypes.add(stackType(fieldRealization.fieldType().get()));
@@ -2365,7 +2380,14 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var fieldClass = fieldRealization.fieldType().get();
 					var getMethod = fieldRealization.getMethod();
 
-					cb.invokevirtual(realization.classDesc(), getMethod.methodName(), getMethod.methodType().get());
+					if(realization.isInterface())
+						cb.invokeinterface(
+							realization.classDesc(),
+							getMethod.methodName(),
+							getMethod.methodType().get()
+						);
+					else
+						cb.invokevirtual(realization.classDesc(), getMethod.methodName(), getMethod.methodType().get());
 					if(fieldClass.equals(CD_byte)) {
 						cb.invokestatic(CD_Byte, "toUnsignedInt", MethodTypeDesc.ofDescriptor("(B)I"));
 					}
@@ -2387,7 +2409,14 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var setMethod = fieldRealization.setMethod();
 					Objects.requireNonNull(setMethod);
 
-					cb.invokevirtual(realization.classDesc(), setMethod.methodName(), setMethod.methodType().get());
+					if(realization.isInterface())
+						cb.invokeinterface(
+							realization.classDesc(),
+							setMethod.methodName(),
+							setMethod.methodType().get()
+						);
+					else
+						cb.invokevirtual(realization.classDesc(), setMethod.methodName(), setMethod.methodType().get());
 
 					stackTypes.removeLast();
 					stackTypes.removeLast();
@@ -2504,7 +2533,11 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
 					var elementClass = realization.elementType().get();
 
-					cb.invokevirtual(realization.classDesc(), "get", MethodTypeDesc.of(elementClass, CD_int));
+					cb.invokevirtual(
+						realization.classDesc(),
+						realization.getMethodName(),
+						MethodTypeDesc.of(elementClass, CD_int)
+					);
 
 					stackTypes.removeLast();
 					stackTypes.removeLast();
@@ -2515,7 +2548,11 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
 					var elementClass = realization.elementType().get();
 
-					cb.invokevirtual(realization.classDesc(), "get", MethodTypeDesc.of(elementClass, CD_int));
+					cb.invokevirtual(
+						realization.classDesc(),
+						realization.getMethodName(),
+						MethodTypeDesc.of(elementClass, CD_int)
+					);
 
 					stackTypes.removeLast();
 					stackTypes.removeLast();
@@ -2526,7 +2563,11 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
 					var elementClass = realization.elementType().get();
 
-					cb.invokevirtual(realization.classDesc(), "get", MethodTypeDesc.of(elementClass, CD_int));
+					cb.invokevirtual(
+						realization.classDesc(),
+						realization.getMethodName(),
+						MethodTypeDesc.of(elementClass, CD_int)
+					);
 					if(elementClass.equals(CD_byte)) {
 						cb.invokestatic(CD_Byte, "toUnsignedInt", MethodTypeDesc.ofDescriptor("(B)I"));
 					}
@@ -2546,7 +2587,11 @@ class ModuleClassGenerator extends WasmClassGenerator {
 					var realization = (ArrayTypeRealization)compiler.getDefType(defType);
 					var elementClass = realization.elementType().get();
 
-					cb.invokevirtual(realization.classDesc(), "set", MethodTypeDesc.of(CD_void, CD_int, elementClass));
+					cb.invokevirtual(
+						realization.classDesc(),
+						Objects.requireNonNull(realization.setMethodName()),
+						MethodTypeDesc.of(CD_void, CD_int, elementClass)
+					);
 
 					stackTypes.removeLast();
 					stackTypes.removeLast();

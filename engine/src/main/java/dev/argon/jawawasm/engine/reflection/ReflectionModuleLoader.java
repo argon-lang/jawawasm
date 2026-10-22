@@ -2,6 +2,7 @@ package dev.argon.jawawasm.engine.reflection;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.reflect.ClassPath;
+import dev.argon.jawawasm.engine.compiler.AnnotatedTypeLoader;
 import dev.argon.jawawasm.engine.compiler.ErasedResultType;
 import dev.argon.jawawasm.engine.compiler.ModuleCompiler;
 import dev.argon.jawawasm.engine.compiler.WasmExportRealization;
@@ -11,6 +12,8 @@ import dev.argon.jawawasm.format.types.*;
 import dev.argon.jawawasm.runtime.*;
 import org.jspecify.annotations.Nullable;
 
+import java.io.IOException;
+import java.lang.classfile.ClassModel;
 import java.lang.classfile.TypeKind;
 import java.lang.classfile.attribute.InnerClassInfo;
 import java.lang.constant.ClassDesc;
@@ -35,6 +38,34 @@ class ReflectionModuleLoader {
 	}
 
 	private final ModuleCompiler compiler;
+	private AnnotatedTypeLoader typeLoader(Class<?> context) {
+		return typeLoaders.computeIfAbsent(
+			Objects.requireNonNull(context.getClassLoader()),
+			loader -> new AnnotatedTypeLoader(compiler, desc -> {
+				String path = desc.descriptorString().substring(1, desc.descriptorString().length() - 1) + ".class";
+				try(var input = loader.getResourceAsStream(path)) {
+					if(input == null)
+						throw new ModuleFormatException("Class resource not found: " + path);
+					return compiler.classFile().parse(input.readAllBytes());
+				}
+				catch(IOException e) {
+					throw new ModuleFormatException("Cannot read " + path, e);
+				}
+			})
+		);
+	}
+	private final Map<ClassLoader, AnnotatedTypeLoader> typeLoaders = new HashMap<>();
+
+	private ClassModel classModel(Class<?> type) throws ModuleFormatException {
+		try(var input = type.getResourceAsStream("/" + type.getName().replace('.', '/') + ".class")) {
+			if(input == null)
+				throw new ModuleFormatException("Missing class resource: " + type);
+			return compiler.classFile().parse(input.readAllBytes());
+		}
+		catch(IOException e) {
+			throw new ModuleFormatException("Cannot read class: " + type, e);
+		}
+	}
 
 	/**
 	 * Load a module from a class.
@@ -54,7 +85,15 @@ class ReflectionModuleLoader {
 				exports.add(export);
 			}
 		}
-		for(var innerClass : moduleClass.getDeclaredClasses()) {
+		if(moduleClass.isAnnotationPresent(WasmTagExports.class)
+			|| moduleClass.isAnnotationPresent(WasmTagExport.class)) {
+			var loader = typeLoader(moduleClass);
+			exports.addAll(loader.tagExports(classModel(moduleClass)));
+		}
+		for(var innerClass : moduleClass.isAnnotationPresent(WasmTagExports.class)
+			|| moduleClass.isAnnotationPresent(WasmTagExport.class)
+				? new Class<?>[0]
+				: moduleClass.getDeclaredClasses()) {
 			var export = loadExport(innerClass);
 			if(export != null) {
 				exports.add(export);
@@ -126,8 +165,8 @@ class ReflectionModuleLoader {
 	 *             if the class is not a valid result type.
 	 */
 	public ErasedResultType loadResultClass(Class<?> t) throws ModuleFormatException {
-		if(!t.getPackageName().equals("dev.argon.jawawasm.runtime")) {
-			throw new ModuleFormatException("Result types must be defined in dev.argon.jawawasm.runtime");
+		if(!WasmResult.class.isAssignableFrom(t)) {
+			throw new ModuleFormatException("Result carriers must implement WasmResult");
 		}
 
 		var endResultClass = Arrays.stream(t.getDeclaredClasses())
@@ -202,6 +241,7 @@ class ReflectionModuleLoader {
 		}
 
 		var resultType = new ErasedResultType(resTypes.build());
+		typeLoader(t).validateResultClass(classModel(t), resultType);
 
 		var resTypeDesc = ClassDesc.ofDescriptor(t.descriptorString());
 
@@ -323,6 +363,17 @@ class ReflectionModuleLoader {
 	}
 
 	private DefType loadExternalFunctionType(Method method) throws ModuleFormatException {
+		var export = method.getAnnotation(WasmExport.class);
+		if(export != null && export.functionType() != void.class) {
+			var model = classModel(method.getDeclaringClass());
+			var binding = model.methods().stream()
+				.filter(
+					m -> m.methodName().equalsString(method.getName())
+						&& m.methodTypeSymbol().equals(getMethodDescriptor(method))
+				).findFirst().orElseThrow(() -> new ModuleFormatException("Missing export method"));
+			return typeLoader(export.functionType())
+				.functionExport(ClassDesc.ofDescriptor(export.functionType().descriptorString()), binding);
+		}
 		var paramTypes = ImmutableList.<ValType>builder();
 		for(var param : method.getAnnotatedParameterTypes()) {
 			paramTypes.add(loadValType(param));
@@ -365,7 +416,7 @@ class ReflectionModuleLoader {
 	}
 
 	private GlobalType loadExternalGlobalType(AnnotatedType returnType) throws ModuleFormatException {
-		if(returnType.getType() == GlobalRef.class) {
+		if(returnType.getType() instanceof ParameterizedType pt && pt.getRawType() == GlobalRef.class) {
 			if(!(returnType instanceof AnnotatedParameterizedType annGlobalType)) {
 				throw new ModuleFormatException("Missing parameter types for global export");
 			}
@@ -441,12 +492,22 @@ class ReflectionModuleLoader {
 	}
 
 	private RefType loadRefType(AnnotatedType t) throws ModuleFormatException {
-		boolean isNullable = t.isAnnotationPresent(Nullable.class);
+		boolean isNullable = t.isAnnotationPresent(Nullable.class) || (t instanceof AnnotatedWildcardType w
+			&& Arrays.stream(w.getAnnotatedUpperBounds()).anyMatch(b -> b.isAnnotationPresent(Nullable.class)));
 		var heapType = loadHeapType(t);
 		return new RefType(isNullable, heapType);
 	}
 
 	private HeapType loadHeapType(AnnotatedType t) throws ModuleFormatException {
+		if(t instanceof AnnotatedWildcardType wildcard) {
+			if(wildcard.getAnnotatedLowerBounds().length != 0) {
+				throw new ModuleFormatException("Contravariant type arguments cannot represent WebAssembly values");
+			}
+			var bounds = wildcard.getAnnotatedUpperBounds();
+			if(bounds.length != 1)
+				throw new ModuleFormatException("Invalid wildcard heap type");
+			return loadHeapType(bounds[0]);
+		}
 		if(!(t.getType() instanceof Class<?> cls)) {
 			throw new ModuleFormatException("Invalid heap type: " + t);
 		}
@@ -498,7 +559,7 @@ class ReflectionModuleLoader {
 			return HeapType.AbstractHeapType.ARRAY;
 		}
 		else {
-			throw new RuntimeException("Not implemented");
+			return typeLoader(cls).load(ClassDesc.ofDescriptor(cls.descriptorString()));
 		}
 	}
 

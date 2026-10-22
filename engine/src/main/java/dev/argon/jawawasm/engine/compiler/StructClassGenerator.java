@@ -20,10 +20,10 @@ import static java.lang.constant.ConstantDescs.*;
 
 class StructClassGenerator extends DefTypeClassGenerator {
 	public StructClassGenerator(
-		ModuleCompiler compiler, SubType subtype, StructType structType, String className,
+		ModuleCompiler compiler, DefType declaredType, SubType subtype, StructType structType, String className,
 		Map<Integer, String> fieldNames
 	) {
-		super(compiler);
+		super(compiler, declaredType);
 		this.subtype = subtype;
 		this.structType = structType;
 		this.fieldNames = Map.copyOf(fieldNames);
@@ -90,6 +90,13 @@ class StructClassGenerator extends DefTypeClassGenerator {
 
 	@Override
 	protected byte[] generateImpl() {
+		for(var parent : subtype.superTypes()) {
+			if(!((StructTypeRealization)compiler.getDefType((DefType)parent)).isInterface()) {
+				throw new dev.argon.jawawasm.runtime.ModuleLinkException(
+					"Cannot generate a struct subtype of a JVM class representation"
+				);
+			}
+		}
 		ImplClassGenerator implClass;
 		if(subtype.isFinal()) {
 			implClass = null;
@@ -100,6 +107,7 @@ class StructClassGenerator extends DefTypeClassGenerator {
 		}
 
 		return compiler.classFile().build(className, clb -> {
+			clb.with(RuntimeVisibleAnnotationsAttribute.of(TypeAnnotations.declaration(compiler, declaredType)));
 			if(subtype.superTypes().isEmpty()) {
 				clb.withInterfaceSymbols(wasmStruct);
 			}

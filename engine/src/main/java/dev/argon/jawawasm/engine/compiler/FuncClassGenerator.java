@@ -19,8 +19,10 @@ import static dev.argon.jawawasm.engine.internal.Constants.RUNTIME_PACKAGE;
 import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.typeKind;
 
 class FuncClassGenerator extends DefTypeClassGenerator {
-	public FuncClassGenerator(ModuleCompiler compiler, SubType subtype, FuncType funcType, String className) {
-		super(compiler);
+	public FuncClassGenerator(
+		ModuleCompiler compiler, DefType declaredType, SubType subtype, FuncType funcType, String className
+	) {
+		super(compiler, declaredType);
 		this.subtype = subtype;
 		this.funcType = funcType;
 		this.className = ClassDesc.of(compiler.getOptions().javaPackage(), className);
@@ -85,7 +87,7 @@ class FuncClassGenerator extends DefTypeClassGenerator {
 									cb.loadLocal(tk, slot);
 									slot += tk.slotSize();
 								}
-								cb.invokeinterface(className, "invoke", superMethodType.descriptor());
+								cb.invokeinterface(className, "invoke", methodType.descriptor());
 								cb.areturn();
 							}
 						);
@@ -96,7 +98,12 @@ class FuncClassGenerator extends DefTypeClassGenerator {
 			}
 
 			clb.with(
-				RuntimeVisibleAnnotationsAttribute.of(Annotation.of(ClassDesc.of("java.lang.FunctionalInterface")))
+				RuntimeVisibleAnnotationsAttribute.of(
+					java.util.stream.Stream.concat(
+						TypeAnnotations.declaration(compiler, declaredType).stream(),
+						java.util.stream.Stream.of(Annotation.of(ClassDesc.of("java.lang.FunctionalInterface")))
+					).toList()
+				)
 			);
 			clb.withMethod("invoke", methodType.descriptor(), ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT, mb -> {
 				mb.with(SignatureAttribute.of(methodType.methodSignature()));

@@ -67,6 +67,7 @@ public class ReflectionEngine {
 	private final AtomicInteger moduleIndex = new AtomicInteger(0);
 
 	private final Map<String, byte[]> generatedFiles = new ConcurrentHashMap<>();
+	private final Set<ClassLoader> dependencyLoaders = ConcurrentHashMap.newKeySet();
 	private final Map<WasmModule, WasmModuleRealization> instanceToRealization = new ConcurrentHashMap<>();
 
 	/**
@@ -184,6 +185,9 @@ public class ReflectionEngine {
 	 */
 	public ReflectionModule addHostModule(WasmModule module) throws ModuleFormatException {
 		var cls = module.getClass();
+		var dependencyLoader = cls.getClassLoader();
+		if(dependencyLoader != null && !dependencyLoader.equals(classLoader))
+			dependencyLoaders.add(dependencyLoader);
 		var realization = new ReflectionModuleLoader(compiler).loadModule(cls);
 		instanceToRealization.put(module, realization);
 		Map<String, ReflectionExport> exports;
@@ -317,7 +321,15 @@ public class ReflectionEngine {
 		protected Class<?> findClass(String name) throws ClassNotFoundException {
 			byte[] data = generatedFiles.get(name.replace('.', '/') + ".class");
 			if(data == null) {
-				throw new ClassNotFoundException();
+				for(var loader : dependencyLoaders) {
+					try {
+						return loader.loadClass(name);
+					}
+					catch(ClassNotFoundException ignored) {
+						// Try the next registered dependency loader.
+					}
+				}
+				throw new ClassNotFoundException(name);
 			}
 
 			return defineClass(name, data, 0, data.length);

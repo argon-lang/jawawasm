@@ -38,7 +38,15 @@ public abstract non-sealed class WasmClassGenerator implements WasmOutputGenerat
 	 *             If a referenced module cannot be found.
 	 */
 	public final byte[] generate() {
-		return generateImpl();
+		var bytes = generateImpl();
+		if(this instanceof DefTypeClassGenerator gen) {
+			return switch(dev.argon.jawawasm.engine.internal.TypeUnroll.expand(gen.declaredType)) {
+				case dev.argon.jawawasm.format.types.StructType st -> BindingMetadata.struct(compiler, bytes, st);
+				case dev.argon.jawawasm.format.types.ArrayType at -> BindingMetadata.array(compiler, bytes, at);
+				default -> bytes;
+			};
+		}
+		return bytes;
 	}
 
 	abstract byte[] generateImpl();

@@ -16,8 +16,10 @@ import static dev.argon.jawawasm.engine.compiler.WasmClassGeneratorUtils.*;
 import static java.lang.constant.ConstantDescs.*;
 
 class ArrayClassGenerator extends DefTypeClassGenerator {
-	public ArrayClassGenerator(ModuleCompiler compiler, SubType subtype, ArrayType arrayType, String className) {
-		super(compiler);
+	public ArrayClassGenerator(
+		ModuleCompiler compiler, DefType declaredType, SubType subtype, ArrayType arrayType, String className
+	) {
+		super(compiler, declaredType);
 		this.subtype = subtype;
 		this.arrayType = arrayType;
 		this.className = ClassDesc.of(compiler.getOptions().javaPackage(), className);
@@ -37,6 +39,8 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 		return new ArrayTypeRealization(
 			className,
 			() -> compiler.getStorageType(arrayType.fieldType().storageType()).type(),
+			"get",
+			arrayType.fieldType().mut() == Mut.Var ? "set" : null,
 			() -> {
 				if(subtype.superTypes().isEmpty()) {
 					return null;
@@ -71,6 +75,7 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 		}
 
 		return compiler.classFile().build(className, clb -> {
+			clb.with(RuntimeVisibleAnnotationsAttribute.of(TypeAnnotations.declaration(compiler, declaredType)));
 			var elementTypeRealization = compiler.getStorageType(arrayType.fieldType().storageType());
 			ClassDesc superClass;
 			if(subtype.superTypes().isEmpty()) {
@@ -83,7 +88,7 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 				superClass = compiler.getHeapType(subtype.superTypes().getFirst());
 			}
 
-			clb.withFlags(ClassFile.ACC_PUBLIC);
+			clb.withFlags(ClassFile.ACC_PUBLIC | (subtype.isFinal() ? ClassFile.ACC_FINAL : ClassFile.ACC_ABSTRACT));
 			clb.withSuperclass(superClass);
 
 			if(subtype.isFinal()) {
@@ -158,21 +163,18 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 			});
 		});
 
-		if(arrayType.fieldType().mut() == Mut.Const) {
-			Set<ClassDesc> seenGetTypes = new HashSet<>();
-			seenGetTypes.add(elementTypeRealization.type());
-
-			for(var superTypeRealization = realization().superType()
-				.get(); superTypeRealization != null; superTypeRealization = superTypeRealization.superType().get()) {
-				var superFieldType = superTypeRealization.elementType().get();
-
-				if(!seenGetTypes.add(superFieldType)) {
-					continue;
-				}
-
+		record Getter(String name, ClassDesc element) {}
+		Set<Getter> seenGetters = new HashSet<>();
+		Set<String> seenSetters = new HashSet<>();
+		seenGetters.add(new Getter("get", elementTypeRealization.type()));
+		seenSetters.add("set");
+		for(var parent = realization().superType().get(); parent != null; parent = parent.superType().get()) {
+			var parentElement = parent.elementType().get();
+			var getterType = MethodTypeDesc.of(parentElement, CD_int);
+			if(seenGetters.add(new Getter(parent.getMethodName(), parentElement))) {
 				clb.withMethodBody(
-					"get",
-					MethodTypeDesc.of(superFieldType, CD_int),
+					parent.getMethodName(),
+					getterType,
 					ClassFile.ACC_PUBLIC | ClassFile.ACC_SYNTHETIC | ClassFile.ACC_BRIDGE,
 					cb -> {
 						cb.aload(0);
@@ -180,6 +182,25 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 						cb.iload(1);
 						cb.arrayLoad(typeKind(elementTypeRealization.type()));
 						cb.return_(typeKind(elementTypeRealization.type()));
+					}
+				);
+			}
+			var setter = parent.setMethodName();
+			if(setter != null && seenSetters.add(setter)) {
+				clb.withMethodBody(
+					setter,
+					MethodTypeDesc.of(CD_void, CD_int, parentElement),
+					ClassFile.ACC_PUBLIC | ClassFile.ACC_SYNTHETIC | ClassFile.ACC_BRIDGE,
+					cb -> {
+						cb.aload(0);
+						cb.iload(1);
+						cb.loadLocal(typeKind(elementTypeRealization.type()), 2);
+						cb.invokevirtual(
+							thisClass,
+							"set",
+							MethodTypeDesc.of(CD_void, CD_int, elementTypeRealization.type())
+						);
+						cb.return_();
 					}
 				);
 			}
@@ -315,7 +336,7 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 		ClassDesc superClass,
 		TypeRealization elementTypeRealization
 	) {
-		clb.withMethodBody("<init>", MethodTypeDesc.of(CD_void), ClassFile.ACC_PRIVATE, cb -> {
+		clb.withMethodBody("<init>", MethodTypeDesc.of(CD_void), ClassFile.ACC_PROTECTED, cb -> {
 			cb.aload(0);
 			cb.invokespecial(superClass, "<init>", MethodTypeDesc.of(CD_void));
 			cb.return_();
@@ -339,13 +360,13 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 			clb.withMethod(
 				"set",
 				MethodTypeDesc.of(CD_void, CD_int, elementTypeRealization.type()),
-				ClassFile.ACC_PUBLIC,
+				ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT,
 				mb -> {
 					if(elementTypeRealization.isNullable()) {
 						mb.with(
 							RuntimeVisibleTypeAnnotationsAttribute.of(
 								TypeAnnotation
-									.of(TypeAnnotation.TargetInfo.ofMethodFormalParameter(0), List.of(), nullableAnn)
+									.of(TypeAnnotation.TargetInfo.ofMethodFormalParameter(1), List.of(), nullableAnn)
 							)
 						);
 					}
@@ -355,7 +376,7 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 			clb.withMethod(
 				"fill",
 				MethodTypeDesc.of(CD_void, CD_int, elementTypeRealization.type(), CD_int),
-				ClassFile.ACC_PUBLIC,
+				ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT,
 				mb -> {
 					if(elementTypeRealization.isNullable()) {
 						mb.with(
@@ -372,7 +393,7 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 				clb.withMethod(
 					"copyFromData",
 					MethodTypeDesc.of(CD_void, CD_int, CD_int, CD_int, CD_byte.arrayType()),
-					ClassFile.ACC_PUBLIC,
+					ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT,
 					mb -> {}
 				);
 			}
@@ -660,7 +681,7 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 
 		@Override
 		public ClassHierarchyResolver.ClassHierarchyInfo hierarchyInfo() {
-			return ClassHierarchyResolver.ClassHierarchyInfo.ofClass(CD_Object);
+			return ClassHierarchyResolver.ClassHierarchyInfo.ofClass(ArrayClassGenerator.this.className);
 		}
 
 		@Override
@@ -668,7 +689,7 @@ class ArrayClassGenerator extends DefTypeClassGenerator {
 			return compiler.classFile().build(className, clb -> {
 				var elementTypeRealization = compiler.getStorageType(arrayType.fieldType().storageType());
 
-				clb.withInterfaceSymbols(ArrayClassGenerator.this.className);
+				clb.withSuperclass(ArrayClassGenerator.this.className);
 				clb.withFlags(ClassFile.ACC_FINAL);
 				generateFinalArray(clb, className, ArrayClassGenerator.this.className, elementTypeRealization);
 

@@ -149,7 +149,37 @@ public class ModuleCompiler {
 		return options;
 	}
 
+	private final Map<DefType, DefTypeRealization> loadedTypes = new ConcurrentHashMap<>();
+
+	void registerLoadedType(DefType type, DefTypeRealization realization) throws ModuleFormatException {
+		if(typeCache.containsKey(type))
+			throw new ModuleFormatException("Type was already generated: " + type);
+		var old = loadedTypes.putIfAbsent(type, realization);
+		if(old != null && !old.classDesc().equals(realization.classDesc())) {
+			throw new ModuleFormatException("Conflicting JVM representations for " + type);
+		}
+	}
+
+	void unregisterLoadedType(DefType type, ClassDesc name) {
+		var realization = loadedTypes.get(type);
+		if(realization != null && realization.classDesc().equals(name))
+			loadedTypes.remove(type, realization);
+	}
+
+	void registerLoadedHierarchy(ClassModel model) {
+		generatedHierarchy.put(
+			model.thisClass().asSymbol(),
+			model.flags().has(java.lang.reflect.AccessFlag.INTERFACE)
+				? ClassHierarchyResolver.ClassHierarchyInfo.ofInterface()
+				: ClassHierarchyResolver.ClassHierarchyInfo
+					.ofClass(model.superclass().map(c -> c.asSymbol()).orElse(CD_Object))
+		);
+	}
+
 	DefTypeRealization getDefType(DefType type) {
+		var loaded = loadedTypes.get(type);
+		if(loaded != null)
+			return loaded;
 		return typeCache.computeIfAbsent(type, t -> {
 			var subtype = TypeUnroll.unroll(t);
 			var names = typeNames.get(t);
@@ -157,7 +187,7 @@ public class ModuleCompiler {
 			return switch(subtype.compositeType()) {
 				case ArrayType arrayType -> {
 					var className = "Array" + arrayTypeIndex.getAndIncrement() + suffix;
-					var generator = new ArrayClassGenerator(this, subtype, arrayType, className);
+					var generator = new ArrayClassGenerator(this, t, subtype, arrayType, className);
 					enqueueGenerator(generator);
 					yield generator;
 				}
@@ -165,6 +195,7 @@ public class ModuleCompiler {
 					var className = "Struct" + structTypeIndex.getAndIncrement() + suffix;
 					var generator = new StructClassGenerator(
 						this,
+						t,
 						subtype,
 						structType,
 						className,
@@ -175,7 +206,7 @@ public class ModuleCompiler {
 				}
 				case FuncType funcType -> {
 					var className = "Func" + funcTypeIndex.getAndIncrement() + suffix;
-					var generator = new FuncClassGenerator(this, subtype, funcType, className);
+					var generator = new FuncClassGenerator(this, t, subtype, funcType, className);
 					enqueueGenerator(generator);
 					yield generator;
 				}
@@ -295,24 +326,27 @@ public class ModuleCompiler {
 		var paramTypes2 = paramTypes.build();
 
 		var anns = ImmutableList.<TypeAnnotation>builder();
-		for(int i = 0; i < paramTypes2.size(); ++i) {
-			var paramType = paramTypes2.get(i);
-			if(paramType.isNullable()) {
-				anns.add(
-					TypeAnnotation.of(TypeAnnotation.TargetInfo.ofMethodFormalParameter(i), List.of(), nullableAnn)
-				);
-			}
+		for(int i = 0; i < funcType.args().types().size(); i++) {
+			anns.addAll(
+				BindingMetadata.typeUse(
+					funcType.args().types().get(i),
+					TypeAnnotation.TargetInfo.ofMethodFormalParameter(i),
+					List.of()
+				)
+			);
 		}
-		for(int i = 0; i < returnType.typeArguments().size(); i++) {
-			var typeArg = returnType.typeArguments().get(i);
-			if(typeArg.isNullable()) {
-				anns.add(
-					TypeAnnotation.of(
+		int argIndex = 0;
+		for(var value : funcType.results().types()) {
+			if(!getValType(value).type().isPrimitive()) {
+				anns.addAll(
+					BindingMetadata.typeUse(
+						value,
 						TypeAnnotation.TargetInfo.ofMethodReturn(),
 						List.of(
-							TypeAnnotation.TypePathComponent.of(TypeAnnotation.TypePathComponent.Kind.TYPE_ARGUMENT, i)
-						),
-						nullableAnn
+							TypeAnnotation.TypePathComponent
+								.of(TypeAnnotation.TypePathComponent.Kind.TYPE_ARGUMENT, argIndex++),
+							TypeAnnotation.TypePathComponent.of(TypeAnnotation.TypePathComponent.Kind.WILDCARD, 0)
+						)
 					)
 				);
 			}
