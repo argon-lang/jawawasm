@@ -13,6 +13,10 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface FieldMutator {
-	/** The zero-based struct field index, or zero for an array element. */
+	/**
+	 * The zero-based struct field index, or zero for an array element.
+	 *
+	 * @return the zero-based struct field index, or zero for an array element
+	 */
 	int value();
 }

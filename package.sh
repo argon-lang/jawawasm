@@ -12,7 +12,7 @@ fi
 echo "Project version: $version"
 
 archive="$PWD/jawawasm-$version.zip"
-rm -f -- "*.zip"
+rm -f -- *.zip
 ./gradlew clean
 ./gradlew publishMavenJavaPublicationToMavenRepository
 

@@ -11,15 +11,26 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface WasmSubtype {
-	/** The ordered declared WebAssembly supertypes. */
+	/**
+	 * The ordered declared WebAssembly supertypes.
+	 *
+	 * @return the ordered declared WebAssembly supertypes
+	 */
 	Class<?>[] supertypes() default {};
 
 	/**
 	 * The ordered recursive-group members; empty denotes a singleton containing
 	 * this class.
+	 *
+	 * @return the ordered recursive-group members, or an empty array for a
+	 *         singleton containing this class
 	 */
 	Class<?>[] recursiveGroup() default {};
 
-	/** The zero-based position of this class in its recursive group. */
+	/**
+	 * The zero-based position of this class in its recursive group.
+	 *
+	 * @return the zero-based position of this class in its recursive group
+	 */
 	int groupIndex() default 0;
 }

@@ -35,7 +35,12 @@ public @interface WasmExport {
 	 */
 	ExportType type();
 
-	/** Exact defined function type, or void for signature inference. */
+	/**
+	 * Exact defined function type, or void for signature inference.
+	 *
+	 * @return the exact defined function type, or {@code void.class} for signature
+	 *         inference
+	 */
 	Class<?> functionType() default void.class;
 
 	/**

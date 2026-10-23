@@ -9,6 +9,10 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface WasmTagExports {
-	/** The tag exports; an empty array declares no exported tags. */
+	/**
+	 * The tag exports; an empty array declares no exported tags.
+	 *
+	 * @return the tag exports; an empty array declares no exported tags
+	 */
 	WasmTagExport[] value();
 }

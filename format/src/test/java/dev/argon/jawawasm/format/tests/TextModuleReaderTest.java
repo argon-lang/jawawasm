@@ -31,8 +31,8 @@ public class TextModuleReaderTest {
 			}
 		};
 		new ModuleReader(input).readModuleAsBinary(output);
-		var module = new dev.argon.jawawasm.format.binary.ModuleReader(
-			new ByteArrayInputStream(output.toByteArray())).readModule();
+		var module = new dev.argon.jawawasm.format.binary.ModuleReader(new ByteArrayInputStream(output.toByteArray()))
+			.readModule();
 		assertEquals(1, module.funcs().size());
 		assertEquals("réponse", module.exports().getFirst().name());
 	}
@@ -40,8 +40,10 @@ public class TextModuleReaderTest {
 	@Test
 	public void rejectsInvalidTextBeforeWritingBinary() {
 		var output = new ByteArrayOutputStream();
-		assertThrows(ModuleFormatException.class,
-			() -> new ModuleReader(new StringReader("(module")).readModuleAsBinary(output));
+		assertThrows(
+			ModuleFormatException.class,
+			() -> new ModuleReader(new StringReader("(module")).readModuleAsBinary(output)
+		);
 		assertEquals(0, output.size());
 	}
 
@@ -54,8 +56,13 @@ public class TextModuleReaderTest {
 				throw failure;
 			}
 		};
-		assertSame(failure, assertThrows(IOException.class,
-			() -> new ModuleReader(new StringReader("(module)")).readModuleAsBinary(output)));
+		assertSame(
+			failure,
+			assertThrows(
+				IOException.class,
+				() -> new ModuleReader(new StringReader("(module)")).readModuleAsBinary(output)
+			)
+		);
 	}
 
 	@Test

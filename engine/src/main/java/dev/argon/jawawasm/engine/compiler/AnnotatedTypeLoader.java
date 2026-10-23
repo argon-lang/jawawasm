@@ -15,10 +15,25 @@ public final class AnnotatedTypeLoader {
 	/** Supplies dependency class models without loading JVM classes. */
 	@FunctionalInterface
 	public interface ClassModels {
-		/** Reads a class model. */
+		/**
+		 * Reads a class model.
+		 *
+		 * @param type
+		 *            the JVM class to read
+		 * @return the class model
+		 * @throws ModuleFormatException
+		 *             if the class model cannot be read
+		 */
 		ClassModel load(ClassDesc type) throws ModuleFormatException;
 	}
-	/** Creates a decoder. */
+	/**
+	 * Creates a decoder.
+	 *
+	 * @param compiler
+	 *            the compiler receiving the decoded type bindings
+	 * @param models
+	 *            the source of dependency class models
+	 */
 	public AnnotatedTypeLoader(ModuleCompiler compiler, ClassModels models) {
 		this.compiler = compiler;
 		this.models = models;
@@ -28,14 +43,30 @@ public final class AnnotatedTypeLoader {
 	private final Map<ClassDesc, DefType> types = new HashMap<>();
 	private final Set<ClassDesc> pending = new HashSet<>();
 
-	/** Finds a runtime annotation by its runtime-package simple name. */
+	/**
+	 * Finds a runtime annotation by its runtime-package simple name.
+	 *
+	 * @param model
+	 *            the class to inspect
+	 * @param name
+	 *            the annotation's simple name in the runtime package
+	 * @return the annotation, or an empty optional if absent
+	 */
 	public static Optional<Annotation> annotation(ClassModel model, String name) {
 		return model.findAttribute(Attributes.runtimeVisibleAnnotations()).stream()
 			.flatMap(a -> a.annotations().stream())
 			.filter(a -> a.classSymbol().equals(TypeAnnotations.annotationClass(name))).findFirst();
 	}
 
-	/** Reads an annotation element. */
+	/**
+	 * Reads an annotation element.
+	 *
+	 * @param annotation
+	 *            the annotation to inspect
+	 * @param name
+	 *            the element name
+	 * @return the explicitly stored value, or an empty optional if absent
+	 */
 	public static Optional<AnnotationValue> value(Annotation annotation, String name) {
 		return annotation.elements().stream().filter(e -> e.name().stringValue().equals(name))
 			.map(AnnotationElement::value).findFirst();
@@ -57,7 +88,16 @@ public final class AnnotatedTypeLoader {
 		return value(a, "groupIndex").map(v -> ((AnnotationValue.OfInt)v).intValue()).orElse(0);
 	}
 
-	/** Reconstructs a complete recursive group and registers its JVM bindings. */
+	/**
+	 * Reconstructs a complete recursive group and registers its JVM bindings.
+	 *
+	 * @param name
+	 *            the JVM class representing the requested WebAssembly type
+	 * @return the defined type represented by the class
+	 * @throws ModuleFormatException
+	 *             if the type declarations are invalid or a dependency class model
+	 *             cannot be read
+	 */
 	public DefType load(ClassDesc name) throws ModuleFormatException {
 		try {
 			return loadImpl(name);
@@ -643,7 +683,17 @@ public final class AnnotatedTypeLoader {
 		return new ResultType(values.build());
 	}
 
-	/** Validates the JVM operations used to consume a result carrier. */
+	/**
+	 * Validates the JVM operations used to consume a result carrier.
+	 *
+	 * @param model
+	 *            the result carrier class model
+	 * @param shape
+	 *            the expected erased result types
+	 * @throws ModuleFormatException
+	 *             if the carrier does not support the expected operations or a
+	 *             dependency class model cannot be read
+	 */
 	public void validateResultClass(ClassModel model, ErasedResultType shape) throws ModuleFormatException {
 		var name = model.thisClass().asSymbol();
 		if(!model.flags().has(AccessFlag.INTERFACE)
@@ -686,6 +736,15 @@ public final class AnnotatedTypeLoader {
 
 	/**
 	 * Checks an exported function against its explicitly declared function type.
+	 *
+	 * @param functionClass
+	 *            the JVM interface declaring the function type
+	 * @param method
+	 *            the exported method to validate
+	 * @return the declared WebAssembly function type
+	 * @throws ModuleFormatException
+	 *             if the function type cannot be loaded or the exported method does
+	 *             not match it
 	 */
 	public DefType functionExport(ClassDesc functionClass, MethodModel method) throws ModuleFormatException {
 		var type = load(functionClass);
@@ -709,6 +768,13 @@ public final class AnnotatedTypeLoader {
 	/**
 	 * Loads explicit tag exports, preserving aliases and imported exception
 	 * classes.
+	 *
+	 * @param module
+	 *            the module class model to inspect
+	 * @return the declared tag export realizations
+	 * @throws ModuleFormatException
+	 *             if a tag declaration is invalid or a dependency class model
+	 *             cannot be read
 	 */
 	public List<WasmExportRealization> tagExports(ClassModel module) throws ModuleFormatException {
 		var annotations = new ArrayList<Annotation>();

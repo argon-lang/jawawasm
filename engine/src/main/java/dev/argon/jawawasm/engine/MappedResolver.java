@@ -15,8 +15,8 @@ public final class MappedResolver<Mod> implements ModuleResolver<Mod> {
 	private final Map<String, Mod> nameToRealization = new ConcurrentHashMap<>();
 
 	/** Creates a resolver with no registered modules. */
-	public MappedResolver() {
-	}
+	public MappedResolver() {}
+
 	/**
 	 * Registers a module under an import name, replacing any existing registration.
 	 *

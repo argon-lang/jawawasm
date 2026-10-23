@@ -9,6 +9,10 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface WasmFuncType {
-	/** Whether the WebAssembly function type is final. */
+	/**
+	 * Whether the WebAssembly function type is final.
+	 *
+	 * @return {@code true} if the WebAssembly function type is final
+	 */
 	boolean isFinal();
 }

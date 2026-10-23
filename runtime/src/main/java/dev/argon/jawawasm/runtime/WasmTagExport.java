@@ -11,12 +11,24 @@ import java.lang.annotation.Repeatable;
 @Target(ElementType.TYPE)
 @Repeatable(WasmTagExports.class)
 public @interface WasmTagExport {
-	/** The exact WebAssembly export name, which may be empty. */
+	/**
+	 * The exact WebAssembly export name, which may be empty.
+	 *
+	 * @return the exact WebAssembly export name, which may be empty
+	 */
 	String name();
 
-	/** The exception class that preserves this tag's identity. */
+	/**
+	 * The exception class that preserves this tag's identity.
+	 *
+	 * @return the exception class that preserves this tag's identity
+	 */
 	Class<? extends WebAssemblyException> exception();
 
-	/** The annotated function interface describing the tag parameters. */
+	/**
+	 * The annotated function interface describing the tag parameters.
+	 *
+	 * @return the annotated function interface describing the tag parameters
+	 */
 	Class<?> functionType();
 }
