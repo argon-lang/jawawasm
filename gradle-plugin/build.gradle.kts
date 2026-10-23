@@ -22,8 +22,8 @@ gradlePlugin {
             id = "dev.argon.jawawasm"
             implementationClass = "dev.argon.jawawasm.gradle.JawaWasmPlugin"
             displayName = "JawaWasm AOT compiler"
-            description = "Compile WebAssembly files to JVM classes using AOTEngine."
-            tags.set(listOf("webassembly", "wasm", "jvm", "aot"))
+            description = "Compile WebAssembly files to JVM classes."
+            tags.set(listOf("webassembly", "wasm"))
             compatibility {
                 features {
                     configurationCache = true
