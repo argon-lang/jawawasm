@@ -8,6 +8,7 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(24)
 
 dependencies {
     implementation(project(":engine"))
+    implementation(project(":format"))
     compileOnly(libs.jspecify)
     testImplementation(gradleTestKit())
 }

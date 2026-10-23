@@ -4,10 +4,6 @@ Each directory is an independent Gradle build using JawaWasm 0.3.0.
 Run Gradle on Java 24 or later; use the repository wrapper or Gradle 9.6.1 or later.
 The builds request a Java 24 toolchain, which must be installed locally.
 
-All examples require wasm-tools on PATH. Install it with
-`cargo install --locked --version 1.261.0 wasm-tools`, or pass
-`-PwasmTools=/absolute/path/to/wasm-tools` to use an existing installation.
-
 From the repository root:
 
 ```sh
@@ -46,13 +42,6 @@ the application JAR contains only its own generated module. The library remains
 a normal runtime dependency. Run `:app:run` to invoke the application, which calls
 through the adapter into the compiled library and prints `42`.
 
-For example, use this checkout's wasm-tools installation:
-
-```sh
-./gradlew -p examples/project-dependency -PlocalJawaWasm \
-  -PwasmTools="$PWD/cargo-tools/bin/wasm-tools" :app:jar
-```
-
 ## Custom Java host module
 
 `custom-host` maps the Wasm import module `console` to `example.ConsoleHost`.
@@ -65,16 +54,16 @@ Host code must not depend on main Java sources or generated Wasm classes.
 
 ## Wasm inputs
 
-Each build runs `wasm-tools parse` through a `compileWat` task to generate its
+Each build uses the text `ModuleReader` through a `WatCompile` task to generate its
 binary inputs from checked-in `.wat` sources. Binaries are written under
 `build/wasm`; none are checked in. Task-backed file providers make `compileWasm`
 run the WAT tasks automatically, and Gradle tracks source changes to rebuild
 only when needed. `clean` removes the generated binaries.
 
-To build all examples locally with this checkout's wasm-tools, run:
+To build all examples locally, run:
 
 ```sh
-./gradlew -p examples/basic -PlocalJawaWasm -PwasmTools="$PWD/cargo-tools/bin/wasm-tools" jar
-./gradlew -p examples/custom-host -PlocalJawaWasm -PwasmTools="$PWD/cargo-tools/bin/wasm-tools" jar
-./gradlew -p examples/project-dependency -PlocalJawaWasm -PwasmTools="$PWD/cargo-tools/bin/wasm-tools" :app:jar
+./gradlew -p examples/basic -PlocalJawaWasm jar
+./gradlew -p examples/custom-host -PlocalJawaWasm jar
+./gradlew -p examples/project-dependency -PlocalJawaWasm :app:jar
 ```

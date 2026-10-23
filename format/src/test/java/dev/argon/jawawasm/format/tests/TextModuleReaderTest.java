@@ -5,6 +5,9 @@ import dev.argon.jawawasm.format.text.ModuleReader;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
 import java.io.Reader;
 import java.io.StringReader;
 import java.util.Objects;
@@ -12,6 +15,48 @@ import java.util.Objects;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TextModuleReaderTest {
+
+	@Test
+	public void writesBinaryModule() throws Exception {
+		var output = new ByteArrayOutputStream() {
+			@Override
+			public void close() {
+				fail("ModuleReader must not close its output");
+			}
+		};
+		var input = new StringReader("(module (func (export \"réponse\") (result i32) i32.const 42))") {
+			@Override
+			public void close() {
+				fail("ModuleReader must not close its input");
+			}
+		};
+		new ModuleReader(input).readModuleAsBinary(output);
+		var module = new dev.argon.jawawasm.format.binary.ModuleReader(
+			new ByteArrayInputStream(output.toByteArray())).readModule();
+		assertEquals(1, module.funcs().size());
+		assertEquals("réponse", module.exports().getFirst().name());
+	}
+
+	@Test
+	public void rejectsInvalidTextBeforeWritingBinary() {
+		var output = new ByteArrayOutputStream();
+		assertThrows(ModuleFormatException.class,
+			() -> new ModuleReader(new StringReader("(module")).readModuleAsBinary(output));
+		assertEquals(0, output.size());
+	}
+
+	@Test
+	public void propagatesBinaryWriteErrors() {
+		var failure = new IOException("output failed");
+		var output = new OutputStream() {
+			@Override
+			public void write(int value) throws IOException {
+				throw failure;
+			}
+		};
+		assertSame(failure, assertThrows(IOException.class,
+			() -> new ModuleReader(new StringReader("(module)")).readModuleAsBinary(output)));
+	}
 
 	@Test
 	public void readsModuleWithFunctionAndUnicodeExport() throws Exception {

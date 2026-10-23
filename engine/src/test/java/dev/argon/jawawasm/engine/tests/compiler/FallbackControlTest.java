@@ -7,26 +7,19 @@ import dev.argon.jawawasm.engine.compiler.WasmExportRealization;
 import dev.argon.jawawasm.engine.validator.ModuleValidator;
 import dev.argon.jawawasm.format.binary.ModuleReader;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassHierarchyResolver;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class FallbackControlTest {
 	// Select the fallback even though the actual bytecode for these nops is small.
 	private static final String FALLBACK_PADDING = "nop ".repeat(1100);
-
-	@TempDir
-	public Path temporaryDirectory;
 
 	private static final class GeneratedLoader extends ClassLoader {
 		GeneratedLoader(Map<String, byte[]> classes) {
@@ -46,36 +39,9 @@ public class FallbackControlTest {
 	}
 
 	private Object assertResult(String source, Object[] arguments, Object... expected) throws Exception {
-		var wat = temporaryDirectory.resolve("control.wat");
-		var wasm = temporaryDirectory.resolve("control.wasm");
-		var log = temporaryDirectory.resolve("control.log");
-		Files.writeString(wat, source);
-		var process = new ProcessBuilder(
-			"../cargo-tools/bin/wasm-tools",
-			"parse",
-			wat.toString(),
-			"-o",
-			wasm.toString()
-		).redirectErrorStream(true).redirectOutput(log.toFile()).start();
-		try {
-			assertTrue(process.waitFor(30, TimeUnit.SECONDS), "wasm-tools timed out");
-			assertEquals(0, process.exitValue(), () -> {
-				try {
-					return Files.readString(log);
-				}
-				catch(java.io.IOException e) {
-					throw new java.io.UncheckedIOException(e);
-				}
-			});
-		}
-		finally {
-			process.destroyForcibly();
-		}
-
-		dev.argon.jawawasm.format.modules.Module module;
-		try(var input = Files.newInputStream(wasm)) {
-			module = new ModuleReader(input).readModule();
-		}
+		var binary = new java.io.ByteArrayOutputStream();
+		new dev.argon.jawawasm.format.text.ModuleReader(new java.io.StringReader(source)).readModuleAsBinary(binary);
+		var module = new ModuleReader(new java.io.ByteArrayInputStream(binary.toByteArray())).readModule();
 		ModuleValidator.validateModule(module);
 		var compiler = new ModuleCompiler(
 			new CompilerOptions(ClassHierarchyResolver.defaultResolver(), "test.generated")

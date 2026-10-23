@@ -27,20 +27,9 @@ class JawaWasmPluginTest {
 
 	private void compileWat(String fixture, String target) throws Exception {
 		copyFixture(fixture, fixture);
-		var log = projectDir.resolve(target + ".log");
-		var process = new ProcessBuilder(
-			Path.of("../cargo-tools/bin/wasm-tools").toAbsolutePath().toString(),
-			"parse",
-			projectDir.resolve(fixture).toString(),
-			"-o",
-			projectDir.resolve(target).toString()
-		).redirectErrorStream(true).redirectOutput(log.toFile()).start();
-		try {
-			assertTrue(process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS), "wasm-tools timed out");
-			assertEquals(0, process.exitValue(), Files.readString(log));
-		}
-		finally {
-			process.destroyForcibly();
+		try(var input = Files.newBufferedReader(projectDir.resolve(fixture));
+			var output = Files.newOutputStream(projectDir.resolve(target))) {
+			new dev.argon.jawawasm.format.text.ModuleReader(input).readModuleAsBinary(output);
 		}
 	}
 

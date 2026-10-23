@@ -3,7 +3,7 @@
 Rust text parser for JawaWasm with a C ABI, intended to be compiled to
 WebAssembly and later translated to JVM bytecode by `AOTEngine`.
 WAST conversion uses `json-from-wast`; WAT encoding uses its `wast` dependency.
-Both versions match the repository's `wasm-tools` pin.
+Both versions are pinned in the crate manifest and lockfile.
 
 ```sh
 cargo build --manifest-path jawawasm-format-text/Cargo.toml --locked --release --target wasm32-unknown-unknown

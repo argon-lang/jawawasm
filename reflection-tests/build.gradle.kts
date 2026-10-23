@@ -1,7 +1,10 @@
 // The test source set has no JawaWasm dependency. Only the isolated driver does.
 val driver = sourceSets.create("driver")
+val watCompiler = sourceSets.create("watCompiler")
 
 dependencies {
+    add(watCompiler.implementationConfigurationName, project(":format"))
+    add(watCompiler.compileOnlyConfigurationName, libs.jspecify)
     add(driver.implementationConfigurationName, project(":engine"))
 }
 
@@ -12,17 +15,15 @@ java {
 }
 
 val driverWasm = layout.buildDirectory.file("generated/driver-resources/reflection.wasm")
-val compileDriverWasm = tasks.register<Exec>("compileDriverWasm") {
+val compileDriverWasm = tasks.register<JavaExec>("compileDriverWasm") {
     val wat = layout.projectDirectory.file("src/driver/wat/reflection.wat")
-    val wasmTools = rootProject.layout.projectDirectory.file("cargo-tools/bin/wasm-tools")
     val wasm = driverWasm.get().asFile
     inputs.file(wat)
-    inputs.file(wasmTools)
     outputs.file(wasm)
-    commandLine(wasmTools.asFile, "parse", wat.asFile, "-o", wasm)
-    doFirst {
-        wasm.parentFile.mkdirs()
-    }
+    classpath = watCompiler.runtimeClasspath
+    mainClass.set("dev.argon.jawawasm.reflection.generator.CompileWat")
+    javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
+    args(wat.asFile.absolutePath, wasm.absolutePath)
 }
 
 tasks.named<ProcessResources>(driver.processResourcesTaskName) {

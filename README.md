@@ -124,9 +124,8 @@ Java formatting uses Spotless with the settings in `eclipse-formatter.properties
 Run `./gradlew spotlessApply` to format sources or `./gradlew spotlessCheck` to check
 formatting. Formatting is also checked by `./gradlew check`.
 
-To run the tests for this project, submodules need to be checked out and built.
-The application and its tests use the compiled WAST parser directly. The
-compiler fixtures, Gradle plugin tests, and reflection driver use wasm-tools
-installed during setup.
+To run the tests for this project, submodules need to be checked out.
+The application and its tests use the compiled WAST parser directly. WAT
+fixtures, examples, and the reflection driver use the text ModuleReader.
 To perform this setup, run the script `setup-tests.sh`.
-This script will set up the submodule and build the tools needed to run the test suite.
+This script initializes the test suite submodule.

@@ -7,7 +7,6 @@ import dev.argon.jawawasm.engine.validator.ModuleValidator;
 import dev.argon.jawawasm.format.binary.ModuleReader;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.IOException;
 import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassHierarchyResolver;
 import java.lang.classfile.ClassModel;
@@ -15,7 +14,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -38,28 +36,13 @@ public abstract class CompilerTestBase {
 	}
 
 	protected final dev.argon.jawawasm.format.modules.Module readWatFile(Path wat) throws Exception {
-		var fixture = java.util.Objects.requireNonNull(wat.getFileName()).toString();
-		var wasm = temporaryDirectory.resolve(fixture + ".wasm");
-		var log = temporaryDirectory.resolve(fixture + ".log");
-		var process = new ProcessBuilder(
-			Path.of("../cargo-tools/bin/wasm-tools").toAbsolutePath().toString(),
-			"parse",
-			wat.toString(),
-			"-o",
-			wasm.toString()
-		).redirectErrorStream(true).redirectOutput(log.toFile()).start();
-		try {
-			assertTrue(process.waitFor(30, TimeUnit.SECONDS), "wasm-tools timed out");
-			assertEquals(0, process.exitValue(), () -> readLog(log));
+		var binary = new java.io.ByteArrayOutputStream();
+		try(var input = Files.newBufferedReader(wat)) {
+			new dev.argon.jawawasm.format.text.ModuleReader(input).readModuleAsBinary(binary);
 		}
-		finally {
-			process.destroyForcibly();
-		}
-		try(var input = Files.newInputStream(wasm)) {
-			var module = new ModuleReader(input).readModule();
-			ModuleValidator.validateModule(module);
-			return module;
-		}
+		var module = new ModuleReader(new java.io.ByteArrayInputStream(binary.toByteArray())).readModule();
+		ModuleValidator.validateModule(module);
+		return module;
 	}
 
 	private List<byte[]> compileWatFile(Path wat) throws Exception {
@@ -82,12 +65,4 @@ public abstract class CompilerTestBase {
 		return classes;
 	}
 
-	private static String readLog(Path log) {
-		try {
-			return Files.readString(log);
-		}
-		catch(IOException e) {
-			throw new java.io.UncheckedIOException(e);
-		}
-	}
 }

@@ -5,6 +5,7 @@ plugins {
 }
 
 dependencies {
+    testImplementation(project(":format"))
     api(project(":format-core"))
     api(libs.jspecify) // Not compile only because we may use reflection
     implementation(libs.commons.compress)

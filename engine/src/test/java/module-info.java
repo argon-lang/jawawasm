@@ -4,6 +4,7 @@
 module dev.argon.jawawasm.engine.tests {
 	requires static org.jspecify;
 	requires dev.argon.jawawasm.engine;
+	requires dev.argon.jawawasm.format;
 	requires org.junit.jupiter.api;
 
 	exports dev.argon.jawawasm.engine.tests;

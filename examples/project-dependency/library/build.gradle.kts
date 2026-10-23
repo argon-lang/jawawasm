@@ -1,3 +1,5 @@
+import dev.argon.jawawasm.gradle.WatCompile
+
 plugins {
     `java-library`
     id("dev.argon.jawawasm") version "0.3.0"
@@ -10,14 +12,9 @@ dependencies {
 }
 
 val libraryWasm = layout.buildDirectory.file("wasm/library.wasm")
-val compileWat = tasks.register<Exec>("compileWat") {
-    val wat = layout.projectDirectory.file("src/main/wasm/library.wat")
-    val output = libraryWasm.get().asFile
-    inputs.file(wat)
-    outputs.file(libraryWasm)
-    executable(providers.gradleProperty("wasmTools").getOrElse("wasm-tools"))
-    args("parse", wat.asFile.absolutePath, "-o", output.absolutePath)
-    doFirst { output.parentFile.mkdirs() }
+val compileWat = tasks.register<WatCompile>("compileWat") {
+    source.set(layout.projectDirectory.file("src/main/wasm/library.wat"))
+    outputFile.set(libraryWasm)
 }
 
 wasm {
