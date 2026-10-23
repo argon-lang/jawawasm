@@ -2,7 +2,7 @@ import dev.argon.jawawasm.gradle.WatCompile
 
 plugins {
     application
-    id("dev.argon.jawawasm") version "0.3.0"
+    id("dev.argon.jawawasm") version "0.3.1"
 }
 
 application { mainClass.set("example.Modules") }

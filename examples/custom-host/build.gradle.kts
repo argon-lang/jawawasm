@@ -1,13 +1,13 @@
 import dev.argon.jawawasm.gradle.WatCompile
 
 plugins {
-    id("dev.argon.jawawasm") version "0.3.0"
+    id("dev.argon.jawawasm") version "0.3.1"
 }
 
 repositories { mavenCentral() }
 java.toolchain.languageVersion.set(JavaLanguageVersion.of(24))
 dependencies {
-    implementation("dev.argon.jawawasm:jawawasm-runtime:0.3.0")
+    implementation("dev.argon.jawawasm:jawawasm-runtime:0.3.1")
 }
 
 val wasmBinary = layout.buildDirectory.file("wasm/greeting.wasm")

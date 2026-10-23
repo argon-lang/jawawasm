@@ -10,7 +10,7 @@ val sharedLibs = libs
 
 subprojects {
     group = "dev.argon.jawawasm"
-    version = "0.3.0"
+    version = "0.3.1"
 
     apply(plugin = "java")
     apply(plugin = "net.ltgt.errorprone")

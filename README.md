@@ -31,7 +31,7 @@ and apply the plugin:
 
 ```kotlin
 plugins {
-    id("dev.argon.jawawasm") version "0.3.0"
+    id("dev.argon.jawawasm") version "0.3.1"
 }
 
 wasm {
@@ -70,7 +70,7 @@ and bundled in the main JAR. Add the runtime dependency:
 
 ```kotlin
 dependencies {
-    implementation("dev.argon.jawawasm:jawawasm-runtime:0.3.0")
+    implementation("dev.argon.jawawasm:jawawasm-runtime:0.3.1")
 }
 ```
 
@@ -86,7 +86,7 @@ are available to main Java sources.
 
 ```kotlin
 dependencies {
-    implementation("dev.argon.jawawasm:jawawasm-runtime:0.3.0")
+    implementation("dev.argon.jawawasm:jawawasm-runtime:0.3.1")
     // Java host classes supplied by a library use the same configuration:
     // implementation("com.example:wasm-hosts:1.0")
 }

@@ -1,6 +1,6 @@
 # Gradle plugin examples
 
-Each directory is an independent Gradle build using JawaWasm 0.3.0.
+Each directory is an independent Gradle build using JawaWasm 0.3.1.
 Run Gradle on Java 24 or later; use the repository wrapper or Gradle 9.6.1 or later.
 The builds request a Java 24 toolchain, which must be installed locally.
 
